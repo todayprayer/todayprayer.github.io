@@ -1,0 +1,224 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morning Prayer</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --ink: #2b2216;
+    --accent: #7a1f1f;
+    --accent-hover: #8f2626;
+    --paper: #faf6ee;
+    --rule: #d8cdb8;
+    --muted: #6b5d48;
+    --btn-face: #fffdf8;
+    --on-accent: #fdf8f0;
+    color-scheme: light;
+  }
+  :root[data-theme="paper"] {
+    --ink: #3a2e1c;
+    --accent: #7a1f1f;
+    --accent-hover: #8f2626;
+    --paper: #f4e8d0;
+    --rule: #d9c49c;
+    --muted: #6f5f45;
+    --btn-face: #faf1de;
+    --on-accent: #f8efdc;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ink: #e2dacb;
+    --accent: #d19a9a;
+    --accent-hover: #e0aeae;
+    --paper: #16150f;
+    --rule: #3a352b;
+    --muted: #9a9080;
+    --btn-face: #221f18;
+    --on-accent: #16150f;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 3rem 1rem;
+  }
+  main { max-width: 32rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.3rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  a { color: var(--accent); }
+
+  .actions { text-align: center; }
+
+  .btn {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--rule);
+    border-radius: 0.25rem;
+    background: var(--btn-face);
+    color: var(--muted);
+    box-shadow: 0 1px 2px rgba(43, 34, 22, 0.09);
+    cursor: pointer;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--accent);
+  }
+  .btn:active {
+    box-shadow: none;
+    transform: translateY(1px);
+  }
+
+  .btn-primary {
+    font-size: 0.95rem;
+    padding: 0.7rem 2.6rem;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 1px 3px rgba(43, 34, 22, 0.28);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--on-accent);
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active {
+    background: var(--accent);
+    color: var(--paper);
+  }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  footer p { margin: 0.6rem 0; }
+</style>
+<script>
+  (function () {
+    var t = localStorage.getItem("prayerTheme");
+    if (t) { document.documentElement.setAttribute("data-theme", t); }
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="light">Light</button>
+  <button type="button" data-theme-value="paper">Paper</button>
+  <button type="button" data-theme-value="dark">Dark</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Morning Prayer</h1>
+    <div class="date" id="today-date"></div>
+  </header>
+
+  <div class="actions">
+    <a class="btn btn-primary" id="today-link" href="#">Pray</a>
+    <nav>
+      <a class="btn" id="prev-link" href="#">&larr; Yesterday</a>
+      <a class="btn" id="next-link" href="#">Tomorrow &rarr;</a>
+    </nav>
+  </div>
+
+  <footer>
+    <p>Everything here is derived from the Divine Office, the Douay&ndash;Rheims Bible,
+       the iBreviary app, and old books from
+       <a href="https://archive.org">archive.org</a>.</p>
+    <p>For the Rosary, see <a href="https://petrus.app">petrus.app</a>.</p>
+    <p>Made with <a href="https://claude.com/claude-code">Claude</a>.</p>
+    <p>&#10013;</p>
+  </footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("prayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("prayerTheme") || "light");
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function iso(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  function pretty(d) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+  }
+
+  function shift(d, days) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+  }
+
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  document.getElementById("today-date").textContent = pretty(today);
+  document.getElementById("today-link").href = "days/" + iso(today) + ".html";
+  document.getElementById("prev-link").href = "days/" + iso(shift(today, -1)) + ".html";
+  document.getElementById("next-link").href = "days/" + iso(shift(today, 1)) + ".html";
+</script>
+</body>
+</html>
