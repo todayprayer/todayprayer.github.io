@@ -62,13 +62,21 @@ def reading_excerpt(
     weighted_topics: list[str] | None = None,
     included_topics: list[str] | None = None,
     excluded_topics: list[str] | None = None,
+    any_topics: list[str] | None = None,
+    prefer_topics: list[str] | None = None,
+    prefer_min: int = 1,
+    weight_boost: int = 1,
     rng: random.Random | None = None,
 ) -> Excerpt:
     """Pick a hand-curated reading from readings.json.
 
     - weighted_topics: entries are weighted by number of matches (more matches = higher weight)
     - included_topics: ALL topics in this list must be present in an entry (required)
+    - any_topics: AT LEAST ONE topic in this list must be present (required)
     - excluded_topics: entries with ANY topic in this list are filtered out
+    - prefer_topics: restrict to entries carrying at least one of these, but only
+      while at least prefer_min of them survive the other filters
+    - weight_boost: how strongly weighted_topics matches are favoured
     """
     entries = json.loads(READINGS_FILE.read_text(encoding="utf-8"))
     if not entries:
@@ -84,13 +92,38 @@ def reading_excerpt(
         included_set = set(included_topics)
         entries = [e for e in entries if included_set <= set(e["topics"])]
 
+    # Filter to entries carrying at least one of these topics
+    if any_topics:
+        any_set = set(any_topics)
+        entries = [e for e in entries if set(e["topics"]) & any_set]
+
+    # Steer toward the day's feast. Restricting outright beats weighting once
+    # the collection is large: among ~2,500 readings, a handful at double or
+    # triple weight still lose on sheer volume, which is why the Assumption
+    # could draw the canons of Nicaea. Restrict only while enough readings
+    # remain that the day will not repeat itself year after year.
+    # FEAST_TOPICS names the day's topics most-proper-first, so take the
+    # narrowest restriction that still leaves enough to choose from. On the
+    # Assumption that is "mary" alone: allowing "mary or hope or joy" lets the
+    # common tags swamp the proper one, since "hope" is six times as frequent.
+    if prefer_topics:
+        for width in range(1, len(prefer_topics) + 1):
+            matching = [
+                e for e in entries if set(e["topics"]) & set(prefer_topics[:width])
+            ]
+            if len(matching) >= prefer_min:
+                entries = matching
+                break
+
     if not entries:
         raise LookupError(f"No readings match the filter criteria")
 
     # Calculate weights based on weighted_topics matches
     if weighted_topics:
         weighted_set = set(weighted_topics)
-        weights = [max(len(set(e["topics"]) & weighted_set), 1) for e in entries]
+        weights = [
+            1 + weight_boost * len(set(e["topics"]) & weighted_set) for e in entries
+        ]
     else:
         # No topic weighting, uniform weights
         weights = [1] * len(entries)
@@ -191,8 +224,9 @@ def _clean_blocks(raw_text: str) -> list[str]:
     """Split OCR text on blank lines and rejoin hard-wrapped lines within blocks."""
     blocks = []
     for block in re.split(r"\n\s*\n", raw_text):
-        # Rejoin wrapped lines, fixing hyphenation at line breaks.
-        joined = re.sub(r"(?<=[a-z])- *\n\s*(?=[a-z])", "", block)
+        # Rejoin wrapped lines, fixing hyphenation at line breaks. Some scans
+        # render the break hyphen as "¬" ("per¬ \nsonal").
+        joined = re.sub(r"(?<=[a-z])[-¬] *\n\s*(?=[a-z])", "", block)
         joined = re.sub(r"\s*\n\s*", " ", joined).strip()
         joined = re.sub(r"\s{2,}", " ", joined)
         if joined:
@@ -220,8 +254,19 @@ def _is_clean_block(block: str) -> bool:
     return True
 
 
+MAX_QUESTION_CHARS = 200  # real catechism questions run well under this
+
+
 def _is_question(block: str) -> bool:
+    """A catechism-style question — a short numbered lead-in.
+
+    The length cap matters: encyclicals and conciliar decrees number every
+    paragraph, and one that happens to close on a question mark would
+    otherwise send its whole run down the Q&A path and yield nothing.
+    """
     if not _QUESTION_LEADIN.match(block):
+        return False
+    if len(block) > MAX_QUESTION_CHARS:
         return False
     return block.endswith("?") or (len(block) < 90 and block.endswith("."))
 
@@ -236,9 +281,6 @@ _DEPENDENT_START = re.compile(
     r"Those|It|He|She|They|The same|On the other|In the same|In this way|"
     r"Secondly|Thirdly|Lastly)\b"
 )
-_LIST_CONTINUATION = re.compile(r"^\d+\s*\.")
-
-
 def _clean_start(block: str) -> bool:
     first = block.lstrip("\"'“‘")[:1]
     if not (first.isupper() or first.isdigit()):
@@ -268,6 +310,36 @@ def _emit(pieces: list[str], blocks: list[str]) -> None:
         pieces.append(text)
 
 
+_NOTES_HEADING = re.compile(r"^(notes|footnotes|endnotes)\s*:?$", re.I)
+_CITATION_START = re.compile(
+    r"^[\[(]?\d{1,3}[\]).]?\s|^(cf|cfr|ibid|idem|op\.|loc\.|PL |PG |AAS)", re.I
+)
+
+
+def _drop_notes(blocks: list[str]) -> list[str]:
+    """Cut the trailing citation apparatus.
+
+    Encyclicals and conciliar decrees close with a notes section ("6. Marc.,
+    IX, 36: Quisquis unum...") that is prose-shaped enough to survive the
+    block filters and would otherwise be offered as a reading.
+
+    A heading alone is not enough to cut on: books with per-chapter endnotes
+    carry one mid-text with whole chapters still to come. So a heading counts
+    only when nothing but apparatus follows it — erring towards leaving notes
+    in rather than discarding the back half of a book.
+    """
+    for i, block in enumerate(blocks):
+        if not _NOTES_HEADING.match(block):
+            continue
+        if any(
+            len(b) > 400 and _is_clean_block(b) and not _CITATION_START.match(b)
+            for b in blocks[i + 1 :]
+        ):
+            continue
+        return blocks[:i]
+    return blocks
+
+
 def _prose_runs(blocks: list[str]) -> list[list[str]]:
     runs, current = [], []
     for block in blocks:
@@ -285,7 +357,7 @@ def extract_pieces(raw_text: str) -> list[str]:
     """Return candidate multi-paragraph pieces from raw OCR text — a rough
     preview aid for hand-curation, not the page's selection mechanism."""
     pieces: list[str] = []
-    for run in _prose_runs(_clean_blocks(raw_text)):
+    for run in _prose_runs(_drop_notes(_clean_blocks(raw_text))):
         if any(_is_question(b) for b in run):
             units = [u for u in _qa_units(run) if _is_question(u[0])]
             for k, unit in enumerate(units):
@@ -294,7 +366,7 @@ def extract_pieces(raw_text: str) -> list[str]:
                     _emit(pieces, unit + units[k + 1])
         else:
             for i, block in enumerate(run):
-                if not _clean_start(block) or _LIST_CONTINUATION.match(block):
+                if not _clean_start(block):
                     continue
                 for size in (1, 2, 3):
                     window = run[i : i + size]

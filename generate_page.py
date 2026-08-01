@@ -249,7 +249,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
-ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV"]
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"]
 
 
 def decorate(text: str) -> str:
@@ -313,8 +313,13 @@ def render_optional(cls, prayer) -> str:
         for label, _ in prayer
     )
     amen = '<div class="vr"><div class="r">Amen.</div></div>'
+    # A blank line divides paragraphs, as it does in the readings (render_excerpt).
+    # The longer acts of contrition run to two distinct petitions, which read as a
+    # wall of text in one block.
     texts = "\n".join(
-        f'  <div class="{cls}" data-toggle-value="{label}">\n  <p>{decorate(text)}</p>\n  {amen}\n  </div>'
+        f'  <div class="{cls}" data-toggle-value="{label}">\n'
+        + "\n".join(f"  <p>{decorate(para)}</p>" for para in text.split("\n\n"))
+        + f"\n  {amen}\n  </div>"
         for label, text in prayer
     )
     return f'  <div class="pill-row">\n{buttons}\n  </div>\n{texts}'
@@ -345,11 +350,31 @@ def saints_for_day(day: datetime.date) -> list:
     )
 
 
-def pick_excerpt(day: datetime.date, included_topics=[], excluded_topics=[]) -> Excerpt:
+# How hard a feast steers the reading toward its own topics, by class:
+# (minimum matching readings needed before the pool is restricted to them,
+# weight given to each matching topic when it is not). A first-class feast
+# restricts the pool almost always; a second-class one only where the match is
+# well stocked; a third-class one never restricts and merely weights. Where a
+# feast's topics are thinly represented, the threshold lets it fall back to
+# weighting rather than return the same two or three readings every year.
+RANK_STEER = {1: (12, 8), 2: (25, 4), 3: (None, 2)}
+
+
+def pick_excerpt(day: datetime.date, included_topics=[], excluded_topics=[], any_topics=[]) -> Excerpt:
     """A hand-curated reading, steered toward the day's feast when there is one."""
     feast = calendar_1962.feast_for(day)
     topics = calendar_1962.FEAST_TOPICS.get(feast.category, []) if feast else []
-    return reading_excerpt(topics, included_topics=included_topics, excluded_topics=excluded_topics, rng=random.Random(day.toordinal()))
+    prefer_min, boost = RANK_STEER.get(feast.rank, (None, 1)) if feast else (None, 1)
+    return reading_excerpt(
+        topics,
+        included_topics=included_topics,
+        excluded_topics=excluded_topics,
+        any_topics=any_topics,
+        prefer_topics=topics if prefer_min and topics else None,
+        prefer_min=prefer_min or 1,
+        weight_boost=boost,
+        rng=random.Random(day.toordinal()),
+    )
 
 
 def verse_of_the_day(day: datetime.date) -> list:
@@ -363,6 +388,7 @@ def verse_of_the_day(day: datetime.date) -> list:
 
 
 def build_page(day: datetime.date) -> str:
+    cexcerpt = pick_excerpt(day, any_topics=['catechism', 'council', 'encyclical'], excluded_topics=['historical'])
     excerpt = pick_excerpt(day, excluded_topics=['historical'])
     hexcerpt = pick_excerpt(day, included_topics=['historical'])
 
@@ -376,6 +402,7 @@ def build_page(day: datetime.date) -> str:
         ("Kyrie and Lord's Prayer", render_prayer(prayers.KYRIE_AND_LORDS_PRAYER), ""),
         ("Morning Offering", render_optional("offering", prayers.MORNING_OFFERINGS), ""),
         ("Invocation of the Saints", render_prayer(saints_for_day(day)), ""),
+        (f"From “{cexcerpt.title}”", render_excerpt(cexcerpt), ""),
         (f"From “{excerpt.title}”", render_excerpt(excerpt), ""),
         (f"From “{hexcerpt.title}”", render_excerpt(hexcerpt), ""),
         ("Suffrage", render_prayer(prayers.SUFFRAGE), ""),

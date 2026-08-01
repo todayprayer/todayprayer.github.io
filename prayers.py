@@ -117,7 +117,7 @@ ACT_OF_CONTRITION = [
         "Wash in Your Blood this soul, and make it Your dwelling place.",
     ),
     (
-        "O my God",
+        "O my God, I am heartily sorry",
         "O my God, I am heartily sorry for having offended Thee, and I detest all of my sins "
         "because I fear the loss of Heaven and the pains of Hell, but most of all because they offend Thee, my God, "
         "Who art all good and deserving of all of my love. I firmly resolve, with the help of Thy grace, to sin no more, to avoid the near occasion of sin, and to do penance. "
@@ -133,6 +133,36 @@ ACT_OF_CONTRITION = [
         "Apostles Peter and Paul, and all the Saints, to pray for me to the Lord our God. "
         "May Almighty God have mercy on me, forgive me my sins, and bring me to everlasting "
         "life.",
+    ),
+    (
+        "O my God, I don't want to go to hell",
+        "O my God, I don't want to go to hell. "
+        "I know that because of my many sins I deserve to go there. "
+        "Help me get rid of my sins. "
+        "I don't want to lose my soul in everlasting torment, "
+        "without all happiness, banished from You forever. "
+        "Help me realize that I shall have to make up for my venial sins, "
+        "too, and that some of the punishment due to all sin, "
+        "even if we escape hell, "
+        "must be paid in purgatory. "
+        "Help me do some real penance to make up for my sins, "
+        "and get rid of part of my purgatory before I die."
+        "\n\n"
+        "O my God, now I see very clearly that I have not given You "
+        "the service that I owe You for so many reasons. "
+        "I have abused Your wonderful gifts, "
+        "using them to offend You who are so good and so lovable. "
+        "I sinned even in Your presence. "
+        "I saddened Your Heart at the very moment "
+        "when You were looking on me with perfect love. "
+        "I was so blind and ungrateful as to love creatures more than You, my creator, "
+        "who because You are infinitely good and lovable deserve all my love; "
+        "I preferred my own pleasure to doing Your will. "
+        "Pardon me, O my God, "
+        "for all the sins of my whole life. "
+        "I am sorry for them. "
+        "I hate them from the bottom of my heart because You hate them. "
+        "I beg of You, say to me, \"Your sins are forgiven.\"",
     ),
 ]
 
@@ -154,15 +184,15 @@ LORDS_PRAYER = (
 # English of the Libera nos as in the Tridentine Mass.
 EMBOLISM = (
     "Deliver us, we beseech Thee, O Lord, from all evils, past, present, and to come; and by "
-    "the intercession of the blessed and glorious ever-Virgin Mary, Mother of God, together "
+    "the intercession of the Blessed and glorious ever-Virgin Mary, Mother of God, together "
     "with Thy blessed apostles Peter and Paul, and Andrew, and all the Saints, mercifully "
     "grant peace in our days: that through the bounteous help of Thy mercy we may be always "
-    "free from sin, and safe from all disquiet. Through the same Jesus Christ, Thy Son, our "
-    "Lord, Who liveth and reigneth with Thee in the unity of the Holy Ghost, God, world "
+    "free from sin, and safe from all disquiet. Through the same Jesus Christ, Thy Son our "
+    "Lord. Who is God living and reigning with Thee in the unity of the Holy Spirit, World "
     "without end."
 )
 
-KYRIE_AND_LORDS_PRAYER = KYRIE + [LORDS_PRAYER, EMBOLISM, Rubric("(Silent prayer to God the Father is encouraged here after the embolism)"), Response("Amen.")]
+KYRIE_AND_LORDS_PRAYER = KYRIE + [LORDS_PRAYER, Rubric("(Silent prayer to God the Father is encouraged here before the embolism)"), EMBOLISM, Response("Amen.")]
 
 # The user picks one on the page; the choice is remembered by the browser.
 # Each text is followed on the page by the response "Amen." — do not end the
@@ -244,6 +274,7 @@ SAINTS_ROTATION = [
     "Saint Teresa of Avila",
     "Saint Thérèse of Lisieux of the Child Jesus and the Holy Face",
     "Saint John of the Cross",
+    "Saint Gabriel the Archangel",
 ]
 
 # Suffrage of the Saints from the Divino Afflatu Lauds/Vespers offices.
@@ -278,13 +309,13 @@ CLOSING_PRAYER = [
 
 # As given by Jesus in the Gospel of Mark (Douay-Rheims).
 DOXOLOGY = [
-    "The first commandment of all is,",
     "Hear, O Israel: the Lord thy God is one God. "
     "And thou shalt love the Lord thy God with thy whole heart, and with thy whole soul, and "
     "with thy whole mind, and with thy whole strength. This is the first commandment. "
     "And the second is like to it: Thou shalt love thy neighbour as thyself. ",
     "There is no other commandment greater than these. "
     "(Mark 12:29-31)",
+    Response("Amen."),
 ]
 
 # One is chosen per day by date, so the verse changes each morning.

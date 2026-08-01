@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morning Prayer — Wednesday, August 5, 2026</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --ink: #2b2216;
+    --accent: #7a1f1f;
+    --paper: #faf6ee;
+    --rule: #d8cdb8;
+    --muted: #6b5d48;
+    color-scheme: light;
+  }
+  :root[data-theme="paper"] {
+    --ink: #3a2e1c;
+    --accent: #7a1f1f;
+    --paper: #f4e8d0;
+    --rule: #d9c49c;
+    --muted: #6f5f45;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ink: #e2dacb;
+    --accent: #d19a9a;
+    --paper: #16150f;
+    --rule: #3a352b;
+    --muted: #9a9080;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 38rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  section { margin: 2.2rem 0; }
+  h2 {
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  h2 .numeral { display: inline-block; min-width: 2.6rem; }
+  p { margin: 0.8rem 0; }
+  .vr { margin: 0.8rem 0; }
+  .vr .v::before { content: "\2123. "; color: var(--accent); }
+  .vr .r::before { content: "\211F. "; color: var(--accent); }
+  .vr .r { margin-left: 1.4rem; }
+  .bilingual { margin: 0.5rem 0; }
+  .bilingual .la { font-style: italic; color: var(--muted); }
+  .antiphon .label { color: var(--accent); font-style: italic; }
+  .red { color: var(--accent); }
+  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }
+  h3.subheading {
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: normal;
+    margin: 1.2rem 0 0.4rem;
+  }
+  .pill {
+    font-family: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.15rem 0.7rem;
+    cursor: pointer;
+  }
+  .pill.active { border-color: var(--accent); color: var(--accent); }
+  h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
+  .pill-row { margin: 0.6rem 0 0.2rem; }
+  .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.2rem 0 0.2rem 1.2rem;
+    border-left: 3px solid var(--rule);
+  }
+  .attribution {
+    text-align: right;
+    font-style: normal;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--accent);
+    font-size: 1.3rem;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active {
+    background: var(--accent);
+    color: var(--paper);
+  }
+</style>
+<script>
+  (function () {
+    var t = localStorage.getItem("prayerTheme");
+    if (t) { document.documentElement.setAttribute("data-theme", t); }
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="light">Light</button>
+  <button type="button" data-theme-value="paper">Paper</button>
+  <button type="button" data-theme-value="dark">Dark</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Morning Prayer</h1>
+    <div class="date">Wednesday, August 5, 2026</div>
+  </header>
+  <section>
+    <h2><span class="numeral">I.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">II.</span>Invocation of the Holy Spirit</h2>
+  <div class="vr"><div class="v">Come, Holy Spirit, fill the hearts of Thy faithful and kindle in them the fire of Thy love.</div><div class="r">Send forth Thy Spirit, and they shall be created; and Thou shalt renew the face of the earth.</div></div>
+  <p><em>Let us pray.</em></p>
+  <p>O God, Who by the light of the Holy Spirit didst instruct the hearts of the faithful, grant that by the same Holy Spirit we may be truly wise and ever rejoice in His consolations. Through Christ our Lord.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">III.</span>Acts of Faith, Hope, and Love</h2>
+  <p class="rubric">Act of Faith</p>
+  <p>O my God, I firmly believe that you are one God in three divine Persons, Father, Son, and Holy Spirit. I believe that your divine Son became man and died for our sins and that he will come to judge the living and the dead. I believe these and all the truths which the Holy Catholic Church teaches because you have revealed them who are eternal truth and wisdom, who can neither deceive nor be deceived. In this faith I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Act of Hope</p>
+  <p>O Lord God, I hope by your grace for the pardon of all my sins and after life here to gain eternal happiness because you have promised it who are infinitely powerful, faithful, kind, and merciful. In this hope I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Act of Love</p>
+  <p>O Lord God, I love you above all things and I love my neighbor for your sake because you are the highest, infinite and perfect good, worthy of all my love. In this love I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">IV.</span>Act of Contrition</h2>
+  <div class="pill-row">
+    <button type="button" class="pill contrition-btn" data-toggle-value="Act of Sorrow">Act of Sorrow</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="O my God, I am heartily sorry">O my God, I am heartily sorry</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="Confiteor">Confiteor</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="O my God, I don't want to go to hell">O my God, I don&#x27;t want to go to hell</button>
+  </div>
+  <div class="contrition" data-toggle-value="Act of Sorrow">
+  <p>O God of my soul, I am sincerely sorry for not having loved You. Instead of having loved You, I have, for the sake of my pleasures, offended and despised Your infinite goodness: I have turned my back on You; in a word, O my God, I have lost You through my own will. Lord, I am sorry, from the bottom of my heart, for all my sins. I hate above all things the offenses, which I have committed against You. You have already cleansed me from the stain of sin in the sacrament of penance, but I desire to become still purer in Your sight. Wash in Your Blood this soul, and make it Your dwelling place.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="O my God, I am heartily sorry">
+  <p>O my God, I am heartily sorry for having offended Thee, and I detest all of my sins because I fear the loss of Heaven and the pains of Hell, but most of all because they offend Thee, my God, Who art all good and deserving of all of my love. I firmly resolve, with the help of Thy grace, to sin no more, to avoid the near occasion of sin, and to do penance. Our Lord Jesus Christ died on the Cross for my sins. In His name,</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="Confiteor">
+  <p>I confess to Almighty God, to blessed Mary ever Virgin, to blessed Michael the Archangel, to blessed John the Baptist, to the holy Apostles Peter and Paul, and to all the Saints, that I have sinned exceedingly in thought, word, and deed: <span class="red">(strikes his breast)</span> through my fault, through my fault, through my most grievous fault. Therefore I beseech blessed Mary ever Virgin, blessed Michael the Archangel, blessed John the Baptist, the holy Apostles Peter and Paul, and all the Saints, to pray for me to the Lord our God. May Almighty God have mercy on me, forgive me my sins, and bring me to everlasting life.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="O my God, I don't want to go to hell">
+  <p>O my God, I don&#x27;t want to go to hell. I know that because of my many sins I deserve to go there. Help me get rid of my sins. I don&#x27;t want to lose my soul in everlasting torment, without all happiness, banished from You forever. Help me realize that I shall have to make up for my venial sins, too, and that some of the punishment due to all sin, even if we escape hell, must be paid in purgatory. Help me do some real penance to make up for my sins, and get rid of part of my purgatory before I die.</p>
+  <p>O my God, now I see very clearly that I have not given You the service that I owe You for so many reasons. I have abused Your wonderful gifts, using them to offend You who are so good and so lovable. I sinned even in Your presence. I saddened Your Heart at the very moment when You were looking on me with perfect love. I was so blind and ungrateful as to love creatures more than You, my creator, who because You are infinitely good and lovable deserve all my love; I preferred my own pleasure to doing Your will. Pardon me, O my God, for all the sins of my whole life. I am sorry for them. I hate them from the bottom of my heart because You hate them. I beg of You, say to me, &quot;Your sins are forgiven.&quot;</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section>
+    <h2><span class="numeral">V.</span>Kyrie and Lord&#x27;s Prayer</h2>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <p>Our Father, Who art in Heaven, hallowed be Thy name; Thy kingdom come; Thy will be done on earth as it is in Heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil.</p>
+  <p class="rubric">(Silent prayer to God the Father is encouraged here before the embolism)</p>
+  <p>Deliver us, we beseech Thee, O Lord, from all evils, past, present, and to come; and by the intercession of the Blessed and glorious ever-Virgin Mary, Mother of God, together with Thy blessed apostles Peter and Paul, and Andrew, and all the Saints, mercifully grant peace in our days: that through the bounteous help of Thy mercy we may be always free from sin, and safe from all disquiet. Through the same Jesus Christ, Thy Son our Lord. Who is God living and reigning with Thee in the unity of the Holy Spirit, World without end.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">VI.</span>Morning Offering</h2>
+  <div class="pill-row">
+    <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, through the Immaculate Heart">O Jesus, through the Immaculate Heart</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, I come before You">O Jesus, I come before You</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="Eternal Father">Eternal Father</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="God, our Father">God, our Father</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="Short Offering">Short Offering</button>
+  </div>
+  <div class="offering" data-toggle-value="O Jesus, through the Immaculate Heart">
+  <p>O Jesus, through the Immaculate Heart of Mary, I offer Thee my prayers, works, joys, and sufferings of this day, for all the intentions of Thy Sacred Heart, in union with the Holy Sacrifice of the Mass throughout the world, in reparation for my sins, for the intentions of all my relatives and friends, and in particular for the intentions of the Holy Father.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="O Jesus, I come before You">
+  <p>O Jesus, I come before you at the beginning of this day, I gaze at your face, I look upon your side pierced by the lance. Your wounded heart speaks to me of God&#x27;s love poured out for us. Take, Lord, and receive my heart: the words of faith that I speak, the works of justice I would do, my joys and sufferings. When I come to the Eucharistic altar, gather my offerings to your own for the life of the world. At the end of the day, place me with Mary, your mother, with Saint <span class="red">N.</span> and all the saints by your side, forever surrounded by your love.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="Eternal Father">
+  <p>Eternal Father, I offer You everything I do this day: my work, my prayers, my apostolic efforts; my time with family and friends; my hours of relaxation; my difficulties, problems, distress, which I shall try to bear with patience. Join these, my gifts, to the unique offering which Jesus Christ, Your Son, renews today in the Eucharist. Grant, I pray, that, vivified by the Holy Spirit and united to the Sacred Heart of Jesus and the Immaculate Heart of Mary, my life this day may be of service to You and to Your children and help consecrate the world to You.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="God, our Father">
+  <p>God, our Father, I offer you my day, my prayers, thoughts and words, my actions, joys, and sufferings in union with the Christ your Son, for the salvation of the world. May the Holy Spirit, who guided Jesus, be my guide and my strength today so that I may witness to your love. With Mary, the mother of our Lord and the Church, with Saint <span class="red">N.</span> and all your saints I pray for my family and friends, for the sick and the suffering, those at home and those who are travelling <span class="red">(mention other particular intentions)</span> and all the clergy and religious especially our Holy Father <span class="red">N.</span> and bishop <span class="red">N.</span> both of whose intentions I commend to your goodness.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="Short Offering">
+  <p>Heavenly Father, I offer you this day all that I do and think and say uniting it in the power of the Holy Spirit with what was done by Jesus Christ, your only Son.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section>
+    <h2><span class="numeral">VII.</span>Invocation of the Saints</h2>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="vr"><div class="v">Holy Mary, Mother of God,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint John the Baptist,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Joseph,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saints Peter and Paul,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint John the Evangelist,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Michael the Archangel,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Raphael the Archangel,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Ignatius of Loyola,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Augustine of Hippo,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Angel of God, my guardian dear, to whom God&#x27;s love commits me here, ever this day be at my side, to light and guard, to rule and guide.</div><div class="r">Amen</div></div>
+  <p class="rubric">(Other saints may be added)</p>
+  <div class="vr"><div class="v">All ye holy Martyrs, Angels, Virgins, Apostles, and Saints of God,</div><div class="r">intercede for us.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">VIII.</span>From “Catechism of the Council of Trent”</h2>
+  <blockquote>
+    <p>From what has been said it follows that he who is gifted with this heavenly knowledge of faith is free from an inquisitive curiosity. For when God commands us to believe He does not propose to us to search into His divine judgments, or inquire into their reason and cause, but demands an unchangeable faith, by which the mind rests content in the knowledge of eternal truth. And indeed, since we have the testimony of the Apostle that God is true; and every man a liar,’ and since it would argue arrogance and presumption to disbelieve the word of a grave and sensible man affirming anything as true, and to demand that he prove his statements by arguments or witnesses, how rash and foolish are those, who, hearing the words of God Himself, demand reasons for His heavenly and saving doctrines? Faith, therefore, must exclude not only all doubt, but all desire for demonstration.</p>
+  </blockquote>
+  <p class="attribution">&mdash; Catechism of the Council of Trent — Catholic Church</p>
+  </section>
+  <section>
+    <h2><span class="numeral">IX.</span>From “On Duties”</h2>
+  <blockquote>
+    <p>Let me now speak of beneficence and liberality, virtues that are the most agreeable to the nature of man, but which involve many precautionary considerations. For, in the first place, we are to take care lest our kindness should hurt both those whom it is meant to assist, and others. In the next place, it ought not to exceed our abilities; and it ought to be rendered to each in proportion to his worth. This is the fundamental standard of justice to which all these things should be referred. For they who do kindnesses which prove of disservice to the person they pretend to oblige, should not be esteemed beneficent nor generous, but injurious sycophants. And they who injure one party in order to be liberal to another, are guilty of the same dishonesty as if they should appropriate to themselves what belongs to another.</p>
+  </blockquote>
+  <p class="attribution">&mdash; On Duties — Cicero</p>
+  </section>
+  <section>
+    <h2><span class="numeral">X.</span>From “Rhetoric”</h2>
+  <blockquote>
+    <p>Those who either are, or seem to be, highly prosperous do not think they are likely to suffer anything; wherefore they are insolent, contemptuous, and rash, and what makes them such is wealth, strength, a number of friends, power. It is the same with those who think that they have already suffered all possible ills and are coldly indifferent to the future, like those who are being beaten to death; for it is a necessary incentive to fear that there should remain some hope of being saved from the cause of their distress. A sign of this is that fear makes men deliberate, whereas no one deliberates about things that are hopeless.</p>
+  </blockquote>
+  <p class="attribution">&mdash; Rhetoric — Aristotle</p>
+  </section>
+  <section>
+    <h2><span class="numeral">XI.</span>Suffrage</h2>
+  <p class="antiphon"><span class="label">Ant.</span> May the Blessed Virgin Mary, Mother of God, and all the Saints intercede for us with the Lord.</p>
+  <div class="vr"><div class="v">The Lord hath made his holy one wonderful:</div><div class="r">The Lord will hear me when I cry unto him.</div></div>
+  <p class="rubric">At the letter N., the name of the Titular of the local church is said, if the title is not a divine person or a mystery of the Lord, and when the name is not already in the prayer, the names of the holy Angels and of St. John the Baptist, if they are titulars, are said before the name of St. Joseph. In all these cases, the words blessed N. are omitted.</p>
+  <p><em>Let us pray.</em></p>
+  <p>O Lord, we ask thee to save us from dangers to mind and to body: and, by the intercession of the blessed and glorious Virgin Mother of God, blessed Joseph, the blessed Apostles Peter and Paul, blessed <span class="red">N.</span> and all the Saints, to eliminate all enmity and errors, that thy Church may safely serve thee in freedom.</p>
+  <p>Through the same Jesus Christ, thy Son, Our Lord, Who liveth and reigneth with thee in the unity of the Holy Ghost, God, world without end.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">XII.</span>Closing Prayer</h2>
+  <p><em>Let us pray.</em></p>
+  <p>Lord, may everything we do begin with your inspiration and continue with your help, so that all our prayers and works may begin in you and by you be happily ended. We ask this through Christ our Lord.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">XIII.</span>Doxology</h2>
+  <p>Hear, O Israel: the Lord thy God is one God. And thou shalt love the Lord thy God with thy whole heart, and with thy whole soul, and with thy whole mind, and with thy whole strength. This is the first commandment. And the second is like to it: Thou shalt love thy neighbour as thyself. </p>
+  <p>There is no other commandment greater than these. <span class="red">(Mark 12:29-31)</span></p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">XIV.</span>Verse for the Day</h2>
+  <p class="rubric">Dedication of Our Lady of the Snows</p>
+  <p>Blessed art thou, O Virgin Mary, by the Lord the most high God, above all women upon the earth. <span class="red">(Judith 13:23)</span></p>
+  </section>
+  <section>
+    <h2><span class="numeral">XV.</span>Closing Verses</h2>
+  <div class="vr"><div class="v">May the divine assistance <span class="red">✠</span> remain always with us.</div><div class="r">Amen.</div></div>
+  <div class="vr"><div class="v">May the souls <span class="red">✠</span> of the faithful departed, through the mercy of God, rest in peace.</div><div class="r">Amen.</div></div>
+  <div class="vr"><div class="v">Eternal rest grant unto them, O Lord;</div><div class="r">and let perpetual light shine upon them.</div></div>
+  </section>
+  <section>
+    <h2><span class="numeral">XVI.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <footer>&#10013;</footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("prayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("prayerTheme") || "light");
+
+  function setLang(lang) {
+    document.querySelectorAll(".lang-english").forEach(function (el) {
+      el.style.display = lang === "english" ? "" : "none";
+    });
+    document.querySelectorAll(".lang-latin").forEach(function (el) {
+      el.style.display = lang === "latin" ? "" : "none";
+    });
+    document.querySelectorAll('[name="lang-btn"]').forEach(function (el, idx) {
+      el.textContent = lang === "english" ? "Latin" : "English";
+      el.dataset.next = lang === "english" ? "latin" : "english";
+    });
+    localStorage.setItem("prayerLang", lang);
+  }
+  document.querySelectorAll('[name="lang-btn"]').forEach(function (btn, idx) {
+    btn.addEventListener("click", function () { setLang(this.dataset.next); });
+  });
+  setLang(localStorage.getItem("prayerLang") || "english");
+
+  function setupToggleButtons(buttonClass, contentClass, storageKey) {
+    function setActive(value) {
+      document.querySelectorAll("." + contentClass).forEach(function (el) {
+        el.style.display = el.dataset.toggleValue === value ? "" : "none";
+      });
+      document.querySelectorAll("." + buttonClass).forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.toggleValue === value);
+      });
+      localStorage.setItem(storageKey, value);
+    }
+
+    document.querySelectorAll("." + buttonClass).forEach(function (btn) {
+      btn.addEventListener("click", function () { setActive(this.dataset.toggleValue); });
+    });
+
+    const firstBtn = document.querySelector("." + buttonClass);
+    const defaultValue = firstBtn ? firstBtn.dataset.toggleValue : "0";
+    setActive(localStorage.getItem(storageKey) || defaultValue);
+  }
+
+  setupToggleButtons("offering-btn", "offering", "morningOffering");
+  setupToggleButtons("contrition-btn", "contrition", "actofcontrition");
+</script>
+</body>
+</html>

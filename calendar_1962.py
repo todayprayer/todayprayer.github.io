@@ -20,6 +20,54 @@ class Feast(NamedTuple):
     name: str
     category: str
     verse: str
+    rank: int = 3  # 1st, 2nd or 3rd class per the 1960 Code of Rubrics
+
+
+# Rank cannot be read off the category alone: Ss Peter and Paul are first class
+# while the other apostles are second, and the Nativity of the Baptist is first
+# while his Beheading is third. So the fixed feasts that outrank their category
+# are listed by date, and the movable ones — whose category is unique to them —
+# by category. Everything else with a feast is third class; a feria has none.
+FIRST_CLASS_DAYS = {
+    (1, 6),    # Epiphany
+    (3, 19),   # Saint Joseph
+    (3, 25),   # Annunciation
+    (6, 24),   # Nativity of Saint John the Baptist
+    (6, 29),   # Saints Peter and Paul
+    (8, 15),   # Assumption
+    (11, 1),   # All Saints
+    (12, 8),   # Immaculate Conception
+    (12, 25),  # Christmas
+}
+FIRST_CLASS_CATEGORIES = {
+    "christmas", "epiphany", "easter", "ascension", "pentecost", "trinity",
+    "corpuschristi", "sacredheart", "christking", "palmsunday", "holythursday",
+    "goodfriday", "holysaturday", "assumption", "immaculate",
+}
+SECOND_CLASS_DAYS = {
+    (1, 1),    # Circumcision
+    (2, 2),    # Purification
+    (8, 6),    # Transfiguration
+    (8, 10),   # Saint Lawrence
+    (9, 8),    # Nativity of the Blessed Virgin Mary
+    (9, 14),   # Exaltation of the Holy Cross
+    (9, 29),   # Saint Michael
+    (11, 2),   # All Souls
+    (12, 26), (12, 27), (12, 28),
+}
+SECOND_CLASS_CATEGORIES = {
+    "apostle", "sunday", "holyname", "holyfamily", "baptismoflord", "candlemas",
+    "transfiguration", "cross", "michaelmas", "allsouls", "allsaints",
+    "preciousblood", "angels", "joseph", "annunciation", "baptist",
+}
+
+
+def rank_for(month: int, day: int, category: str) -> int:
+    if (month, day) in FIRST_CLASS_DAYS or category in FIRST_CLASS_CATEGORIES:
+        return 1
+    if (month, day) in SECOND_CLASS_DAYS or category in SECOND_CLASS_CATEGORIES:
+        return 2
+    return 3
 
 
 # Excerpt topics (see TOPIC_KEYWORDS in book_excerpts.py) that suit each feast
@@ -346,4 +394,4 @@ def feast_for(day: datetime.date) -> Feast | None:
     if not found:
         return None
     name, key = found
-    return Feast(name, key, VERSES[key])
+    return Feast(name, key, VERSES[key], rank_for(day.month, day.day, key))
