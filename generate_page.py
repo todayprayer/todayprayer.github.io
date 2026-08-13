@@ -23,8 +23,10 @@ import sys
 from pathlib import Path
 
 import calendar_1962
+import holidays_us
+import json
 import prayers
-from book_excerpts import Excerpt, reading_excerpt
+from book_excerpts import READINGS_FILE, Excerpt, reading_excerpt, reading_key
 
 PROJECT_DIR = Path(__file__).parent
 DEFAULT_OUTPUT = PROJECT_DIR / "morning_prayer.html"
@@ -100,6 +102,11 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   .antiphon .label {{ color: var(--accent); font-style: italic; }}
   .red {{ color: var(--accent); }}
   .rubric {{ color: var(--accent); font-style: italic; font-size: 0.85rem; }}
+  .stanza {{
+    margin: 0.9rem 0 0.9rem 1.2rem;
+    text-indent: -1.2rem;
+    line-height: 1.55;
+  }}
   h3.subheading {{
     font-size: 0.85rem;
     letter-spacing: 0.15em;
@@ -249,7 +256,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
 </html>
 """
 
-ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI"]
+ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII", "IX", "X", "XI", "XII", "XIII", "XIV", "XV", "XVI", "XVII", "XVIII"]
 
 
 def decorate(text: str) -> str:
@@ -279,6 +286,9 @@ def render_paragraph(item) -> str:
         return f'  <h3 class="subheading">{html.escape(item.text)}</h3>'
     if isinstance(item, prayers.Response):
         return f'  <div class="vr"><div class="r">{decorate(item.text)}</div></div>'
+    if isinstance(item, prayers.Stanza):
+        lines = "<br>\n    ".join(decorate(ln) for ln in item.text.split("\n"))
+        return f'  <p class="stanza">{lines}</p>'
     if isinstance(item, tuple):
         v, r = (decorate(part) for part in item)
         return f'  <div class="vr"><div class="v">{v}</div><div class="r">{r}</div></div>'
@@ -331,10 +341,56 @@ def render_excerpt(excerpt: Excerpt) -> str:
         f"    <p>{html.escape(p).replace(chr(10), '<br>')}</p>"
         for p in excerpt.text.split("\n\n")
     )
+    # The key records which reading this page spent, so that a later day can
+    # avoid it. Written into the page rather than kept in a side file, so the
+    # record cannot drift from the pages it describes.
     return (
-        f"  <blockquote>\n{paragraphs}\n  </blockquote>\n"
+        f'  <blockquote data-reading="{reading_key(excerpt.text)}">\n'
+        f"{paragraphs}\n  </blockquote>\n"
         f'  <p class="attribution">&mdash; {html.escape(excerpt.attribution)}</p>'
     )
+
+
+DAYS_DIR = PROJECT_DIR / "days"
+BLOCKQUOTE = re.compile(r'<blockquote(?: data-reading="([0-9a-f]+)")?>(.*?)</blockquote>', re.S)
+PARAGRAPH = re.compile(r"<p>(.*?)</p>", re.S)
+
+
+def _key_by_normalised_text() -> dict[str, str]:
+    """Lookup from a reading's letters alone to its key.
+
+    Pages written before readings carried a key have to be read back from the
+    text itself. Comparing on letters only sidesteps the HTML escaping and the
+    <br> substitution that rendering introduced.
+    """
+    entries = json.loads(READINGS_FILE.read_text(encoding="utf-8"))
+    return {
+        re.sub(r"[^a-z]", "", e["text"].lower()): reading_key(e["text"])
+        for e in entries
+    }
+
+
+def used_readings(days_dir: Path = DAYS_DIR) -> set[str]:
+    """Every reading key already spent by a page in the days folder."""
+    if not days_dir.is_dir():
+        return set()
+    used: set[str] = set()
+    fallback: dict[str, str] | None = None
+    for page in sorted(days_dir.glob("*.html")):
+        for key, body in BLOCKQUOTE.findall(page.read_text(encoding="utf-8")):
+            if key:
+                used.add(key)
+                continue
+            # An older page: recover the reading from its own text.
+            if fallback is None:
+                fallback = _key_by_normalised_text()
+            text = "".join(
+                html.unescape(p).replace("<br>", "") for p in PARAGRAPH.findall(body)
+            )
+            found = fallback.get(re.sub(r"[^a-z]", "", text.lower()))
+            if found:
+                used.add(found)
+    return used
 
 
 def saints_for_day(day: datetime.date) -> list:
@@ -360,7 +416,13 @@ def saints_for_day(day: datetime.date) -> list:
 RANK_STEER = {1: (12, 8), 2: (25, 4), 3: (None, 2)}
 
 
-def pick_excerpt(day: datetime.date, included_topics=[], excluded_topics=[], any_topics=[]) -> Excerpt:
+def pick_excerpt(
+    day: datetime.date,
+    included_topics=[],
+    excluded_topics=[],
+    any_topics=[],
+    exclude_keys: set[str] | None = None,
+) -> Excerpt:
     """A hand-curated reading, steered toward the day's feast when there is one."""
     feast = calendar_1962.feast_for(day)
     topics = calendar_1962.FEAST_TOPICS.get(feast.category, []) if feast else []
@@ -373,6 +435,7 @@ def pick_excerpt(day: datetime.date, included_topics=[], excluded_topics=[], any
         prefer_topics=topics if prefer_min and topics else None,
         prefer_min=prefer_min or 1,
         weight_boost=boost,
+        exclude_keys=exclude_keys,
         rng=random.Random(day.toordinal()),
     )
 
@@ -387,14 +450,26 @@ def verse_of_the_day(day: datetime.date) -> list:
     return [rotation[day.toordinal() % len(rotation)]]
 
 
-def build_page(day: datetime.date) -> str:
-    cexcerpt = pick_excerpt(day, any_topics=['catechism', 'council', 'encyclical'], excluded_topics=['historical'])
-    excerpt = pick_excerpt(day, excluded_topics=['historical'])
-    hexcerpt = pick_excerpt(day, included_topics=['historical'])
+def build_page(day: datetime.date, exclude_keys: set[str] | None = None) -> str:
+    # Each slot also avoids what the earlier slots took, so that a page never
+    # prints the same reading twice even when the filters overlap.
+    spent = set(exclude_keys or ())
+
+    def take(**kwargs) -> Excerpt:
+        chosen = pick_excerpt(day, exclude_keys=spent, **kwargs)
+        spent.add(reading_key(chosen.text))
+        return chosen
+
+    cexcerpt = take(any_topics=['catechism', 'council', 'encyclical'], excluded_topics=['historical'])
+    excerpt = take(excluded_topics=['historical', 'catechism', 'council', 'encyclical'])
+    hexcerpt = take(included_topics=['historical'])
 
     lang_button = ' <button type="button" id="lang-btn" name="lang-btn" class="pill" data-next="latin">Latin</button>'
     creed = ("Tridentine Creed", render_lang_prayer(prayers.TRIDENTINE_CREED), lang_button)
     acts = ("Acts of Faith, Hope, and Love", render_prayer(prayers.ACTS), "")
+    hsection = (f"From “{hexcerpt.title}”", render_excerpt(hexcerpt), "")
+    esection = (f"From “{excerpt.title}”", render_excerpt(excerpt), "")
+    closing_verses = ("Closing Verses", render_prayer(prayers.CLOSING_VERSES), "")
     sections = [
         ("Sign of the Cross", render_prayer(prayers.SIGN_OF_THE_CROSS), ""),
         ("Invocation of the Holy Spirit", render_prayer(prayers.INVOCATION_OF_THE_HOLY_SPIRIT), ""),
@@ -403,19 +478,39 @@ def build_page(day: datetime.date) -> str:
         ("Morning Offering", render_optional("offering", prayers.MORNING_OFFERINGS), ""),
         ("Invocation of the Saints", render_prayer(saints_for_day(day)), ""),
         (f"From “{cexcerpt.title}”", render_excerpt(cexcerpt), ""),
-        (f"From “{excerpt.title}”", render_excerpt(excerpt), ""),
-        (f"From “{hexcerpt.title}”", render_excerpt(hexcerpt), ""),
+        esection,
         ("Suffrage", render_prayer(prayers.SUFFRAGE), ""),
         ("Closing Prayer", render_prayer(prayers.CLOSING_PRAYER), ""),
         ("Doxology", render_prayer(prayers.DOXOLOGY), ""),
         ("Verse for the Day", render_prayer(verse_of_the_day(day)), ""),
-        ("Closing Verses", render_prayer(prayers.CLOSING_VERSES), ""),
+        closing_verses,
         ("Sign of the Cross", render_prayer(prayers.SIGN_OF_THE_CROSS), ""),
     ]
+    pledge = ("Pledge of Allegiance", render_prayer(prayers.PLEDGE_OF_ALLEGIANCE), "")
+    holiday = holidays_us.holiday_for(day)
+
     if day.weekday() == 6:
         sections.insert(2, creed)
     else:
         sections.insert(2, acts)
+        # The historical passage is the third reading, so it goes after the
+        # general one. Located by the section itself rather than by a literal
+        # index, which the Acts inserted above have already shifted along.
+        sections.insert(sections.index(esection) + 1, hsection)
+
+    # Both go at the end of the office, directly before the Closing Verses, so
+    # that the Pledge is third from last and the hymn still follows it. Placed
+    # against the Closing Verses rather than a literal index, which the creed,
+    # acts and readings spliced in above have already shifted. Built as a list
+    # and spliced in one go so that they stay in reading order; two separate
+    # inserts at the same index would reverse them.
+    patriotic = []
+    if holiday or day.weekday() != 6:
+        patriotic.append(pledge)
+    if holiday:
+        patriotic.append((holiday.hymn_title, render_prayer(holiday.hymn), ""))
+    at = sections.index(closing_verses)
+    sections[at:at] = patriotic
 
     rendered = "\n".join(
         render_section(ROMAN[i], title, body, extra)
@@ -427,17 +522,65 @@ def build_page(day: datetime.date) -> str:
     )
 
 
+def generate_days(start: datetime.date, end: datetime.date, days_dir: Path = DAYS_DIR) -> None:
+    """Write a page per day into the days folder, never repeating a reading.
+
+    The pages already in the folder are read first, so a new run continues
+    where the last one left off; and the set grows as the run proceeds, so the
+    days written in one go do not repeat each other either. Pages that already
+    exist are left alone — regenerating them would change what has already
+    been prayed.
+    """
+    days_dir.mkdir(exist_ok=True)
+    spent = used_readings(days_dir)
+    print(f"{len(spent)} readings already spent by {len(list(days_dir.glob('*.html')))} pages")
+
+    written = skipped = 0
+    day = start
+    while day <= end:
+        out = days_dir / f"{day.isoformat()}.html"
+        if out.exists():
+            skipped += 1
+        else:
+            page = build_page(day, exclude_keys=spent)
+            out.write_text(page, encoding="utf-8")
+            spent |= {key for key, _ in BLOCKQUOTE.findall(page) if key}
+            written += 1
+        day += datetime.timedelta(days=1)
+
+    print(f"wrote {written} pages, left {skipped} existing pages alone")
+    print(f"{len(spent)} readings spent in total")
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--date", help="YYYY-MM-DD (default: today)")
     parser.add_argument("--out", default=str(DEFAULT_OUTPUT), help="output HTML file")
     parser.add_argument("--open", action="store_true", help="open the page in the browser")
+    parser.add_argument(
+        "--days",
+        metavar="START:END",
+        help="write a page per day into days/, skipping readings already used there",
+    )
+    parser.add_argument(
+        "--force", action="store_true", help="with --days, overwrite existing pages"
+    )
     args = parser.parse_args()
+
+    if args.days:
+        start, _, end = args.days.partition(":")
+        first = datetime.date.fromisoformat(start)
+        last = datetime.date.fromisoformat(end) if end else first
+        if args.force:
+            for day_ordinal in range(first.toordinal(), last.toordinal() + 1):
+                (DAYS_DIR / f"{datetime.date.fromordinal(day_ordinal)}.html").unlink(missing_ok=True)
+        generate_days(first, last)
+        return
 
     day = datetime.date.fromisoformat(args.date) if args.date else datetime.date.today()
     out = Path(args.out)
-    out.write_text(build_page(day), encoding="utf-8")
+    out.write_text(build_page(day, exclude_keys=used_readings()), encoding="utf-8")
     print(f"Wrote {out} for {day.isoformat()}")
     if args.open:
         os.startfile(out)  # noqa: S606 — Windows-only, intentional

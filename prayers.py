@@ -8,7 +8,8 @@ body is a list of paragraphs; a paragraph may be:
   - an Antiphon, rendered with an "Ant." label;
   - a Rubric, rendered as a red italic instruction;
   - a Subheading, rendered as a small heading within the section;
-  - a Response, rendered as a lone response line.
+  - a Response, rendered as a lone response line;
+  - a Stanza, rendered as indented verse, one line per line.
 """
 
 from dataclasses import dataclass
@@ -40,6 +41,13 @@ class Response:
     text: str
 
 
+@dataclass
+class Stanza:
+    """One stanza of a hymn. Lines are separated by newlines in `text`."""
+
+    text: str
+
+
 SIGN_OF_THE_CROSS = [
     "✠ In the name of the Father, and of the Son, and of the Holy Spirit.",
     Response("Amen."),
@@ -52,6 +60,301 @@ INVOCATION_OF_THE_HOLY_SPIRIT = [
     "O God, Who by the light of the Holy Spirit didst instruct the hearts of the faithful, "
     "grant that by the same Holy Spirit we may be truly wise and ever rejoice in His "
     "consolations. Through Christ our Lord.",
+    Response("Amen."),
+]
+
+# Said on weekdays only. A civil oath rather than a prayer, so it carries no
+# response and closes with no Amen.
+PLEDGE_OF_ALLEGIANCE = [
+    "I pledge allegiance to the Flag of the United States of America, "
+    "and to the Republic for which it stands, one Nation under God, "
+    "indivisible, with liberty and justice for all.",
+]
+
+# --- Patriotic hymns for the American national holidays ---------------------
+#
+# Every text below is transcribed from a public-domain source rather than
+# written out from memory: Key from the 1814 Baltimore broadside, Howe from
+# "The Story of the Battle Hymn of the Republic", Smith from "Poems That Every
+# Child Should Know" (1904), Whiting from The Army and Navy Hymnal (1920),
+# Sousa from Duke University's transcription of the 1897 sheet music, and Paine
+# from his collected Works (1812), p. 243.
+#
+# Each hymn closes with a trinitarian stanza, as the Latin office hymns do. Two
+# of those are traditional and are noted where they occur; the other three are
+# written to the metre of the hymn they close, no traditional doxology existing
+# in those metres. "Eternal Father" needs none: Whiting's own last stanza is
+# already addressed to the Trinity.
+
+STAR_SPANGLED_BANNER = [
+    Stanza(
+        "O! say can you see by the dawn’s early light,\n"
+        "What so proudly we hailed at the twilight’s last gleaming,\n"
+        "Whose broad stripes and bright stars through the perilous fight,\n"
+        "O’er the ramparts we watch’d, were so gallantly streaming?\n"
+        "And the Rockets’ red glare, the Bombs bursting in air,\n"
+        "Gave proof through the night that our Flag was still there;\n"
+        "O! say does that star-spangled Banner yet wave,\n"
+        "O’er the Land of the free and the home of the brave?"
+    ),
+    Stanza(
+        "On the shore dimly seen through the mists of the deep,\n"
+        "Where the foe’s haughty host in dread silence reposes,\n"
+        "What is that which the breeze, o’er the towering steep,\n"
+        "As it fitfully blows, half conceals, half discloses?\n"
+        "Now it catches the gleam of the morning’s first beam,\n"
+        "In full glory reflected now shines on the stream,\n"
+        "’Tis the star-spangled banner, O! long may it wave\n"
+        "O’er the land of the free and the home of the brave."
+    ),
+    Stanza(
+        "And where is that band who so vauntingly swore\n"
+        "That the havoc of war and the battle’s confusion,\n"
+        "A home and a country should leave us no more?\n"
+        "Their blood has washed out their foul footsteps pollution.\n"
+        "No refuge could save the hireling and slave,\n"
+        "From the terror of flight, or the gloom of the grave,\n"
+        "And the star-spangled banner in triumph doth wave,\n"
+        "O’er the Land of the Free and the Home of the Brave."
+    ),
+    Stanza(
+        "O! thus be it ever, when freemen shall stand,\n"
+        "Between their lov’d home and the war’s desolation,\n"
+        "Blest with vict’ry and peace, may the Heav’n rescued land,\n"
+        "Praise the Power that hath made and preserv’d us a nation!\n"
+        "Then conquer we must, when our cause it is just,\n"
+        "And this be our motto—“In God is our Trust;”\n"
+        "And the star-spangled Banner in triumph shall wave,\n"
+        "O’er the Land of the Free and the Home of the Brave."
+    ),
+]
+
+BATTLE_HYMN_OF_THE_REPUBLIC = [
+    Stanza(
+        "Mine eyes have seen the glory of the coming of the Lord:\n"
+        "He is trampling out the vintage where the grapes of wrath are stored;\n"
+        "He hath loosed the fateful lightning of his terrible swift sword:\n"
+        "His truth is marching on."
+    ),
+    Stanza(
+        "I have seen Him in the watch-fires of a hundred circling camps;\n"
+        "They have builded Him an altar in the evening dews and damps;\n"
+        "I can read His righteous sentence by the dim and flaring lamps.\n"
+        "His day is marching on."
+    ),
+    Stanza(
+        "I have read a fiery gospel, writ in burnished rows of steel:\n"
+        "“As ye deal with my contemners, so with you my grace shall deal;\n"
+        "Let the Hero, born of woman, crush the serpent with his heel,\n"
+        "Since God is marching on.”"
+    ),
+    Stanza(
+        "He has sounded forth the trumpet that shall never call retreat;\n"
+        "He is sifting out the hearts of men before His judgment-seat:\n"
+        "Oh! be swift, my soul, to answer Him! be jubilant, my feet!\n"
+        "Our God is marching on."
+    ),
+    Stanza(
+        "In the beauty of the lilies Christ was born across the sea,\n"
+        "With a glory in his bosom that transfigures you and me:\n"
+        "As he died to make men holy, let us die to make men free,\n"
+        "While God is marching on."
+    ),
+]
+
+MY_COUNTRY_TIS_OF_THEE = [
+    Stanza(
+        "My country, ’tis of thee,\n"
+        "Sweet land of liberty,\n"
+        "Of thee I sing;\n"
+        "Land where my fathers died,\n"
+        "Land of the Pilgrims’ pride;\n"
+        "From every mountain side,\n"
+        "Let freedom ring."
+    ),
+    Stanza(
+        "My native country, thee—\n"
+        "Land of the noble free—\n"
+        "Thy name I love;\n"
+        "I love thy rocks and rills,\n"
+        "Thy woods and templed hills;\n"
+        "My heart with rapture thrills,\n"
+        "Like that above."
+    ),
+    Stanza(
+        "Let music swell the breeze,\n"
+        "And ring from all the trees\n"
+        "Sweet freedom’s song;\n"
+        "Let mortal tongues awake;\n"
+        "Let all that breathe partake;\n"
+        "Let rocks their silence break—\n"
+        "The sound prolong."
+    ),
+    Stanza(
+        "Our fathers’ God, to Thee,\n"
+        "Author of liberty,\n"
+        "To Thee we sing;\n"
+        "Long may our land be bright\n"
+        "With freedom’s holy light:\n"
+        "Protect us by Thy might,\n"
+        "Great God, our King."
+    ),
+    # The closing stanza of "Come, Thou Almighty King", which is in the same
+    # metre (6.6.4.6.6.6.4) and is sung to this tune.
+    Stanza(
+        "To Thee, great One in Three,\n"
+        "Eternal praises be\n"
+        "Hence evermore!\n"
+        "Thy sovereign majesty\n"
+        "May we in glory see,\n"
+        "And to eternity\n"
+        "Love and adore."
+    ),
+    Response("Amen."),
+]
+
+STARS_AND_STRIPES_FOREVER = [
+    Stanza(
+        "Let martial note in triumph float,\n"
+        "And liberty extend its mighty hand;\n"
+        "A flag appears, ’mid thund’rous cheers,\n"
+        "The banner of the western land.\n"
+        "The emblem of the brave and true,\n"
+        "Its folds protect no tyrant crew,\n"
+        "The red and white and starry blue,\n"
+        "Is freedom’s shield and hope."
+    ),
+    Stanza(
+        "Let eagle shriek from lofty peak,\n"
+        "The never-ending watchword of our land;\n"
+        "Let summer breeze waft through the trees\n"
+        "The echo of the chorus grand.\n"
+        "Sing out for liberty and light,\n"
+        "Sing out for freedom and the right,\n"
+        "Sing out for Union and its might,\n"
+        "Oh, patriotic sons!"
+    ),
+    Stanza(
+        "Other nations may deem their flags the best\n"
+        "And cheer them with fervid elation,\n"
+        "But the flag of the North and South and West\n"
+        "Is the flag of flags, the flag of Freedom’s nation.\n"
+        "Hurrah for the flag of the free,\n"
+        "May it wave as our standard forever,\n"
+        "The gem of the land and the sea,\n"
+        "The banner of the right.\n"
+        "Let despots remember the day\n"
+        "When our fathers with mighty endeavor,\n"
+        "Proclaim’d as they march’d to the fray,\n"
+        "That by their might, and by their right,\n"
+        "It waves forever!"
+    ),
+]
+
+RISE_COLUMBIA = [
+    Rubric(
+        "Written for, and sung at, the first Anniversary of the "
+        "Massachusetts Charitable Fire Society, 1794."
+    ),
+    Stanza(
+        "When first the Sun o’er Ocean glowed,\n"
+        "And Earth unveiled her virgin breast,\n"
+        "Supreme mid Nature’s vast abode,\n"
+        "Was heard the Almighty’s dread behest:\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "In darkness wrapped, with fetters chained,\n"
+        "Will ages grope, debased and blind;\n"
+        "With blood the human hand be stained,\n"
+        "With tyrant power, the human mind.\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "But, lo, across the Atlantick floods,\n"
+        "The Star-directed pilgrim sails!\n"
+        "See! felled by Commerce, float thy woods;\n"
+        "And, clothed by Ceres, wave thy vales!\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "Remote from realms of rival fame,\n"
+        "Thy bulwark is thy mound of waves;\n"
+        "The Sea, thy birth-right. Thou must claim,\n"
+        "Or, subject, yield the soil it laves.\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "Nor yet, though skilled, delight in arms;\n"
+        "Peace and, her offspring, arts be thine;\n"
+        "The face of Freedom scarce has charms,\n"
+        "When on her cheeks no dimples shine.\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "While Fame for thee, her wreath entwines,\n"
+        "To bless, thy nobler triumph prove;\n"
+        "And, though the eagle haunts thy pines,\n"
+        "Beneath thy willows shield the dove.\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "When bolts the flame, or whelms the wave,\n"
+        "Be thine to rule the wayward hour!\n"
+        "Bid Death unbar the watery grave,\n"
+        "“And Vulcan yield to Neptune’s power.”\n"
+        "Rise, Columbia, brave and free,\n"
+        "Poise the Globe, and bound the Sea!"
+    ),
+    Stanza(
+        "Revered in arms, in peace humane,\n"
+        "No shore, nor realm shall bound thy sway;\n"
+        "While all the virtues own thy reign,\n"
+        "And subject elements obey!\n"
+        "Rise, Columbia, brave and free,\n"
+        "Bless the Globe, and rule the sea."
+    ),
+]
+
+ETERNAL_FATHER_STRONG_TO_SAVE = [
+    Stanza(
+        "Eternal Father, strong to save,\n"
+        "Whose arm doth bind the restless wave,\n"
+        "Who bidd’st the mighty ocean deep\n"
+        "Its own appointed limits keep;\n"
+        "O hear us when we cry to Thee\n"
+        "For those in peril on the sea."
+    ),
+    Stanza(
+        "O Saviour, whose almighty word\n"
+        "The winds and waves submissive heard,\n"
+        "Who walkedst on the foaming deep\n"
+        "And calm amid its rage didst sleep;\n"
+        "O hear us when we cry to Thee\n"
+        "For those in peril on the sea."
+    ),
+    Stanza(
+        "O Sacred Spirit, who didst brood\n"
+        "Upon the chaos dark and rude,\n"
+        "Who bidst its angry tumult cease,\n"
+        "And gavest light, and life, and peace;\n"
+        "O hear us when we cry to Thee\n"
+        "For those in peril on the sea."
+    ),
+    Stanza(
+        "O Trinity of love and power!\n"
+        "Our brethren shield in danger’s hour;\n"
+        "From rock and tempest, fire and foe,\n"
+        "Protect them wheresoe’er they go,\n"
+        "Thus ever let there rise to Thee\n"
+        "Glad hymns of praise from land and sea."
+    ),
     Response("Amen."),
 ]
 
@@ -294,7 +597,7 @@ SUFFRAGE = [
     "blessed Apostles Peter and Paul, blessed N. and all the Saints, to eliminate all enmity "
     "and errors, that thy Church may safely serve thee in freedom.",
     "Through the same Jesus Christ, thy Son, Our Lord, Who liveth and reigneth with thee in "
-    "the unity of the Holy Ghost, God, world without end.",
+    "the unity of the Holy Spirit, God, world without end.",
     Response("Amen."),
 ]
 
@@ -340,7 +643,6 @@ CLOSING_VERSES_FOR_THE_DAY = [
 ]
 
 CLOSING_VERSES = [
-    ("May the divine assistance ✠ remain always with us.", "Amen."),
-    ("May the souls ✠ of the faithful departed, through the mercy of God, rest in peace.", "Amen."),
+    ("May the divine assistance ✠ remain always with us and may the souls of the faithfully departed, through the mercy of God, rest in peace.", "Amen."),
     ("Eternal rest grant unto them, O Lord;", "and let perpetual light shine upon them."),
 ]

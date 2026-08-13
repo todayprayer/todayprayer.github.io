@@ -16,6 +16,7 @@ into readings.json by hand.
 from __future__ import annotations
 
 import argparse
+import hashlib
 import json
 import random
 import re
@@ -58,6 +59,17 @@ class Excerpt:
         return f"{self.title} — {self.creator}" if self.creator else self.title
 
 
+def reading_key(text: str) -> str:
+    """A short stable name for a reading, derived from the reading itself.
+
+    Used to record which readings a generated page spent, so that later pages
+    can avoid them. Keyed on the text rather than on the title or the position
+    in readings.json, both of which move: entries get retitled, retagged and
+    reordered, while the passage itself is what must not repeat.
+    """
+    return hashlib.sha1(text.encode("utf-8")).hexdigest()[:12]
+
+
 def reading_excerpt(
     weighted_topics: list[str] | None = None,
     included_topics: list[str] | None = None,
@@ -66,6 +78,7 @@ def reading_excerpt(
     prefer_topics: list[str] | None = None,
     prefer_min: int = 1,
     weight_boost: int = 1,
+    exclude_keys: set[str] | None = None,
     rng: random.Random | None = None,
 ) -> Excerpt:
     """Pick a hand-curated reading from readings.json.
@@ -77,6 +90,8 @@ def reading_excerpt(
     - prefer_topics: restrict to entries carrying at least one of these, but only
       while at least prefer_min of them survive the other filters
     - weight_boost: how strongly weighted_topics matches are favoured
+    - exclude_keys: reading_key values already spent, never to be picked again
+      unless the filters leave nothing else
     """
     entries = json.loads(READINGS_FILE.read_text(encoding="utf-8"))
     if not entries:
@@ -117,6 +132,16 @@ def reading_excerpt(
 
     if not entries:
         raise LookupError(f"No readings match the filter criteria")
+
+    # Prefer readings not yet spent, but keep the spent ones in reserve rather
+    # than failing: on a feast whose proper topic is thinly stocked the filters
+    # above can narrow the pool to a handful, and a repeat beats no reading.
+    # The split happens here, after every other filter, so that exhaustion is
+    # measured against what the day could actually have used.
+    if exclude_keys:
+        fresh = [e for e in entries if reading_key(e["text"]) not in exclude_keys]
+        if fresh:
+            entries = fresh
 
     # Calculate weights based on weighted_topics matches
     if weighted_topics:
