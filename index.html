@@ -106,6 +106,19 @@
     margin-top: 0.9rem;
   }
 
+  /* Black whatever the theme, because it goes to the night office and says so
+     before it is pressed. */
+  .btn-night {
+    background: #000;
+    border-color: #000;
+    color: #cfcfcf;
+  }
+  .btn-night:hover {
+    background: #1a1a1a;
+    border-color: #1a1a1a;
+    color: #fff;
+  }
+
   .theme-toggle {
     position: fixed;
     top: 0.7rem;
@@ -172,6 +185,13 @@
       <a class="btn" id="prev-link" href="#">&larr; Yesterday</a>
       <a class="btn" id="next-link" href="#">Tomorrow &rarr;</a>
     </nav>
+    <nav>
+    </nav>
+    <nav>
+    </nav>
+    <nav>
+      <a class="btn btn-night" id="night-link" href="#">Night Prayer (experimental)</a>
+    </nav>
   </div>
 
   <footer>
@@ -219,6 +239,7 @@
   document.getElementById("today-link").href = "days/" + iso(today) + ".html";
   document.getElementById("prev-link").href = "days/" + iso(shift(today, -1)) + ".html";
   document.getElementById("next-link").href = "days/" + iso(shift(today, 1)) + ".html";
+  document.getElementById("night-link").href = "nights/" + iso(today) + ".html";
 </script>
 </body>
 </html>

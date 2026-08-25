@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Prayer</title>
+<style>
+  :root, :root[data-theme="black"] {
+    --ink: #cfcfcf;
+    --accent: #8e8e8e;
+    --accent-hover: #a5a5a5;
+    --paper: #000000;
+    --rule: #2a2a2a;
+    --muted: #767676;
+    --btn-face: #121212;
+    --on-accent: #000000;
+    color-scheme: dark;
+  }
+  :root[data-theme="grey"] {
+    --ink: #e4e4e4;
+    --accent: #a8a8a8;
+    --accent-hover: #c0c0c0;
+    --paper: #2b2b2b;
+    --rule: #484848;
+    --muted: #9b9b9b;
+    --btn-face: #363636;
+    --on-accent: #1c1c1c;
+    color-scheme: dark;
+  }
+  :root[data-theme="white"] {
+    --ink: #1c1c1c;
+    --accent: #5c5c5c;
+    --accent-hover: #444444;
+    --paper: #ffffff;
+    --rule: #d6d6d6;
+    --muted: #6e6e6e;
+    --btn-face: #fafafa;
+    --on-accent: #ffffff;
+    color-scheme: light;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.7;
+    margin: 0;
+    padding: 3rem 1rem;
+  }
+  main { max-width: 32rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.3rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  a { color: var(--accent); }
+
+  .actions { text-align: center; }
+
+  .btn {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--rule);
+    border-radius: 0.25rem;
+    background: var(--btn-face);
+    color: var(--muted);
+    cursor: pointer;
+  }
+  .btn:hover {
+    border-color: var(--accent);
+    color: var(--ink);
+  }
+  .btn:active { transform: translateY(1px); }
+
+  .btn-primary {
+    font-size: 0.95rem;
+    padding: 0.7rem 2.6rem;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--on-accent);
+  }
+
+  nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 0.9rem;
+  }
+
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: var(--paper); }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  footer p { margin: 0.6rem 0; }
+</style>
+<script>
+  (function () {
+    var t = localStorage.getItem("nightPrayerTheme");
+    document.documentElement.setAttribute("data-theme", t || "black");
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="black">Black</button>
+  <button type="button" data-theme-value="grey">Grey</button>
+  <button type="button" data-theme-value="white">White</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Night Prayer</h1>
+    <div class="date" id="today-date"></div>
+  </header>
+
+  <div class="actions">
+    <a class="btn btn-primary" id="today-link" href="#">Pray</a>
+    <nav>
+      <a class="btn" id="prev-link" href="#">&larr; Last night</a>
+      <a class="btn" id="next-link" href="#">Tomorrow &rarr;</a>
+    </nav>
+  </div>
+
+  <footer>
+    <p>The psalm is one of the eighteen Psalms of Solomon. The first reading is
+       from the wisdom and deuterocanonical books of the Douay&ndash;Rheims;
+       the second from the pseudepigrapha &mdash; Enoch, Jubilees, Adam and
+       Eve, Isaias, the Twelve Patriarchs, the Odes &mdash; from the Dead Sea
+       scrolls, from the Apostolic Fathers, and from Dionysius the Areopagite
+       on the Celestial Hierarchy.</p>
+    <p>For the morning, see <a href="index.html">Morning Prayer</a>.</p>
+    <p>&#10013;</p>
+  </footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("nightPrayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("nightPrayerTheme") || "black");
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+
+  function iso(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+
+  function pretty(d) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+  }
+
+  function shift(d, days) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+  }
+
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  document.getElementById("today-date").textContent = pretty(today);
+  document.getElementById("today-link").href = "nights/" + iso(today) + ".html";
+  document.getElementById("prev-link").href = "nights/" + iso(shift(today, -1)) + ".html";
+  document.getElementById("next-link").href = "nights/" + iso(shift(today, 1)) + ".html";
+</script>
+</body>
+</html>
