@@ -229,17 +229,7 @@ GREATER_DOXOLOGY = {
         "mundi, súscipe deprecatiónem nostram. Qui sedes ad déxteram "
         "Patris, miserére nobis. Quóniam tu solus Sanctus. Tu solus Dóminus. "
         "Tu solus Altíssimus, Iesu Christe. "
-        "Cum Sancto Spíritu ✠ in glória Dei Patris. Amen.",
-        "Glória in excélsis Deo, et in terra pax homínibus bonæ voluntátis.",
-        "Laudámus te, benedícimus te, adorámus te, glorificámus te, "
-        "grátias ágimus tibi propter magnam glóriam tuam, Dómine Deus, "
-        "Rex cæléstis, Deus Pater omnípotens. Dómine Fili Unigénite, "
-        "Iesu Christe, Dómine Deus, Agnus Dei, Fílius Patris.",
-        "Qui tollis peccáta mundi, miserére nobis; qui tollis peccáta mundi, "
-        "súscipe deprecatiónem nostram. Qui sedes ad déxteram Patris, "
-        "miserére nobis. Quóniam tu solus Sanctus, tu solus Dóminus, "
-        "tu solus Altíssimus, Iesu Christe, cum Sancto Spíritu ✠ "
-        "in glória Dei Patris.",
+        "Cum Sancto Spíritu ✠ in glória Dei Patris.",
         Response("Amen."),
         Rubric(
             "Oratio statuta explícita est. Oratio mentalis sequi potest "
