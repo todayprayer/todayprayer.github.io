@@ -48,6 +48,18 @@
     margin: 0.4rem 0 0.2rem;
   }
   header .date { font-style: italic; color: var(--muted); }
+  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
   section { margin: 2.2rem 0; }
   h2 {
     font-size: 0.95rem;
@@ -156,6 +168,10 @@
     <div class="cross">&#10013;</div>
     <h1>Morning Prayer</h1>
     <div class="date">Monday, July 27, 2026</div>
+    <nav>
+      <a href="2026-07-26.html" rel="prev">&larr; Yesterday</a>
+      <a href="2026-07-28.html" rel="next">Tomorrow &rarr;</a>
+    </nav>
   </header>
   <section>
     <h2><span class="numeral">I.</span>Sign of the Cross</h2>

@@ -1,8 +1,9 @@
 """Generate the daily night prayer web page.
 
 A separate office from the morning one and a separate page: Sign of the Cross,
-the Jesus Prayer, a Hail Mary, one of the Psalms of Solomon with its Glory be,
-a reading from the wisdom and deuterocanonical books, a reading from the
+the Jesus Prayer, a Hail Mary, a psalm with its Glory be — one of the Psalms
+of Solomon, one of the Odes, or one of the singing scrolls from Qumran — a
+reading from the wisdom and deuterocanonical books, a reading from the
 apocrypha, silent mental prayer, and the Sign of the Cross again. Eight
 sections, always the same eight, in that order — there is nothing to
 configure, and so no settings panel.
@@ -355,7 +356,7 @@ def used_readings(nights_dir: Path = NIGHTS_DIR) -> collections.Counter:
     """How many times each reading has been prayed by a page in the folder.
 
     Counted rather than merely marked, because the psalms are few enough to
-    come round again: eighteen of them against a pool of readings in the
+    come round again: seventy of them against a pool of readings in the
     thousands. Once every psalm has been said, "not yet used" stops telling
     the psalm apart from any other, and the count is what keeps the psalter
     turning evenly instead of dealing at random from the whole eighteen.
@@ -438,6 +439,10 @@ def psalm_for(
     in four. A psalm is a whole thing, so those parts are not scattered: the
     night that begins one begins it at the first part, and the nights after it
     say the rest in order before any other psalm is opened.
+
+    The pool holds more than the Psalms of Solomon — the Odes and the three
+    singing scrolls from Qumran are in it too — but they are all drawn the
+    same way, and none of them is entered anywhere but at its beginning.
     """
     psalms = pools["psalms"]
     last = (recent[0] if recent else {}).get("psalm")

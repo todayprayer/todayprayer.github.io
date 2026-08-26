@@ -89,6 +89,20 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     margin: 0.4rem 0 0.2rem;
   }}
   header .date {{ font-style: italic; color: var(--muted); }}
+  /* The days are a series, and a page of a series should say which way is
+     back. Set small and quiet: it is furniture, not part of the office. */
+  header nav {{
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }}
+  header nav a {{ color: var(--muted); text-decoration: none; }}
+  header nav a:hover {{ color: var(--ink); }}
   section {{ margin: 2.2rem 0; }}
   h2 {{
     font-size: 0.95rem;
@@ -205,7 +219,7 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     <div class="cross">&#10013;</div>
     <h1>Morning Prayer</h1>
     <div class="date">{date_pretty}</div>
-  </header>
+{neighbours}  </header>
 {sections}
   <footer>&#10013;</footer>
 </main>
@@ -934,7 +948,73 @@ class Section:
     rule: str = ""
 
 
-def build_page(day: datetime.date, exclude_keys: set[str] | None = None) -> str:
+def render_neighbours(day: datetime.date) -> str:
+    """Arrows to the day before and the day after.
+
+    Both are always written, whether or not those pages exist yet: the file
+    name of a day is its date, so the link is knowable in advance, and a day
+    generated later fills it in. Only pages living in the days folder get
+    these — the standalone morning_prayer.html has no neighbours.
+    """
+    back = (day - datetime.timedelta(days=1)).isoformat()
+    forward = (day + datetime.timedelta(days=1)).isoformat()
+    return (
+        "    <nav>\n"
+        f'      <a href="{back}.html" rel="prev">&larr; Yesterday</a>\n'
+        f'      <a href="{forward}.html" rel="next">Tomorrow &rarr;</a>\n'
+        "    </nav>\n"
+    )
+
+
+# The date line of the header, which the arrows go under.
+_HEADER_DATE = re.compile(r'(?m)^(\s*<div class="date">.*</div>\n)')
+_HAS_NAV = re.compile(r'<nav>\s*<a href="[\d-]+\.html" rel="prev"')
+
+
+def link_neighbours(page: str, day: datetime.date) -> str:
+    """Put the arrows into a page that was written before it had any.
+
+    The days folder was filled a month before the arrows existed, and those
+    pages have already been prayed: rebuilding them would deal new readings
+    into days that are past. So the header alone is patched, and the office
+    below it is not touched.
+    """
+    if _HAS_NAV.search(page):
+        return page
+    patched, count = _HEADER_DATE.subn(
+        lambda m: m.group(1) + render_neighbours(day), page, count=1
+    )
+    if not count:
+        raise LookupError(f"{day}: the page has no date line to hang the arrows on")
+    # The arrows need the rule that sets them small and quiet, which a page of
+    # that vintage has no line for either.
+    if "header nav" not in patched:
+        patched = patched.replace(
+            "  section { margin: 2.2rem 0; }",
+            _NAV_CSS + "  section { margin: 2.2rem 0; }",
+            1,
+        )
+    return patched
+
+
+_NAV_CSS = """  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
+"""
+
+
+def build_page(
+    day: datetime.date, exclude_keys: set[str] | None = None, linked: bool = False
+) -> str:
     # Each slot also avoids what the earlier slots took, so that a page never
     # prints the same reading twice even when the filters overlap.
     spent = set(exclude_keys or ())
@@ -1028,6 +1108,7 @@ def build_page(day: datetime.date, exclude_keys: set[str] | None = None) -> str:
     ]
     return PAGE_TEMPLATE.format(
         date_pretty=day.strftime("%A, %B %d, %Y").replace(" 0", " "),
+        neighbours=render_neighbours(day) if linked else "",
         sections="\n".join(rendered),
         settings_css=SETTINGS_CSS,
         settings_ui=SETTINGS_UI,
@@ -1042,8 +1123,9 @@ def generate_days(start: datetime.date, end: datetime.date, days_dir: Path = DAY
     The pages already in the folder are read first, so a new run continues
     where the last one left off; and the set grows as the run proceeds, so the
     days written in one go do not repeat each other either. Pages that already
-    exist are left alone — regenerating them would change what has already
-    been prayed.
+    exist keep their office — regenerating them would change what has already
+    been prayed — but do get the arrows to their neighbours if they were
+    written before there were any, so that the whole folder reads as a series.
     """
     days_dir.mkdir(exist_ok=True)
     spent = used_readings(days_dir)
@@ -1056,7 +1138,7 @@ def generate_days(start: datetime.date, end: datetime.date, days_dir: Path = DAY
         if out.exists():
             skipped += 1
         else:
-            page = build_page(day, exclude_keys=spent)
+            page = build_page(day, exclude_keys=spent, linked=True)
             out.write_text(page, encoding="utf-8")
             spent |= {key for key, unspent, _ in BLOCKQUOTE.findall(page) if key and not unspent}
             written += 1
@@ -1064,6 +1146,23 @@ def generate_days(start: datetime.date, end: datetime.date, days_dir: Path = DAY
 
     print(f"wrote {written} pages, left {skipped} existing pages alone")
     print(f"{len(spent)} readings spent in total")
+    print(f"linked {link_days(days_dir)} pages that had no arrows")
+
+
+def link_days(days_dir: Path = DAYS_DIR) -> int:
+    """Give the arrows to every page in the folder that is missing them."""
+    linked = 0
+    for page in sorted(days_dir.glob("*.html")):
+        try:
+            day = datetime.date.fromisoformat(page.stem)
+        except ValueError:
+            continue  # not a day page
+        before = page.read_text(encoding="utf-8")
+        after = link_neighbours(before, day)
+        if after != before:
+            page.write_text(after, encoding="utf-8")
+            linked += 1
+    return linked
 
 
 def main() -> None:
