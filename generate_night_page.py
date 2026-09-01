@@ -377,8 +377,22 @@ def used_readings(nights_dir: Path = NIGHTS_DIR) -> collections.Counter:
 #
 #   after 1 night  2     3     4     5     6     7
 STAY_WITH_BOOK = (0.85, 0.80, 0.75, 0.65, 0.50, 0.30, 0.10)
+
+# The first reading is scripture, and scripture is read straight through
+# rather than dipped into: the night after one is opened is certain to go on
+# with it, and each night after that is five points less likely than the last.
+# So a book keeps the slot for ten nights on the average and is finished more
+# often than it is abandoned, while the schedule still runs out — at twenty
+# nights the chance is nil and the run ends whatever the roll.
+#
+#   after 1 night  2     3          ...        19    20
+STAY_WITH_BOOK_FIRST = tuple(round(1.0 - 0.05 * n, 2) for n in range(20))
+
+# Which schedule a slot follows. Anything not named here keeps the general one.
+SCHEDULES = {"first": STAY_WITH_BOOK_FIRST}
+
 # How far back the page has to look to know how long a run has been going.
-HISTORY = len(STAY_WITH_BOOK) + 1
+HISTORY = max(len(s) for s in (STAY_WITH_BOOK, *SCHEDULES.values())) + 1
 
 # Which of a page's three readings is which. They are written in this order.
 SLOTS = ("psalm", "first", "second")
@@ -476,9 +490,10 @@ def reading_for(
     A book is read through rather than dipped into. Whichever book a night
     opens, it takes that book's earliest unread passage; the night after is
     likely to stay with it, and so works through it in order. That likelihood
-    falls the longer the run lasts — see STAY_WITH_BOOK — because otherwise a
-    book holding a fifth of the pool would keep the slot for a month at a
-    time. When a book runs out, another is opened whatever the roll.
+    falls the longer the run lasts — see SCHEDULES — because otherwise a book
+    holding a fifth of the pool would keep the slot for a month at a time. The
+    first reading, being scripture, falls far more slowly than the second.
+    When a book runs out, another is opened whatever the roll.
 
     Which book that is comes of a weighted draw, because the books are wildly
     unequal: Jubilees is near a fifth of the second pool and Ecclesiasticus
@@ -503,10 +518,11 @@ def reading_for(
 
     # Staying is the common case, so it is rolled first and the draw below
     # only happens when the roll fails or the book has nothing left. A run
-    # longer than STAY_WITH_BOOK has figures for always ends.
+    # longer than the slot's schedule has figures for always ends.
     if carried in by_book:
+        schedule = SCHEDULES.get(slot, STAY_WITH_BOOK)
         nights = run_length(recent, slot, carried)
-        chance = STAY_WITH_BOOK[nights - 1] if nights <= len(STAY_WITH_BOOK) else 0.0
+        chance = schedule[nights - 1] if nights <= len(schedule) else 0.0
         if rng.random() < chance:
             return by_book[carried][0]
 

@@ -143,34 +143,44 @@ JESUS_PRAYER = {
 #     Miriam" and reads ה׳ עַמְּךָ — "the Lord thy people" — where the prayer
 #     wants ה׳ עִמָּךְ, "the Lord is with thee".
 
+# Set as a versicle and its response rather than as three paragraphs, because
+# that is how the prayer is actually said when it is said by two: one voice
+# greets Mary and the other asks her to pray. The Amen belongs to the second
+# half — the half that asks — and so is said by whoever says it, not left
+# hanging as a line of its own.
+
 HAIL_MARY = {
     "en": [
-        "Hail Mary, full of grace, the Lord is with thee; blessed art thou amongst "
-        "women, and blessed is the fruit of thy womb, Jesus.",
-        "Holy Mary, Mother of God, pray for us sinners, now and at the hour of our "
-        "death.",
-        Response("Amen."),
+        (
+            "Hail Mary, full of grace, the Lord is with thee; blessed art thou "
+            "amongst women, and blessed is the fruit of thy womb, Jesus.",
+            "Holy Mary, Mother of God, pray for us sinners, now and at the hour "
+            "of our death. Amen.",
+        ),
     ],
     "la": [
-        "Ave María, grátia plena, Dóminus tecum. Benedícta tu in muliéribus, "
-        "et benedíctus fructus ventris tui, Iesus.",
-        "Sancta María, Mater Dei, ora pro nobis peccatóribus, nunc et in hora "
-        "mortis nostrae.",
-        Response("Amen."),
+        (
+            "Ave María, grátia plena, Dóminus tecum. Benedícta tu in muliéribus, "
+            "et benedíctus fructus ventris tui, Iesus.",
+            "Sancta María, Mater Dei, ora pro nobis peccatóribus, nunc et in hora "
+            "mortis nostrae. Amen.",
+        ),
     ],
     "el": [
-        "Chaire Maria, kecharitomeni, o Kyrios einai mazi sou. "
-        "Evlogimeni esi metaxy ton gynaikon kai evlogimenos o karpos tis koilias sou, o Iisous.",
-        "Agia Maria, Mitera tou Theou, Prosefchisou gia emas tous "
-        "amartolous tora kai stin ora tou thanatou mas.",
-        Response("Amin."),
+        (
+            "Chaire Maria, kecharitomeni, o Kyrios einai mazi sou. "
+            "Evlogimeni esi metaxy ton gynaikon kai evlogimenos o karpos tis koilias sou, o Iisous.",
+            "Agia Maria, Mitera tou Theou, Prosefchisou gia emas tous "
+            "amartolous tora kai stin ora tou thanatou mas. Amin.",
+        ),
     ],
     "he": [
-        "Shalom lach Miriam, bruchat ha chesed, Adonai imech. "
-        "B’ruchah at ba-nashim, u-baruch pri bitnech, Yeshua.",
-        "Miriam ha-Kdoshah, em Eloheinu, hitpaleliI be’adeinu ha-chote’im, "
-        "atah u’vish’at moteinu.",
-        Response("Amen."),
+        (
+            "Shalom lach Miriam, bruchat ha chesed, Adonai imech. "
+            "B’ruchah at ba-nashim, u-baruch pri bitnech, Yeshua.",
+            "Miriam ha-Kdoshah, em Eloheinu, hitpaleliI be’adeinu ha-chote’im, "
+            "atah u’vish’at moteinu. Amen.",
+        ),
     ],
 }
 

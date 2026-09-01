@@ -896,9 +896,20 @@ def pick_excerpt(
     included_topics=[],
     excluded_topics=[],
     any_topics=[],
+    days_own: bool = False,
     exclude_keys: set[str] | None = None,
 ) -> Excerpt:
-    """A hand-curated reading, steered toward the day's feast when there is one."""
+    """A hand-curated reading, steered toward the day's feast when there is one.
+
+    `days_own` asks for the stronger claim: where the day has books of its own
+    in readings.json, take the reading from those and from nowhere else. The
+    two readings that ask for it are answered by different books, because each
+    is already confined to its own kind: the doctrinal reading finds the popes
+    and the councils, the second finds the saints who wrote something other
+    than an encyclical, and neither finds the other's. The third reading is
+    historical and does not ask — a feast is no reason for the history to stop
+    being history.
+    """
     feast = calendar_1962.feast_for(day)
     topics = calendar_1962.FEAST_TOPICS.get(feast.category, []) if feast else []
     prefer_min, boost = RANK_STEER.get(feast.rank, (None, 1)) if feast else (None, 1)
@@ -910,6 +921,7 @@ def pick_excerpt(
         prefer_topics=topics if prefer_min and topics else None,
         prefer_min=prefer_min or 1,
         weight_boost=boost,
+        only_sources=calendar_1962.works_for(day) if days_own else None,
         exclude_keys=exclude_keys,
         rng=random.Random(day.toordinal()),
     )
@@ -1024,8 +1036,15 @@ def build_page(
         spent.add(reading_key(chosen.text))
         return chosen
 
-    cexcerpt = take(any_topics=['catechism', 'council', 'encyclical'], excluded_topics=['historical'])
-    excerpt = take(excluded_topics=['historical', 'catechism', 'council', 'encyclical'])
+    cexcerpt = take(
+        any_topics=['catechism', 'council', 'encyclical'],
+        excluded_topics=['historical'],
+        days_own=True,
+    )
+    excerpt = take(
+        excluded_topics=['historical', 'catechism', 'council', 'encyclical'],
+        days_own=True,
+    )
     hexcerpt = take(included_topics=['historical'])
 
     lang_button = ' <button type="button" id="lang-btn" name="lang-btn" class="pill" data-next="latin">Latin</button>'

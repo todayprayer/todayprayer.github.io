@@ -22,6 +22,7 @@ import random
 import re
 import ssl
 import sys
+import unicodedata
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -59,6 +60,21 @@ class Excerpt:
         return f"{self.title} — {self.creator}" if self.creator else self.title
 
 
+def _fold(text: str) -> str:
+    """Lowercase and strip accents, for matching a name against an entry.
+
+    The same author is spelled several ways across readings.json — "Saint
+    Thérèse of Lisieux" in one entry and "St Therese Lisieux" in another,
+    because the titles came from archive.org as the uploaders typed them. A
+    name written without accents has to find both.
+    """
+    return "".join(
+        c
+        for c in unicodedata.normalize("NFKD", text.lower())
+        if not unicodedata.combining(c)
+    )
+
+
 def reading_key(text: str) -> str:
     """A short stable name for a reading, derived from the reading itself.
 
@@ -78,6 +94,7 @@ def reading_excerpt(
     prefer_topics: list[str] | None = None,
     prefer_min: int = 1,
     weight_boost: int = 1,
+    only_sources: list[str] | None = None,
     exclude_keys: set[str] | None = None,
     rng: random.Random | None = None,
 ) -> Excerpt:
@@ -90,6 +107,9 @@ def reading_excerpt(
     - prefer_topics: restrict to entries carrying at least one of these, but only
       while at least prefer_min of them survive the other filters
     - weight_boost: how strongly weighted_topics matches are favoured
+    - only_sources: restrict outright to entries whose creator or title carries
+      one of these, and drop the topic steering, but only while such entries
+      survive the other filters
     - exclude_keys: reading_key values already spent, never to be picked again
       unless the filters leave nothing else
     """
@@ -111,6 +131,24 @@ def reading_excerpt(
     if any_topics:
         any_set = set(any_topics)
         entries = [e for e in entries if set(e["topics"]) & any_set]
+
+    # A saint's own day, kept in his own words. This is a harder restriction
+    # than the topic steering below and replaces it: where the day has books of
+    # its own and any of them are still eligible, the reading comes from them
+    # and the day's topics are not consulted at all. Where none survives — the
+    # slot may have excluded the only shelf the saint is on — the day falls
+    # back to being steered like any other, which is why this is not simply an
+    # assertion that the books are there.
+    if only_sources:
+        wanted = [_fold(name) for name in only_sources]
+        own = [
+            e
+            for e in entries
+            if any(w in _fold(e["creator"]) or w in _fold(e["title"]) for w in wanted)
+        ]
+        if own:
+            entries = own
+            prefer_topics = None
 
     # Steer toward the day's feast. Restricting outright beats weighting once
     # the collection is large: among ~2,500 readings, a handful at double or

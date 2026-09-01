@@ -211,6 +211,7 @@ VERSES = {
 SANCTORAL = {
     (1, 1): ("Octave of the Nativity of Our Lord", "christmas"),
     (1, 6): ("The Epiphany of Our Lord", "epiphany"),
+    (1, 12): ("Saint Aelred of Rievaulx, Abbot", "confessor"),
     (1, 13): ("Commemoration of the Baptism of Our Lord", "baptismoflord"),
     (1, 17): ("Saint Anthony, Abbot", "confessor"),
     (1, 21): ("Saint Agnes, Virgin and Martyr", "virgin"),
@@ -220,6 +221,7 @@ SANCTORAL = {
     (2, 2): ("Purification of the Blessed Virgin Mary", "candlemas"),
     (2, 3): ("Saint Blaise, Bishop and Martyr", "martyr"),
     (2, 5): ("Saint Agatha, Virgin and Martyr", "virgin"),
+    (2, 7): ("Blessed Pope Pius IX, Confessor", "confessor"),
     (2, 11): ("Apparition of Our Lady at Lourdes", "ourlady"),
     (2, 22): ("Chair of Saint Peter, Apostle", "apostle"),
     (2, 24): ("Saint Matthias, Apostle", "apostle"),
@@ -231,18 +233,22 @@ SANCTORAL = {
     (4, 21): ("Saint Anselm, Bishop and Doctor", "doctor"),
     (4, 23): ("Saint George, Martyr", "martyr"),
     (4, 25): ("Saint Mark, Evangelist", "apostle"),
+    (4, 28): ("Saint Louis-Marie de Montfort, Confessor", "confessor"),
     (4, 30): ("Saint Catherine of Siena, Virgin", "virgin"),
     (5, 1): ("Saint Joseph the Worker", "joseph"),
     (5, 2): ("Saint Athanasius, Bishop and Doctor", "doctor"),
     (5, 4): ("Saint Monica, Widow", "holywoman"),
     (5, 5): ("Saint Pius V, Pope and Confessor", "confessor"),
     (5, 11): ("Saints Philip and James, Apostles", "apostle"),
+    (5, 16): ("Saint Gemma Galgani, Virgin", "virgin"),
     (5, 26): ("Saint Philip Neri, Confessor", "confessor"),
     (5, 27): ("Saint Bede the Venerable, Confessor and Doctor", "doctor"),
+    (5, 29): ("Pope Saint Paul VI, Confessor", "confessor"),
     (5, 31): ("Queenship of the Blessed Virgin Mary", "ourlady"),
     (6, 5): ("Saint Boniface, Bishop and Martyr", "martyr"),
     (6, 11): ("Saint Barnabas, Apostle", "apostle"),
     (6, 13): ("Saint Anthony of Padua, Confessor and Doctor", "doctor"),
+    (6, 14): ("Saint Basil the Great, Bishop and Doctor", "doctor"),
     (6, 21): ("Saint Aloysius Gonzaga, Confessor", "confessor"),
     (6, 24): ("Nativity of Saint John the Baptist", "baptist"),
     (6, 29): ("Saints Peter and Paul, Apostles", "apostle"),
@@ -250,6 +256,7 @@ SANCTORAL = {
     (7, 1): ("Feast of the Most Precious Blood", "preciousblood"),
     (7, 2): ("Visitation of the Blessed Virgin Mary", "ourlady"),
     (7, 3): ("Saint Irenaeus, Bishop and Martyr", "martyr"),
+    (7, 7): ("Saints Cyril and Methodius, Bishops and Confessors", "bishop"),
     (7, 14): ("Saint Bonaventure, Bishop and Doctor", "doctor"),
     (7, 16): ("Our Lady of Mount Carmel", "ourlady"),
     (7, 19): ("Saint Vincent de Paul, Confessor", "confessor"),
@@ -258,6 +265,7 @@ SANCTORAL = {
     (7, 26): ("Saint Anne, Mother of the Blessed Virgin Mary", "holywoman"),
     (7, 29): ("Saint Martha, Virgin", "virgin"),
     (7, 31): ("Saint Ignatius of Loyola, Confessor", "confessor"),
+    (8, 2): ("Saint Alphonsus Maria de' Liguori, Bishop and Doctor", "doctor"),
     (8, 4): ("Saint Dominic, Confessor", "confessor"),
     (8, 5): ("Dedication of Our Lady of the Snows", "ourlady"),
     (8, 6): ("Transfiguration of Our Lord", "transfiguration"),
@@ -278,6 +286,7 @@ SANCTORAL = {
     (9, 14): ("Exaltation of the Holy Cross", "cross"),
     (9, 15): ("Seven Sorrows of the Blessed Virgin Mary", "ourlady"),
     (9, 21): ("Saint Matthew, Apostle and Evangelist", "apostle"),
+    (9, 26): ("Saints Isaac Jogues and Companions, Martyrs", "martyrs"),
     (9, 29): ("Dedication of Saint Michael the Archangel", "michaelmas"),
     (9, 30): ("Saint Jerome, Priest and Doctor", "doctor"),
     (10, 2): ("The Holy Guardian Angels", "angels"),
@@ -287,6 +296,7 @@ SANCTORAL = {
     (10, 11): ("Maternity of the Blessed Virgin Mary", "ourlady"),
     (10, 15): ("Saint Teresa of Avila, Virgin", "virgin"),
     (10, 18): ("Saint Luke, Evangelist", "apostle"),
+    (10, 22): ("Pope Saint John Paul II, Confessor", "confessor"),
     (10, 24): ("Saint Raphael the Archangel", "angels"),
     (10, 28): ("Saints Simon and Jude, Apostles", "apostle"),
     (11, 1): ("All Saints", "allsaints"),
@@ -297,6 +307,8 @@ SANCTORAL = {
     (11, 15): ("Saint Albert the Great, Bishop and Doctor", "doctor"),
     (11, 21): ("Presentation of the Blessed Virgin Mary", "ourlady"),
     (11, 22): ("Saint Cecilia, Virgin and Martyr", "virgin"),
+    (11, 24): ("Saint John of the Cross, Confessor and Doctor", "doctor"),
+    (11, 26): ("Saint Leonard of Port Maurice, Confessor", "confessor"),
     (11, 30): ("Saint Andrew, Apostle", "apostle"),
     (12, 3): ("Saint Francis Xavier, Confessor", "confessor"),
     (12, 6): ("Saint Nicholas, Bishop and Confessor", "bishop"),
@@ -310,6 +322,106 @@ SANCTORAL = {
     (12, 28): ("The Holy Innocents, Martyrs", "martyrs"),
     (12, 31): ("Saint Sylvester I, Pope and Confessor", "confessor"),
 }
+
+# The books in readings.json written by, or written about, the saint whose day
+# this is. On his own feast the reading is taken from these and from nothing
+# else: topics are a guess at what suits the day, but a saint's own words are
+# the day itself, and on the twenty-eighth of August there is nothing nearer
+# to Augustine than Augustine.
+#
+# Both readings consult this, and which of them a book can answer for is
+# decided by the book rather than by this table. The doctrinal reading takes
+# only catechisms, councils and encyclicals, so a pope's day answers there and
+# nowhere else; Augustine and Thérèse wrote none of those and answer only in
+# the second. Where a day's books cannot survive a slot's own filter, that
+# slot simply falls back to being steered by topic, which is why a pope may be
+# listed here without the second reading ever being troubled by him.
+#
+# Each string is matched against a reading's creator and title, folded to
+# lowercase and stripped of accents, so "therese" finds Thérèse. They are
+# written long enough to be unambiguous: "montfort" and not "louis", because
+# the twenty-fifth of August is Louis the King of France, who wrote none of
+# these; "of avila" and not "teresa", because Teresa of Avila and Thérèse of
+# Lisieux are eleven days and three hundred years apart. Adding a book to
+# readings.json by an author already named here needs no change to this table.
+#
+# A book about a saint counts as much as a book by one — the life of Isaac
+# Jogues is the only way his day can be kept from the shelf — and a book may
+# be named twice, as Dubay's Fire Within is, being about two saints who have
+# two days.
+FEAST_WORKS = {
+    (1, 12): ["aelred"],                       # Aelred of Rievaulx
+    (1, 17): ["desert fathers"],               # Anthony the Abbot, first of them
+    (1, 29): ["francis de sales"],
+    (2, 7): ["blessed pope pius ix"],
+    (3, 7): ["aquinas", "nature and creature"],
+    (4, 28): ["montfort"],
+    # The Roman Catechism is the catechism of Pius V: the Council ordered it
+    # and he published it, and it has gone under his name ever since.
+    (5, 5): ["catechism of the council of trent"],
+    (5, 16): ["gemma galgani"],
+    (5, 29): ["pope st. paul vi"],
+    (6, 14): ["basil the great"],
+    # Written for these two rather than by them — John Paul II on the apostles
+    # of the Slavs, which is the one thing in the collection that is about them.
+    (7, 7): ["slavorum apostoli"],
+    (7, 14): ["bonaventure"],
+    (7, 31): ["ignatian"],                     # Ignatius of Loyola, by his way
+    (8, 2): ["liguori"],
+    (8, 28): ["augustine"],
+    (9, 3): ["pope st. pius x"],
+    (9, 26): ["isaac jogues"],
+    # Jerome gave the Church her Bible, so his day is kept with the three
+    # encyclicals on the reading of it rather than with anything of his own,
+    # of which the collection holds nothing.
+    (9, 30): ["providentissimus deus", "spiritus paraclitus", "divino afflante spiritu"],
+    (10, 3): ["therese"],                      # Thérèse of Lisieux
+    (10, 15): ["of avila", "interior castle", "fire within"],
+    (10, 22): ["pope st. john paul ii"],
+    (11, 24): ["john of the cross", "science of the cross", "fire within"],
+    (11, 26): ["leonard of port maurice"],
+}
+
+# The same thing for the feasts that have no date — they move with Easter —
+# and for those whose proper book is the book about the feast itself rather
+# than about any person. Kept deliberately short: a category covers many days
+# where a date covers one, and Our Lady's dozen feasts would wear out the four
+# readings of Redemptoris Mater inside a year. These four fall once each.
+FEAST_CATEGORY_WORKS = {
+    "christking": ["quas primas"],
+    "sacredheart": ["haurietis aquas", "dilexit nos"],
+    "corpuschristi": ["mysterium fidei", "ecclesia de eucharistia",
+                      "jewish roots of the eucharist"],
+    "pentecost": ["divinum illud munus", "dominum et vivificantem",
+                  "de spiritu sancto"],
+}
+
+
+def works_for(day: datetime.date) -> list[str]:
+    """The books belonging to the day, by its saint or by its own subject.
+
+    A saint's own books are looked up by his date, but only while the date is
+    still his: Easter outranks whoever fell on it, and on a day taken by a
+    movable feast the office is not praying that saint. What the movable feasts
+    have instead is looked up by category, which is also where a feast is
+    answered by a book about the feast — Christ the King by Quas Primas, which
+    instituted it.
+    """
+    feast = feast_for(day)
+    if feast is None:
+        return []
+    movable = _movable(day.year).get(day)
+    if not movable:
+        own = FEAST_WORKS.get((day.month, day.day))
+        if own:
+            return own
+    # The octave days carry the feast's own category — the six days after
+    # Pentecost are "pentecost" — and if they claimed its books too, the week
+    # would be seven mornings of the same one, with a pool of five encyclicals
+    # to fill it. The octave keeps the feast; it does not keep the shelf.
+    if movable and feast.name.startswith("Octave"):
+        return []
+    return FEAST_CATEGORY_WORKS.get(feast.category, [])
 
 
 def easter(year: int) -> datetime.date:
