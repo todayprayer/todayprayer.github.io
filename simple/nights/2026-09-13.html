@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Prayer — Sunday, September 13, 2026</title>
+<style>
+  :root, :root[data-theme="black"] {
+    --ink: #cfcfcf;
+    --accent: #8e8e8e;
+    --paper: #000000;
+    --rule: #2a2a2a;
+    --muted: #767676;
+    color-scheme: dark;
+  }
+  :root[data-theme="grey"] {
+    --ink: #e4e4e4;
+    --accent: #a8a8a8;
+    --paper: #2b2b2b;
+    --rule: #484848;
+    --muted: #9b9b9b;
+    color-scheme: dark;
+  }
+  :root[data-theme="white"] {
+    --ink: #1c1c1c;
+    --accent: #5c5c5c;
+    --paper: #ffffff;
+    --rule: #d6d6d6;
+    --muted: #6e6e6e;
+    color-scheme: light;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 38rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
+  section { margin: 2.2rem 0; }
+  h2 {
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  h2 .numeral { display: inline-block; min-width: 2.6rem; }
+  p { margin: 0.8rem 0; }
+  .vr { margin: 0.8rem 0; }
+  .vr .v::before { content: "\2123. "; color: var(--accent); }
+  .vr .r::before { content: "\211F. "; color: var(--accent); }
+  .vr .r { margin-left: 1.4rem; }
+  .red { color: var(--accent); }
+  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }
+  .pill {
+    font-family: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.15rem 0.7rem;
+    cursor: pointer;
+  }
+  .pill.active { border-color: var(--accent); color: var(--accent); }
+  .pill-row { margin: 0.6rem 0 0.2rem; }
+  .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.2rem 0 0.2rem 1.2rem;
+    border-left: 3px solid var(--rule);
+  }
+  /* A psalm is set a verse to a line, the way it is sung; a chapter of the
+     law is set as prose. Neither carries verse numbers: this page is for
+     reading straight through, and the numbers are apparatus for finding a
+     place, which nobody reading a chapter whole needs to do. */
+  blockquote .line { margin: 0.35rem 0; }
+  .attribution {
+    text-align: right;
+    font-style: normal;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .attribution .source { display: block; font-size: 0.8rem; }
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--accent);
+    font-size: 1.3rem;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: var(--paper); }
+</style>
+<script>
+  // Before the body paints, so a page that opens dark never flashes light.
+  (function () {
+    var t = localStorage.getItem("nightPrayerTheme");
+    document.documentElement.setAttribute("data-theme", t || "black");
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="black">Black</button>
+  <button type="button" data-theme-value="grey">Grey</button>
+  <button type="button" data-theme-value="white">White</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Night Prayer</h1>
+    <div class="date">Sunday, September 13, 2026</div>
+    <nav>
+      <a href="2026-09-12.html" rel="prev">&larr; Yesterday</a>
+      <a href="2026-09-14.html" rel="next">Tomorrow &rarr;</a>
+    </nav>
+  </header>
+  <section data-section="sign-open">
+    <h2><span class="numeral">I.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="hail-mary">
+    <h2><span class="numeral">II.</span>Hail Mary</h2>
+  <div class="vr"><div class="v">Hail Mary, full of grace, the Lord is with thee; blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.</div><div class="r">Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.</div></div>
+  </section>
+  <section data-section="reading">
+    <h2><span class="numeral">III.</span>Reading — Exodus 12</h2>
+  <blockquote data-step="2" data-chapter="Exodus 12">
+    <p>The LORD spoke to Moses and Aaron in the land of Egypt, saying, “This month shall be to you the beginning of months. It shall be the first month of the year to you. Speak to all the congregation of Israel, saying, ‘On the tenth day of this month, they shall take to them every man a lamb, according to their fathers’ houses, a lamb for a household; and if the household is too little for a lamb, then he and his neighbor next to his house shall take one according to the number of the souls. You shall make your count for the lamb according to what everyone can eat. Your lamb shall be without defect, a male a year old. You shall take it from the sheep or from the goats. You shall keep it until the fourteenth day of the same month; and the whole assembly of the congregation of Israel shall kill it at evening.</p>
+    <p>They shall take some of the blood, and put it on the two door posts and on the lintel, on the houses in which they shall eat it. They shall eat the meat in that night, roasted with fire, with unleavened bread. They shall eat it with bitter herbs. Don’t eat it raw, nor boiled at all with water, but roasted with fire; with its head, its legs and its inner parts. You shall let nothing of it remain until the morning; but that which remains of it until the morning you shall burn with fire. This is how you shall eat it: with your belt on your waist, your sandals on your feet, and your staff in your hand; and you shall eat it in haste: it is the LORD’s Passover. For I will go through the land of Egypt in that night, and will strike all the firstborn in the land of Egypt, both man and animal. I will execute judgments against all the gods of Egypt. I am the LORD.</p>
+    <p>The blood shall be to you for a token on the houses where you are. When I see the blood, I will pass over you, and no plague will be on you to destroy you when I strike the land of Egypt. This day shall be a memorial for you. You shall keep it as a feast to the LORD. You shall keep it as a feast throughout your generations by an ordinance forever. “‘Seven days you shall eat unleavened bread; even the first day you shall put away yeast out of your houses, for whoever eats leavened bread from the first day until the seventh day, that soul shall be cut off from Israel. In the first day there shall be to you a holy convocation, and in the seventh day a holy convocation; no kind of work shall be done in them, except that which every man must eat, only that may be done by you. You shall observe the feast of unleavened bread; for in this same day I have brought your armies out of the land of Egypt. Therefore you shall observe this day throughout your generations by an ordinance forever. In the first month, on the fourteenth day of the month at evening, you shall eat unleavened bread, until the twenty first day of the month at evening.</p>
+    <p>There shall be no yeast found in your houses for seven days, for whoever eats that which is leavened, that soul shall be cut off from the congregation of Israel, whether he is a foreigner, or one who is born in the land. You shall eat nothing leavened. In all your habitations you shall eat unleavened bread.’” Then Moses called for all the elders of Israel, and said to them, “Draw out, and take lambs according to your families, and kill the Passover. You shall take a bunch of hyssop, and dip it in the blood that is in the basin, and strike the lintel and the two door posts with the blood that is in the basin. None of you shall go out of the door of his house until the morning. For the LORD will pass through to strike the Egyptians; and when he sees the blood on the lintel, and on the two door posts, the LORD will pass over the door, and will not allow the destroyer to come in to your houses to strike you. You shall observe this thing for an ordinance to you and to your sons forever.</p>
+    <p>It shall happen when you have come to the land which the LORD will give you, as he has promised, that you shall keep this service. It will happen, when your children ask you, ‘What do you mean by this service?’ that you shall say, ‘It is the sacrifice of the LORD’s Passover, who passed over the houses of the children of Israel in Egypt, when he struck the Egyptians, and spared our houses.’” The people bowed their heads and worshiped. The children of Israel went and did so; as the LORD had commanded Moses and Aaron, so they did. At midnight, the LORD struck all the firstborn in the land of Egypt, from the firstborn of Pharaoh who sat on his throne to the firstborn of the captive who was in the dungeon, and all the firstborn of livestock. Pharaoh rose up in the night, he, and all his servants, and all the Egyptians; and there was a great cry in Egypt, for there was not a house where there was not one dead.</p>
+    <p>He called for Moses and Aaron by night, and said, “Rise up, get out from among my people, both you and the children of Israel; and go, serve the LORD, as you have said! Take both your flocks and your herds, as you have said, and be gone; and bless me also!” The Egyptians were urgent with the people, to send them out of the land in haste, for they said, “We are all dead men.” The people took their dough before it was leavened, their kneading troughs being bound up in their clothes on their shoulders. The children of Israel did according to the word of Moses; and they asked of the Egyptians jewels of silver, and jewels of gold, and clothing. The LORD gave the people favor in the sight of the Egyptians, so that they let them have what they asked. They plundered the Egyptians.</p>
+    <p>The children of Israel traveled from Rameses to Succoth, about six hundred thousand on foot who were men, in addition to children. A mixed multitude went up also with them, with flocks, herds, and even very much livestock. They baked unleavened cakes of the dough which they brought out of Egypt; for it wasn’t leavened, because they were thrust out of Egypt, and couldn’t wait, and they had not prepared any food for themselves. Now the time that the children of Israel lived in Egypt was four hundred thirty years. At the end of four hundred thirty years, to the day, all of the LORD’s armies went out from the land of Egypt. It is a night to be much observed to the LORD for bringing them out from the land of Egypt. This is that night of the LORD, to be much observed by all the children of Israel throughout their generations.</p>
+    <p>The LORD said to Moses and Aaron, “This is the ordinance of the Passover. No foreigner shall eat of it, but every man’s servant who is bought for money, when you have circumcised him, then shall he eat of it. A foreigner and a hired servant shall not eat of it. It must be eaten in one house. You shall not carry any of the meat outside of the house. Do not break any of its bones. All the congregation of Israel shall keep it. When a stranger lives as a foreigner with you, and would like to keep the Passover to the LORD, let all his males be circumcised, and then let him come near and keep it. He shall be as one who is born in the land; but no uncircumcised person shall eat of it.</p>
+    <p>One law shall be to him who is born at home, and to the stranger who lives as a foreigner among you.” All the children of Israel did so. As the LORD commanded Moses and Aaron, so they did. That same day, the LORD brought the children of Israel out of the land of Egypt by their armies.</p>
+  </blockquote>
+  <p class="attribution">&mdash; Exodus 12<span class="source">World English Bible, Catholic Edition</span></p>
+  <div class="vr"><div class="r">Thanks be to God.</div></div>
+  </section>
+  <section data-section="closing-verses">
+    <h2><span class="numeral">IV.</span>Closing Verses</h2>
+  <div class="vr"><div class="v">May the divine assistance <span class="red">✠</span> remain always with us and may the souls of the faithfully departed, through the mercy of God, rest in peace.</div><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="sign-close">
+    <h2><span class="numeral">V.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <footer>&#10013;</footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("nightPrayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("nightPrayerTheme") || "black");
+</script>
+</body>
+</html>

@@ -118,6 +118,23 @@
     color: #fff;
   }
 
+  /* The basic office, set apart and set quiet. Its two doors are plain .btn
+     rather than .btn-primary, and they sit under a label that says what they
+     are, so that nobody arrives at an experiment expecting the office. */
+  .aside {
+    margin-top: 2.2rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+  }
+  .aside .label {
+    margin: 0;
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+  }
+  .aside nav { margin-top: 0.7rem; }
+
   .theme-toggle {
     position: fixed;
     top: 0.7rem;
@@ -182,6 +199,14 @@
     <nav>
       <a class="btn btn-primary btn-night" id="night-link" href="#">Night Prayer</a>
     </nav>
+
+    <div class="aside">
+      <p class="label">Experimental &mdash; the basic office</p>
+      <nav>
+        <a class="btn" id="simple-day-link" href="#">Simple Morning</a>
+        <a class="btn btn-night" id="simple-night-link" href="#">Simple Night</a>
+      </nav>
+    </div>
   </div>
 
   <footer>
@@ -220,6 +245,8 @@
   // front page has no reason to offer a second way to the same place.
   document.getElementById("today-link").href = "days/" + iso(today) + ".html";
   document.getElementById("night-link").href = "nights/" + iso(today) + ".html";
+  document.getElementById("simple-day-link").href = "simple/days/" + iso(today) + ".html";
+  document.getElementById("simple-night-link").href = "simple/nights/" + iso(today) + ".html";
 </script>
 </body>
 </html>

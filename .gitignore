@@ -15,6 +15,11 @@
 !night_prayers.py
 !night_readings.json
 
+# Basic day (experimental)
+!generate_simple_page.py
+!bible_chapters.py
+!bible_readings.json
+
 # Published site
 !index.html
 !days/
@@ -22,3 +27,8 @@
 !night.html
 !nights/
 !nights/*.html
+!simple/
+!simple/days/
+!simple/days/*.html
+!simple/nights/
+!simple/nights/*.html

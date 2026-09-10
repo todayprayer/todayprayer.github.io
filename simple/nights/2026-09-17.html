@@ -1,0 +1,216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Prayer — Thursday, September 17, 2026</title>
+<style>
+  :root, :root[data-theme="black"] {
+    --ink: #cfcfcf;
+    --accent: #8e8e8e;
+    --paper: #000000;
+    --rule: #2a2a2a;
+    --muted: #767676;
+    color-scheme: dark;
+  }
+  :root[data-theme="grey"] {
+    --ink: #e4e4e4;
+    --accent: #a8a8a8;
+    --paper: #2b2b2b;
+    --rule: #484848;
+    --muted: #9b9b9b;
+    color-scheme: dark;
+  }
+  :root[data-theme="white"] {
+    --ink: #1c1c1c;
+    --accent: #5c5c5c;
+    --paper: #ffffff;
+    --rule: #d6d6d6;
+    --muted: #6e6e6e;
+    color-scheme: light;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 38rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
+  section { margin: 2.2rem 0; }
+  h2 {
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  h2 .numeral { display: inline-block; min-width: 2.6rem; }
+  p { margin: 0.8rem 0; }
+  .vr { margin: 0.8rem 0; }
+  .vr .v::before { content: "\2123. "; color: var(--accent); }
+  .vr .r::before { content: "\211F. "; color: var(--accent); }
+  .vr .r { margin-left: 1.4rem; }
+  .red { color: var(--accent); }
+  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }
+  .pill {
+    font-family: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.15rem 0.7rem;
+    cursor: pointer;
+  }
+  .pill.active { border-color: var(--accent); color: var(--accent); }
+  .pill-row { margin: 0.6rem 0 0.2rem; }
+  .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.2rem 0 0.2rem 1.2rem;
+    border-left: 3px solid var(--rule);
+  }
+  /* A psalm is set a verse to a line, the way it is sung; a chapter of the
+     law is set as prose. Neither carries verse numbers: this page is for
+     reading straight through, and the numbers are apparatus for finding a
+     place, which nobody reading a chapter whole needs to do. */
+  blockquote .line { margin: 0.35rem 0; }
+  .attribution {
+    text-align: right;
+    font-style: normal;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .attribution .source { display: block; font-size: 0.8rem; }
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--accent);
+    font-size: 1.3rem;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: var(--paper); }
+</style>
+<script>
+  // Before the body paints, so a page that opens dark never flashes light.
+  (function () {
+    var t = localStorage.getItem("nightPrayerTheme");
+    document.documentElement.setAttribute("data-theme", t || "black");
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="black">Black</button>
+  <button type="button" data-theme-value="grey">Grey</button>
+  <button type="button" data-theme-value="white">White</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Night Prayer</h1>
+    <div class="date">Thursday, September 17, 2026</div>
+    <nav>
+      <a href="2026-09-16.html" rel="prev">&larr; Yesterday</a>
+      <a href="2026-09-18.html" rel="next">Tomorrow &rarr;</a>
+    </nav>
+  </header>
+  <section data-section="sign-open">
+    <h2><span class="numeral">I.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="hail-mary">
+    <h2><span class="numeral">II.</span>Hail Mary</h2>
+  <div class="vr"><div class="v">Hail Mary, full of grace, the Lord is with thee; blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.</div><div class="r">Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.</div></div>
+  </section>
+  <section data-section="reading">
+    <h2><span class="numeral">III.</span>Reading — Exodus 16</h2>
+  <blockquote data-step="6" data-chapter="Exodus 16">
+    <p>They took their journey from Elim, and all the congregation of the children of Israel came to the wilderness of Sin, which is between Elim and Sinai, on the fifteenth day of the second month after their departing out of the land of Egypt. The whole congregation of the children of Israel murmured against Moses and against Aaron in the wilderness; and the children of Israel said to them, “We wish that we had died by the LORD’s hand in the land of Egypt, when we sat by the meat pots, when we ate our fill of bread, for you have brought us out into this wilderness to kill this whole assembly with hunger.” Then the LORD said to Moses, “Behold, I will rain bread from the sky for you, and the people shall go out and gather a day’s portion every day, that I may test them, whether they will walk in my law or not. It shall come to pass on the sixth day, that they shall prepare that which they bring in, and it shall be twice as much as they gather daily.” Moses and Aaron said to all the children of Israel, “At evening, you shall know that the LORD has brought you out from the land of Egypt.</p>
+    <p>In the morning, you shall see the LORD’s glory; because he hears your murmurings against the LORD. Who are we, that you murmur against us?” Moses said, “Now the LORD will give you meat to eat in the evening, and in the morning bread to satisfy you, because the LORD hears your murmurings which you murmur against him. And who are we? Your murmurings are not against us, but against the LORD.” Moses said to Aaron, “Tell all the congregation of the children of Israel, ‘Come close to the LORD, for he has heard your murmurings.’” As Aaron spoke to the whole congregation of the children of Israel, they looked toward the wilderness, and behold, the LORD’s glory appeared in the cloud. The LORD spoke to Moses, saying, “I have heard the murmurings of the children of Israel. Speak to them, saying, ‘At evening you shall eat meat, and in the morning you shall be filled with bread. Then you will know that I am the LORD your God.’”</p>
+    <p>In the evening, quail came up and covered the camp; and in the morning the dew lay around the camp. When the dew that lay had gone, behold, on the surface of the wilderness was a small round thing, small as the frost on the ground. When the children of Israel saw it, they said to one another, “What is it?” For they didn’t know what it was. Moses said to them, “It is the bread which the LORD has given you to eat. This is the thing which the LORD has commanded: ‘Gather of it everyone according to his eating; an omer a head, according to the number of your persons, you shall take it, every man for those who are in his tent.’” The children of Israel did so, and some gathered more, some less. When they measured it with an omer, he who gathered much had nothing over, and he who gathered little had no lack. They each gathered according to his eating.</p>
+    <p>Moses said to them, “Let no one leave of it until the morning.” Notwithstanding they didn’t listen to Moses, but some of them left of it until the morning, so it bred worms and became foul; and Moses was angry with them. They gathered it morning by morning, everyone according to his eating. When the sun grew hot, it melted. On the sixth day, they gathered twice as much bread, two omers for each one; and all the rulers of the congregation came and told Moses. He said to them, “This is that which the LORD has spoken, ‘Tomorrow is a solemn rest, a holy Sabbath to the LORD. Bake that which you want to bake, and boil that which you want to boil; and all that remains over lay up for yourselves to be kept until the morning.’” They laid it up until the morning, as Moses ordered, and it didn’t become foul, and there were no worms in it.</p>
+    <p>Moses said, “Eat that today, for today is a Sabbath to the LORD. Today you shall not find it in the field. Six days you shall gather it, but on the seventh day is the Sabbath. In it there shall be none.” On the seventh day, some of the people went out to gather, and they found none. The LORD said to Moses, “How long do you refuse to keep my commandments and my laws? Behold, because the LORD has given you the Sabbath, therefore he gives you on the sixth day the bread of two days. Everyone stay in his place. Let no one go out of his place on the seventh day.” So the people rested on the seventh day.</p>
+    <p>The house of Israel called its name “Manna”, and it was like coriander seed, white; and its taste was like wafers with honey. Moses said, “This is the thing which the LORD has commanded, ‘Let an omer-full of it be kept throughout your generations, that they may see the bread with which I fed you in the wilderness, when I brought you out of the land of Egypt.’” Moses said to Aaron, “Take a pot, and put an omer-full of manna in it, and lay it up before the LORD, to be kept throughout your generations.” As the LORD commanded Moses, so Aaron laid it up before the Testimony, to be kept. The children of Israel ate the manna forty years, until they came to an inhabited land. They ate the manna until they came to the borders of the land of Canaan. Now an omer is one tenth of an ephah.</p>
+  </blockquote>
+  <p class="attribution">&mdash; Exodus 16<span class="source">World English Bible, Catholic Edition</span></p>
+  <div class="vr"><div class="r">Thanks be to God.</div></div>
+  </section>
+  <section data-section="closing-verses">
+    <h2><span class="numeral">IV.</span>Closing Verses</h2>
+  <div class="vr"><div class="v">May the divine assistance <span class="red">✠</span> remain always with us and may the souls of the faithfully departed, through the mercy of God, rest in peace.</div><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="sign-close">
+    <h2><span class="numeral">V.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <footer>&#10013;</footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("nightPrayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("nightPrayerTheme") || "black");
+</script>
+</body>
+</html>
