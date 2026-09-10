@@ -3,8 +3,9 @@
 A separate office from the morning one and a separate page: Sign of the Cross,
 the Jesus Prayer, a Hail Mary, a psalm with its Glory be — one of the Psalms
 of Solomon, one of the Odes, or one of the singing scrolls from Qumran — a
-reading from the wisdom and deuterocanonical books, a reading from the
-apocrypha, silent mental prayer, and the Sign of the Cross again. Eight
+reading from the wisdom and deuterocanonical books with its Thanks be to God,
+a reading from the apocrypha, silent mental prayer, and the Sign of the Cross
+again. Eight
 sections, always the same eight, in that order — there is nothing to
 configure, and so no settings panel.
 
@@ -38,6 +39,7 @@ import sys
 from pathlib import Path
 
 import night_prayers
+import prayers
 from book_excerpts import reading_key
 from generate_page import render_prayer, render_section
 
@@ -576,6 +578,14 @@ def build_page(
     # inside that section rather than standing as a section of its own.
     psalm_body = render_reading(psalm) + "\n" + render_prayer(night_prayers.GLORIA_PATRI)
 
+    # The Deo gratias goes to the first reading and not the second, because
+    # the first is scripture and the second is not. The first pool is the
+    # wisdom and deuterocanonical books; the second is Enoch, Jubilees, the
+    # Odes, the scrolls — worth reading and not the canon, and answering them
+    # as though they had been read as a lesson from the Bible would say
+    # something about them that this page does not mean to say.
+    first_body = render_reading(first) + "\n" + render_prayer(prayers.THANKS_BE_TO_GOD)
+
     sign = render_multilingual(night_prayers.SIGN_OF_THE_CROSS, "sign")
     sections = [
         ("sign-open", "Sign of the Cross", sign),
@@ -584,7 +594,7 @@ def build_page(
         ("hail-mary", "Hail Mary",
          render_multilingual(night_prayers.HAIL_MARY, "hail-mary")),
         ("psalm", f"Psalm — {psalm['citation']}", psalm_body),
-        ("reading-wisdom", f"First Reading — {first['citation']}", render_reading(first)),
+        ("reading-wisdom", f"First Reading — {first['citation']}", first_body),
         ("reading-apocrypha", f"Second Reading — {second['citation']}", render_reading(second)),
         ("mental-prayer", "Greater Doxology",
          render_multilingual(night_prayers.GREATER_DOXOLOGY, "doxology")),
@@ -600,6 +610,43 @@ def build_page(
         neighbours=render_neighbours(day) if linked else "",
         sections="\n".join(rendered),
     )
+
+
+# The end of the first reading's section: its attribution line, and the
+# closing tag the response has to go in front of.
+_END_OF_FIRST_READING = re.compile(
+    rb'(<section data-section="reading-wisdom">.*?</p>)(\r?\n  </section>)',
+    re.S,
+)
+_DEO_GRATIAS = b'\r\n  <div class="vr"><div class="r">Thanks be to God.</div></div>'
+
+
+def answer_readings(nights_dir: Path = NIGHTS_DIR) -> int:
+    """Give the Deo gratias to every page in the folder that has none.
+
+    The nights already in the folder have been prayed, and rebuilding one
+    would deal it a different psalm and different readings. So the markup
+    alone is patched and the office below it is not touched — the same thing
+    link_neighbours does for a day page written before the arrows existed.
+
+    Byte-level, because these pages are CRLF throughout and a read that
+    normalises the line endings followed by a write that restores them is one
+    accident away from rewriting all four hundred lines of a page to change
+    one of them.
+    """
+    answered = 0
+    for page in sorted(nights_dir.glob("*.html")):
+        before = page.read_bytes()
+        if b"Thanks be to God" in before:
+            continue
+        after, count = _END_OF_FIRST_READING.subn(
+            lambda m: m.group(1) + _DEO_GRATIAS + m.group(2), before, count=1
+        )
+        if not count:
+            raise LookupError(f"{page.name}: no first reading to answer")
+        page.write_bytes(after)
+        answered += 1
+    return answered
 
 
 def generate_nights(start: datetime.date, end: datetime.date, nights_dir: Path = NIGHTS_DIR) -> None:
@@ -636,6 +683,7 @@ def generate_nights(start: datetime.date, end: datetime.date, nights_dir: Path =
 
     print(f"wrote {written} pages, left {skipped} existing pages alone")
     print(f"{len(spent)} readings spent in total")
+    print(f"answered the first reading on {answer_readings(nights_dir)} pages that had no response")
 
 
 def main() -> None:

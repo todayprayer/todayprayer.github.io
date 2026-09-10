@@ -376,6 +376,11 @@ FEAST_WORKS = {
     # of which the collection holds nothing.
     (9, 30): ["providentissimus deus", "spiritus paraclitus", "divino afflante spiritu"],
     (10, 3): ["therese"],                      # Thérèse of Lisieux
+    # Francis wrote almost nothing, so his day is kept with the book his own
+    # companions' talk became. Written long enough to be unambiguous: "little
+    # flower" alone would also catch the life of Thérèse of Lisieux, whose day
+    # is the one before.
+    (10, 4): ["little flowers of saint francis"],
     (10, 15): ["of avila", "interior castle", "fire within"],
     (10, 22): ["pope st. john paul ii"],
     (11, 24): ["john of the cross", "science of the cross", "fire within"],

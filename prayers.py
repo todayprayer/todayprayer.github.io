@@ -53,6 +53,16 @@ SIGN_OF_THE_CROSS = [
     Response("Amen."),
 ]
 
+# The Deo gratias, said at the end of a lesson from scripture. It belongs to
+# the reading rather than standing on its own, so the pages that use it print
+# it inside the reading's section. Kept here, in the module both offices
+# already share, rather than in either one of them: it is a response of the
+# rite and not of the hour, and the basic morning page and the night page
+# should not be able to drift into answering a reading differently.
+THANKS_BE_TO_GOD = [
+    Response("Thanks be to God."),
+]
+
 INVOCATION_OF_THE_HOLY_SPIRIT = [
     ("Come, Holy Spirit, fill the hearts of Thy faithful and kindle in them the fire of Thy love.",
      "Send forth Thy Spirit, and they shall be created; and Thou shalt renew the face of the earth."),

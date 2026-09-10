@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Morning Prayer</title>
+<title>Today Prayer</title>
 <style>
   :root, :root[data-theme="light"] {
     --ink: #2b2216;
@@ -56,7 +56,6 @@
     text-transform: uppercase;
     margin: 0.4rem 0 0.3rem;
   }
-  header .date { font-style: italic; color: var(--muted); }
   a { color: var(--accent); }
 
   .actions { text-align: center; }
@@ -175,22 +174,13 @@
 <main>
   <header>
     <div class="cross">&#10013;</div>
-    <h1>Morning Prayer</h1>
-    <div class="date" id="today-date"></div>
+    <h1>Today Prayer</h1>
   </header>
 
   <div class="actions">
-    <a class="btn btn-primary" id="today-link" href="#">Pray</a>
+    <a class="btn btn-primary" id="today-link" href="#">Morning Prayer</a>
     <nav>
-      <a class="btn" id="prev-link" href="#">&larr; Yesterday</a>
-      <a class="btn" id="next-link" href="#">Tomorrow &rarr;</a>
-    </nav>
-    <nav>
-    </nav>
-    <nav>
-    </nav>
-    <nav>
-      <a class="btn btn-night" id="night-link" href="#">Night Prayer</a>
+      <a class="btn btn-primary btn-night" id="night-link" href="#">Night Prayer</a>
     </nav>
   </div>
 
@@ -222,23 +212,13 @@
     return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
   }
 
-  function pretty(d) {
-    return d.toLocaleDateString(undefined, {
-      weekday: "long", year: "numeric", month: "long", day: "numeric"
-    });
-  }
-
-  function shift(d, days) {
-    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
-  }
-
   var now = new Date();
   var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
 
-  document.getElementById("today-date").textContent = pretty(today);
+  // Only the two doors. Yesterday and tomorrow used to hang here as well, but
+  // every day page and every night page now carries its own arrows, so the
+  // front page has no reason to offer a second way to the same place.
   document.getElementById("today-link").href = "days/" + iso(today) + ".html";
-  document.getElementById("prev-link").href = "days/" + iso(shift(today, -1)) + ".html";
-  document.getElementById("next-link").href = "days/" + iso(shift(today, 1)) + ".html";
   document.getElementById("night-link").href = "nights/" + iso(today) + ".html";
 </script>
 </body>
