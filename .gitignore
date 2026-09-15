@@ -6,6 +6,13 @@
 !book_excerpts.py
 !calendar_1962.py
 !generate_page.py
+# The client-side generator: a port of generate_page used by 404.html to build
+# a missing day in the browser, the data it needs, and the check that it still
+# agrees with the Python byte for byte.
+!office.js
+!office_data.json
+!export_office_data.py
+!verify_office_js.py
 !prayers.py
 !holidays_us.py
 !readings.json
@@ -22,6 +29,7 @@
 
 # Published site
 !index.html
+!404.html
 !days/
 !days/*.html
 !night.html

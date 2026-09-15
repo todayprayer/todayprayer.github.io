@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Not Found — Today Prayer</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --ink: #2b2216;
+    --accent: #7a1f1f;
+    --accent-hover: #8f2626;
+    --paper: #faf6ee;
+    --rule: #d8cdb8;
+    --muted: #6b5d48;
+    --btn-face: #fffdf8;
+    --on-accent: #fdf8f0;
+    color-scheme: light;
+  }
+  :root[data-theme="paper"] {
+    --ink: #3a2e1c;
+    --accent: #7a1f1f;
+    --accent-hover: #8f2626;
+    --paper: #f4e8d0;
+    --rule: #d9c49c;
+    --muted: #6f5f45;
+    --btn-face: #faf1de;
+    --on-accent: #f8efdc;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ink: #e2dacb;
+    --accent: #d19a9a;
+    --accent-hover: #e0aeae;
+    --paper: #16150f;
+    --rule: #3a352b;
+    --muted: #9a9080;
+    --btn-face: #221f18;
+    --on-accent: #16150f;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 3rem 1rem;
+  }
+  main { max-width: 32rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.4rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.3rem;
+  }
+  a { color: var(--accent); }
+
+  /* What the reader was after, named as plainly as the page can manage. */
+  .asked {
+    text-align: center;
+    border-top: 1px solid var(--rule);
+    border-bottom: 1px solid var(--rule);
+    padding: 1.1rem 0.5rem;
+    margin-bottom: 1.6rem;
+  }
+  .asked .office {
+    font-size: 0.72rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 0 0 0.2rem;
+  }
+  .asked .day { font-size: 1.15rem; margin: 0; }
+  .asked .verdict { font-style: italic; color: var(--muted); margin: 0.5rem 0 0; }
+  .asked .path {
+    font-family: ui-monospace, Menlo, Consolas, monospace;
+    font-size: 0.72rem;
+    color: var(--muted);
+    word-break: break-all;
+    margin: 0.6rem 0 0;
+  }
+
+  .actions { text-align: center; }
+  .label {
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin: 1.6rem 0 0.7rem;
+  }
+  .btn {
+    display: inline-block;
+    font-family: inherit;
+    font-size: 0.8rem;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    text-decoration: none;
+    padding: 0.5rem 1.1rem;
+    border: 1px solid var(--rule);
+    border-radius: 0.25rem;
+    background: var(--btn-face);
+    color: var(--muted);
+    box-shadow: 0 1px 2px rgba(43, 34, 22, 0.09);
+    cursor: pointer;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn:active { box-shadow: none; transform: translateY(1px); }
+  .btn-primary {
+    font-size: 0.95rem;
+    padding: 0.7rem 2.6rem;
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--on-accent);
+    box-shadow: 0 1px 3px rgba(43, 34, 22, 0.28);
+  }
+  .btn-primary:hover {
+    background: var(--accent-hover);
+    border-color: var(--accent-hover);
+    color: var(--on-accent);
+  }
+  .btn-night { background: #000; border-color: #000; color: #cfcfcf; }
+  .btn-night:hover { background: #1a1a1a; border-color: #1a1a1a; color: #fff; }
+
+  nav { display: flex; justify-content: center; gap: 0.5rem; margin-top: 0.9rem; flex-wrap: wrap; }
+  [hidden] { display: none !important; }
+
+  .note {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0.8rem auto 0;
+    max-width: 26rem;
+  }
+  .note.working::after {
+    content: "";
+    display: inline-block;
+    width: 0.6rem;
+    text-align: left;
+    animation: dots 1.2s steps(4, end) infinite;
+  }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+  .note.bad { color: var(--accent); font-style: normal; }
+
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: var(--paper); }
+
+  footer {
+    margin-top: 3rem;
+    padding-top: 1.2rem;
+    border-top: 1px solid var(--rule);
+    color: var(--muted);
+    font-size: 0.85rem;
+    text-align: center;
+  }
+  footer p { margin: 0.6rem 0; }
+</style>
+<script>
+  (function () {
+    var t = localStorage.getItem("prayerTheme");
+    if (t) { document.documentElement.setAttribute("data-theme", t); }
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="light">Light</button>
+  <button type="button" data-theme-value="paper">Paper</button>
+  <button type="button" data-theme-value="dark">Dark</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Not Found</h1>
+  </header>
+
+  <div class="asked">
+    <p class="office" id="asked-office" hidden></p>
+    <p class="day" id="asked-day">This page is not here.</p>
+    <p class="verdict" id="asked-verdict">Most likely it has not been generated yet.</p>
+    <p class="path" id="asked-path" hidden></p>
+  </div>
+
+  <div class="actions">
+    <!-- The day either side of the one that missed. A day page is named by its
+         date, so these are knowable without asking the server anything — and
+         one of them very often exists when the requested day does not. -->
+    <div id="around" hidden>
+      <p class="label" id="around-label">The days either side</p>
+      <nav>
+        <a class="btn" id="prev-link" href="#">&larr; <span id="prev-label"></span></a>
+        <a class="btn" id="next-link" href="#"><span id="next-label"></span> &rarr;</a>
+      </nav>
+    </div>
+
+    <!-- The same date in the other office, for when only one of the two was
+         generated that far ahead. -->
+    <div id="sibling" hidden>
+      <p class="label">That same day, the other office</p>
+      <nav>
+        <a class="btn" id="sibling-link" href="#"></a>
+      </nav>
+    </div>
+
+    <!-- Build the missing office here, in the browser. Shown only for a
+         morning page, which is the office office.js can make. -->
+    <div id="generate" hidden>
+      <p class="label">Or build it now</p>
+      <nav>
+        <a class="btn btn-primary" id="generate-btn" href="#">Generate this page</a>
+      </nav>
+      <nav id="save-row" hidden>
+        <a class="btn" id="save-btn" href="#" download>Download the file</a>
+      </nav>
+      <p class="note" id="generate-note"></p>
+    </div>
+
+    <p class="label">Today</p>
+    <a class="btn btn-primary" id="today-link" href="#">Morning Prayer</a>
+    <nav>
+      <a class="btn btn-primary btn-night" id="tonight-link" href="#">Night Prayer</a>
+    </nav>
+    <nav>
+      <a class="btn" id="home-link" href="#">Front page</a>
+    </nav>
+  </div>
+
+  <footer>
+    <p>&#10013;</p>
+  </footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("prayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("prayerTheme") || "light");
+
+  function pad(n) { return (n < 10 ? "0" : "") + n; }
+  function iso(d) {
+    return d.getFullYear() + "-" + pad(d.getMonth() + 1) + "-" + pad(d.getDate());
+  }
+  function pretty(d) {
+    return d.toLocaleDateString(undefined, {
+      weekday: "long", year: "numeric", month: "long", day: "numeric"
+    });
+  }
+  function shift(d, days) {
+    return new Date(d.getFullYear(), d.getMonth(), d.getDate() + days);
+  }
+
+  var now = new Date();
+  var today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+
+  // Which URL missed.
+  //
+  // A static host serves this document *at* the address that was asked for,
+  // with a 404 status, rather than sending the browser onward to /404.html —
+  // so location.pathname is still the path that failed and can be read
+  // straight off. That holds for GitHub Pages, Netlify, Cloudflare Pages and
+  // an Apache or nginx ErrorDocument. A host configured to redirect instead
+  // would land us here with our own name in the bar and nothing to report, so
+  // the referrer is tried second, and if that says nothing either the page
+  // simply keeps quiet rather than guessing.
+  var asked = location.pathname + location.search;
+  if (/(^|\/)404\.html?$/i.test(location.pathname)) {
+    asked = document.referrer && document.referrer.indexOf(location.origin) === 0
+      ? document.referrer.slice(location.origin.length)
+      : "";
+  }
+  // Matched without the query string, which a day page never carries and
+  // which would otherwise stop the address ending in .html and match nothing.
+  var askedPath = asked.split("?")[0].split("#")[0];
+
+  // /days/2026-10-05.html, /nights/..., /simple/days/..., /simple/nights/...
+  // The leading part is captured rather than assumed, so this still works from
+  // a project subdirectory such as /morning-prayer/days/2026-10-05.html.
+  var OFFICES = {
+    "days": { name: "Morning Prayer", other: "nights", otherName: "Night Prayer" },
+    "nights": { name: "Night Prayer", other: "days", otherName: "Morning Prayer" },
+    "simple/days": { name: "Morning Prayer — basic", other: "simple/nights", otherName: "Night Prayer — basic" },
+    "simple/nights": { name: "Night Prayer — basic", other: "simple/days", otherName: "Morning Prayer — basic" }
+  };
+
+  var hit = askedPath.match(/^(.*?)\/((?:simple\/)?(?:days|nights))\/(\d{4})-(\d{2})-(\d{2})\.html?$/);
+  var root = hit ? hit[1] + "/" : "";
+  var office = hit ? OFFICES[hit[2]] : null;
+  var folder = hit ? hit[2] : null;
+  var wanted = hit
+    ? new Date(Number(hit[3]), Number(hit[4]) - 1, Number(hit[5]))
+    : null;
+
+  // A date that parsed but is not a real day — 2026-02-31 — gives a Date that
+  // has rolled over into the next month. Do not report it as the day wanted.
+  if (wanted && iso(wanted) !== hit[3] + "-" + hit[4] + "-" + hit[5]) { wanted = null; }
+
+  if (asked) {
+    var path = document.getElementById("asked-path");
+    path.textContent = asked;
+    path.hidden = false;
+  }
+
+  if (office && wanted) {
+    document.getElementById("asked-office").textContent = office.name;
+    document.getElementById("asked-office").hidden = false;
+    document.getElementById("asked-day").textContent = pretty(wanted);
+
+    var days = Math.round((wanted - today) / 86400000);
+    document.getElementById("asked-verdict").textContent = days > 0
+      ? "That day is " + days + " day" + (days === 1 ? "" : "s") + " ahead and has not been generated yet."
+      : "That day has not been generated.";
+
+    document.getElementById("prev-link").href = root + folder + "/" + iso(shift(wanted, -1)) + ".html";
+    document.getElementById("next-link").href = root + folder + "/" + iso(shift(wanted, 1)) + ".html";
+    document.getElementById("prev-label").textContent = pretty(shift(wanted, -1));
+    document.getElementById("next-label").textContent = pretty(shift(wanted, 1));
+    document.getElementById("around").hidden = false;
+
+    var sibling = document.getElementById("sibling-link");
+    sibling.href = root + office.other + "/" + iso(wanted) + ".html";
+    sibling.textContent = office.otherName;
+    if (folder.indexOf("simple/") === 0) { sibling.classList.add("btn-night"); }
+    document.getElementById("sibling").hidden = false;
+  } else if (office) {
+    // The folder was one of the offices but the date is not a real day —
+    // 2026-02-31, which Date silently rolls over into March.
+    document.getElementById("asked-office").textContent = office.name;
+    document.getElementById("asked-office").hidden = false;
+    document.getElementById("asked-day").textContent = "That is not a day.";
+    document.getElementById("asked-verdict").textContent =
+      "The office is right, but no such date exists in the calendar.";
+  } else if (asked) {
+    document.getElementById("asked-day").textContent = "No page answers to that address.";
+    document.getElementById("asked-verdict").textContent =
+      "It is not one of the daily offices, so there is no day to look for.";
+  }
+
+  document.getElementById("today-link").href = root + "days/" + iso(today) + ".html";
+  document.getElementById("tonight-link").href = root + "nights/" + iso(today) + ".html";
+  document.getElementById("home-link").href = root || "/";
+
+  // ---- building the missing office in the browser ------------------------
+  //
+  // office.js is a port of generate_page.build_page, checked byte-for-byte
+  // against it by verify_office_js.py. It needs office_data.json (the prayers
+  // and the calendar, already rendered) and readings.json (three megabytes of
+  // them), which is why nothing is fetched until the button is pressed.
+  //
+  // Every URL is built from `root` and none is left relative. This document
+  // is served *at* the address that missed — /days/2026-10-05.html — so a
+  // relative "office.js" would be looked for in /days/, and a relative fetch
+  // of readings.json in /days/ too. Both would 404, which on this page of all
+  // pages would be a poor joke.
+  var note = document.getElementById("generate-note");
+  var button = document.getElementById("generate-btn");
+
+  function say(text, cls) {
+    note.textContent = text;
+    note.className = "note" + (cls ? " " + cls : "");
+  }
+
+  function load(src) {
+    return new Promise(function (resolve, reject) {
+      var s = document.createElement("script");
+      s.src = src;
+      s.onload = resolve;
+      s.onerror = function () { reject(new Error("could not load " + src)); };
+      document.head.appendChild(s);
+    });
+  }
+
+  function getJson(url) {
+    return fetch(url, { cache: "force-cache" }).then(function (r) {
+      if (!r.ok) { throw new Error(url.split("/").pop() + " — " + r.status); }
+      return r.json();
+    });
+  }
+
+  if (office && wanted && folder === "days") {
+    document.getElementById("generate").hidden = false;
+    say("It is built from the same prayers and the same readings the generator "
+      + "uses, and comes out the same page. About three megabytes to fetch.");
+
+    button.addEventListener("click", function (event) {
+      event.preventDefault();
+      if (button.dataset.busy) { return; }
+      button.dataset.busy = "1";
+      say("Fetching the prayers and the readings", "working");
+
+      load(root + "office.js")
+        .then(function () {
+          return Promise.all([
+            getJson(root + "office_data.json"),
+            getJson(root + "readings.json")
+          ]);
+        })
+        .then(function (both) {
+          say("Drawing the readings", "working");
+          // A tick, so the note paints before the digests are computed.
+          return new Promise(function (resolve) {
+            setTimeout(function () {
+              resolve(Office.buildPage(both[0], both[1], iso(wanted), true));
+            }, 16);
+          });
+        })
+        .then(function (html) {
+          // Offered before the page is replaced, so the file can be saved and
+          // committed into days/ where it belongs.
+          var save = document.getElementById("save-btn");
+          save.href = URL.createObjectURL(new Blob([html], { type: "text/html" }));
+          save.setAttribute("download", iso(wanted) + ".html");
+          document.getElementById("save-row").hidden = false;
+          say("Ready. Opening it now — this page was not saved to the site, so "
+            + "download it if you want to keep it.");
+          setTimeout(function () {
+            // Replaces this document in place, leaving the address alone: the
+            // reader ends up at the URL they asked for, showing the office.
+            document.open();
+            document.write(html);
+            document.close();
+          }, 900);
+        })
+        .catch(function (err) {
+          button.dataset.busy = "";
+          say(String(err.message || err), "bad");
+        });
+    });
+  }
+</script>
+</body>
+</html>
