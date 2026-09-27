@@ -1,0 +1,603 @@
+{
+ "shell": "<!DOCTYPE html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n<title>Night Prayer — @@DATE_PRETTY@@</title>\n<style>\n  /* Three lights only, and black is the one the page opens in. The accent is\n     not a colour but a lift in the grey, so nothing on the page glows at an\n     eye that is meant to be closing. */\n  :root, :root[data-theme=\"black\"] {\n    --ink: #cfcfcf;\n    --accent: #8e8e8e;\n    --paper: #000000;\n    --rule: #2a2a2a;\n    --muted: #767676;\n    color-scheme: dark;\n  }\n  :root[data-theme=\"grey\"] {\n    --ink: #e4e4e4;\n    --accent: #a8a8a8;\n    --paper: #2b2b2b;\n    --rule: #484848;\n    --muted: #9b9b9b;\n    color-scheme: dark;\n  }\n  :root[data-theme=\"white\"] {\n    --ink: #1c1c1c;\n    --accent: #5c5c5c;\n    --paper: #ffffff;\n    --rule: #d6d6d6;\n    --muted: #6e6e6e;\n    color-scheme: light;\n  }\n  body {\n    background: var(--paper);\n    color: var(--ink);\n    font-family: Georgia, \"Times New Roman\", serif;\n    line-height: 1.7;\n    margin: 0;\n    padding: 2rem 1rem 4rem;\n  }\n  main { max-width: 38rem; margin: 0 auto; }\n  header { text-align: center; margin-bottom: 2.5rem; }\n  header .cross { color: var(--accent); font-size: 1.6rem; }\n  h1 {\n    font-size: 1.7rem;\n    font-weight: normal;\n    letter-spacing: 0.12em;\n    text-transform: uppercase;\n    margin: 0.4rem 0 0.2rem;\n  }\n  header .date { font-style: italic; color: var(--muted); }\n  /* The nights are a series, and a page of a series should say which way is\n     back. Set small and quiet: it is furniture, not part of the office. */\n  header nav {\n    display: flex;\n    justify-content: center;\n    align-items: baseline;\n    gap: 1.4rem;\n    margin-top: 0.7rem;\n    font-size: 0.75rem;\n    letter-spacing: 0.1em;\n    text-transform: uppercase;\n  }\n  header nav a { color: var(--muted); text-decoration: none; }\n  header nav a:hover { color: var(--ink); }\n  section { margin: 2.4rem 0; }\n  h2 {\n    font-size: 0.95rem;\n    letter-spacing: 0.18em;\n    text-transform: uppercase;\n    font-weight: normal;\n    color: var(--accent);\n    border-bottom: 1px solid var(--rule);\n    padding-bottom: 0.3rem;\n  }\n  h2 .numeral { display: inline-block; min-width: 2.6rem; }\n  p { margin: 0.8rem 0; }\n  .vr { margin: 0.8rem 0; }\n  .vr .v::before { content: \"\\2123. \"; color: var(--accent); }\n  .vr .r::before { content: \"\\211F. \"; color: var(--accent); }\n  .vr .r { margin-left: 1.4rem; }\n  .red { color: var(--accent); }\n  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }\n  .lang-row { margin: 0.7rem 0 0.2rem; }\n  .pill {\n    font-family: inherit;\n    font-size: 0.7rem;\n    letter-spacing: 0.08em;\n    background: none;\n    border: 1px solid var(--rule);\n    border-radius: 1rem;\n    color: var(--muted);\n    padding: 0.12rem 0.7rem;\n    margin: 0 0.35rem 0.3rem 0;\n    cursor: pointer;\n  }\n  .pill.active { border-color: var(--accent); color: var(--ink); }\n  blockquote {\n    margin: 1rem 0;\n    padding: 0.2rem 0 0.2rem 1.2rem;\n    border-left: 3px solid var(--rule);\n  }\n  /* Verse keeps its own lining: one line to a line, wrapping hangs, and a\n     line the edition sets further in is set further in here too. */\n  blockquote .line {\n    padding-left: 1.3rem;\n    text-indent: -1.3rem;\n    line-height: 1.55;\n  }\n  blockquote .line.indent { padding-left: 3rem; }\n  .attribution {\n    text-align: right;\n    font-size: 0.9rem;\n    color: var(--muted);\n  }\n  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }\n  footer {\n    text-align: center;\n    margin-top: 3rem;\n    color: var(--accent);\n    font-size: 1.3rem;\n  }\n  .theme-toggle {\n    position: fixed;\n    top: 0.7rem;\n    right: 0.7rem;\n    display: flex;\n    gap: 0.1rem;\n    background: var(--paper);\n    border: 1px solid var(--rule);\n    border-radius: 1rem;\n    padding: 0.15rem;\n    z-index: 10;\n  }\n  .theme-toggle button {\n    font-family: inherit;\n    font-size: 0.62rem;\n    letter-spacing: 0.1em;\n    text-transform: uppercase;\n    line-height: 1.4;\n    background: none;\n    border: none;\n    border-radius: 1rem;\n    color: var(--muted);\n    padding: 0.2rem 0.55rem;\n    cursor: pointer;\n  }\n  .theme-toggle button.active { background: var(--accent); color: var(--paper); }\n</style>\n<script>\n  // Before the body paints, so the page never flashes white at a dark-adapted\n  // eye. Its own key, so choosing black here does not darken the morning.\n  (function () {\n    var t = localStorage.getItem(\"nightPrayerTheme\");\n    document.documentElement.setAttribute(\"data-theme\", t || \"black\");\n  })();\n</script>\n</head>\n<body>\n<div class=\"theme-toggle\" role=\"group\" aria-label=\"Theme\">\n  <button type=\"button\" data-theme-value=\"black\">Black</button>\n  <button type=\"button\" data-theme-value=\"grey\">Grey</button>\n  <button type=\"button\" data-theme-value=\"white\">White</button>\n</div>\n<main>\n  <header>\n    <div class=\"cross\">&#10013;</div>\n    <h1>Night Prayer</h1>\n    <div class=\"date\">@@DATE_PRETTY@@</div>\n@@NEIGHBOURS@@  </header>\n@@SECTIONS@@\n  <footer>&#10013;</footer>\n</main>\n<script>\n  function setTheme(name) {\n    document.documentElement.setAttribute(\"data-theme\", name);\n    document.querySelectorAll(\".theme-toggle button\").forEach(function (btn) {\n      btn.classList.toggle(\"active\", btn.dataset.themeValue === name);\n    });\n    localStorage.setItem(\"nightPrayerTheme\", name);\n  }\n  document.querySelectorAll(\".theme-toggle button\").forEach(function (btn) {\n    btn.addEventListener(\"click\", function () { setTheme(this.dataset.themeValue); });\n  });\n  setTheme(localStorage.getItem(\"nightPrayerTheme\") || \"black\");\n\n  // Each prayer keeps its own language, so the Jesus Prayer can be prayed in\n  // Greek while the reading around it stays in English. The two Signs of the\n  // Cross share a group and so switch together.\n  function setLang(group, code) {\n    var chosen = null;\n    document.querySelectorAll('.lang[data-lang-group=\"' + group + '\"]').forEach(function (el) {\n      var match = el.dataset.lang === code;\n      el.hidden = !match;\n      if (match) { chosen = code; }\n    });\n    // A language the page does not carry — a stored choice from a day when it\n    // did, or a hand-edited key — leaves nothing showing. Fall back.\n    if (!chosen) {\n      var first = document.querySelector('.lang[data-lang-group=\"' + group + '\"]');\n      if (!first) { return; }\n      code = first.dataset.lang;\n      first.hidden = false;\n    }\n    document.querySelectorAll('.lang-row[data-lang-group=\"' + group + '\"] .pill').forEach(function (b) {\n      b.classList.toggle(\"active\", b.dataset.lang === code);\n    });\n    localStorage.setItem(\"nightPrayerLang:\" + group, code);\n  }\n\n  document.querySelectorAll(\".lang-row\").forEach(function (row) {\n    var group = row.dataset.langGroup;\n    row.querySelectorAll(\".pill\").forEach(function (btn) {\n      btn.addEventListener(\"click\", function () { setLang(group, this.dataset.lang); });\n    });\n    setLang(group, localStorage.getItem(\"nightPrayerLang:\" + group) || \"en\");\n  });\n</script>\n</body>\n</html>\n",
+ "sentinels": {
+  "date": "@@DATE_PRETTY@@",
+  "nav": "@@NEIGHBOURS@@",
+  "sections": "@@SECTIONS@@"
+ },
+ "fixed": {
+  "sign": "  <div class=\"lang-row\" data-lang-group=\"sign\">\n    <button type=\"button\" class=\"pill\" data-lang=\"en\">English</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"la\">Latin</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"el\">Greek</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"he\">Hebrew</button>\n  </div>\n  <div class=\"lang\" data-lang-group=\"sign\" data-lang=\"en\">\n  <p><span class=\"red\">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"sign\" data-lang=\"la\" hidden>\n  <p><span class=\"red\">✠</span> In nómine Patris, et Fílii, et Spíritus Sancti.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"sign\" data-lang=\"el\" hidden>\n  <p><span class=\"red\">✠</span> Eis to onoma tou Patros kai tou Yiou kai tou Agiou Pnevmatos.</p>\n  <div class=\"vr\"><div class=\"r\">Amin.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"sign\" data-lang=\"he\" hidden>\n  <p><span class=\"red\">✠</span> B’shem ha-Av v’ha-Ben v’Ruach ha-Kodesh.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  </div>",
+  "jesus-prayer": "  <div class=\"lang-row\" data-lang-group=\"jesus\">\n    <button type=\"button\" class=\"pill\" data-lang=\"en\">English</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"la\">Latin</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"el\">Greek</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"he\">Hebrew</button>\n  </div>\n  <div class=\"lang\" data-lang-group=\"jesus\" data-lang=\"en\">\n  <p class=\"rubric\">Repeat as many times as necessary, or pluralize in group prayer.</p>\n  <p>Lord Jesus Christ, Son of the living God, have mercy on me, a sinner.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"jesus\" data-lang=\"la\" hidden>\n  <p class=\"rubric\">Repete quoties opus est, vel numero plurali in oratione communi.</p>\n  <p>Dómine Iesu Christe, Fili Dei vivi, miserére mei peccatóris.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"jesus\" data-lang=\"el\" hidden>\n  <p class=\"rubric\">Epanalave osakis chreiazetai, i en plithyntiko en koini prosefchi.</p>\n  <p>Kyrie Iisou Christe, Yie tou Theou tou zontos, eleison me ton amartolon.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"jesus\" data-lang=\"he\" hidden>\n  <p class=\"rubric\">Chazor kama p’amim she-tzarich, o bi-lshon rabbim bi-tfila b’tzibur.</p>\n  <p>Adonai Yeshua HaMashiach, Ben-Elohim chayyim, rachem alai, ani ha-chote.</p>\n  </div>",
+  "hail-mary": "  <div class=\"lang-row\" data-lang-group=\"hail-mary\">\n    <button type=\"button\" class=\"pill\" data-lang=\"en\">English</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"la\">Latin</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"el\">Greek</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"he\">Hebrew</button>\n  </div>\n  <div class=\"lang\" data-lang-group=\"hail-mary\" data-lang=\"en\">\n  <div class=\"vr\"><div class=\"v\">Hail Mary, full of grace, the Lord is with thee; blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.</div><div class=\"r\">Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"hail-mary\" data-lang=\"la\" hidden>\n  <div class=\"vr\"><div class=\"v\">Ave María, grátia plena, Dóminus tecum. Benedícta tu in muliéribus, et benedíctus fructus ventris tui, Iesus.</div><div class=\"r\">Sancta María, Mater Dei, ora pro nobis peccatóribus, nunc et in hora mortis nostrae. Amen.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"hail-mary\" data-lang=\"el\" hidden>\n  <div class=\"vr\"><div class=\"v\">Chaire Maria, kecharitomeni, o Kyrios einai mazi sou. Evlogimeni esi metaxy ton gynaikon kai evlogimenos o karpos tis koilias sou, o Iisous.</div><div class=\"r\">Agia Maria, Mitera tou Theou, Prosefchisou gia emas tous amartolous tora kai stin ora tou thanatou mas. Amin.</div></div>\n  </div>\n  <div class=\"lang\" data-lang-group=\"hail-mary\" data-lang=\"he\" hidden>\n  <div class=\"vr\"><div class=\"v\">Shalom lach Miriam, bruchat ha chesed, Adonai imech. B’ruchah at ba-nashim, u-baruch pri bitnech, Yeshua.</div><div class=\"r\">Miriam ha-Kdoshah, em Eloheinu, hitpaleliI be’adeinu ha-chote’im, atah u’vish’at moteinu. Amen.</div></div>\n  </div>",
+  "doxology": "  <div class=\"lang-row\" data-lang-group=\"doxology\">\n    <button type=\"button\" class=\"pill\" data-lang=\"en\">English</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"la\">Latin</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"el\">Greek</button>\n    <button type=\"button\" class=\"pill\" data-lang=\"he\">Hebrew</button>\n  </div>\n  <div class=\"lang\" data-lang-group=\"doxology\" data-lang=\"en\">\n  <p>Glory be to God on high, and on earth peace to men of good will.</p>\n  <p>We praise Thee. We bless Thee. We adore Thee. We glorify Thee. We give Thee thanks for Thy great glory. O Lord God, heavenly King, God the Father almighty. O Lord Jesus Christ, the only begotten Son. O Lord God, Lamb of God, Son of the Father.</p>\n  <p>Who takest away the sins of the world, have mercy on us. Who takest away the sins of the world, receive our prayer. Who sittest at the right hand of the Father, have mercy on us. For Thou only art holy. Thou only art the Lord. Thou only art most high, O Jesus Christ. Together with the Holy Spirit <span class=\"red\">✠</span> in the glory of God the Father.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  <p class=\"rubric\">The ritual prayer is over. Final mental prayer may follow before the Sign of the Cross.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"doxology\" data-lang=\"la\" hidden>\n  <p>Glória in excélsis Deo. Et in terra pax homínibus bonæ voluntátis.</p>\n  <p>Laudámus te. Benedícimus te. Adorámus te. Glorificámus te. Grátias ágimus tibi propter magnam glóriam tuam. Dómine Deus, Rex cæléstis, Deus Pater omnípotens. Dómine Fili unigénite, Iesu Christe. Dómine Deus, Agnus Dei, Fílius Patris.</p>\n  <p>Qui tollis peccáta mundi, miserére nobis. Qui tollis peccáta mundi, súscipe deprecatiónem nostram. Qui sedes ad déxteram Patris, miserére nobis. Quóniam tu solus Sanctus. Tu solus Dóminus. Tu solus Altíssimus, Iesu Christe. Cum Sancto Spíritu <span class=\"red\">✠</span> in glória Dei Patris.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  <p class=\"rubric\">Oratio statuta explícita est. Oratio mentalis sequi potest ante signum crucis.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"doxology\" data-lang=\"el\" hidden>\n  <p>Doxa en ypsistois Theo kai epi gis eirini en anthropois evdokia.</p>\n  <p>Ymnoumen se, evlogoumen se, proskynoumen se, doxologoumen se, efcharistoumen soi, dia tin megalin sou doxan. Kyrie Vasilef, epouranie Thee, Pater pantokrator, Kyrie Yie monogenes, Iisou Christe, kai Agion Pnevma. Kyrie o Theos, o amnos tou Theou, o Yios tou Patros, o airon tin amartian tou kosmou, eleison imas, o airon tas amartias tou kosmou.</p>\n  <p>Prosdexai tin deisin imon, o kathimenos en dexia tou Patros, kai eleison imas. Oti sy ei monos Agios, sy ei monos Kyrios, Iisous Christos, eis doxan Theou Patros.</p>\n  <div class=\"vr\"><div class=\"r\">Amin.</div></div>\n  <p class=\"rubric\">I tetagmeni prosefchi etelesthi. Noera prosefchi dynatai akolouthisai pro tou simeiou tou stavrou.</p>\n  </div>\n  <div class=\"lang\" data-lang-group=\"doxology\" data-lang=\"he\" hidden>\n  <p>Kavod ba-m’romim l’Elohim, u-va’aretz shalom b’anshei r’tzono.</p>\n  <p>M’hal’lim otcha, m’var’chim otcha, mishtachavim l’cha, m’fa’arim otcha, modim l’cha al k’vodcha ha-gadol. Adonai Elohim, Melech ha-shamayim, El Av kol-yachol. Adon Yeshua ha-Mashiach, ha-Ben ha-yachid. Adonai Elohim, Seh ha-Elohim, Ben ha-Av.</p>\n  <p>Ha-nose chata’ot ha-olam, rachem aleinu. Ha-nose chata’ot ha-olam, kabbel et t’filatenu. Ha-yoshev li-min ha-Av, rachem aleinu. Ki ata l’vadcha kadosh. Ata l’vadcha Adon. Ata l’vadcha elyon, Yeshua ha-Mashiach. Im Ruach ha-Kodesh <span class=\"red\">✠</span> bi-chvod Elohim ha-Av.</p>\n  <div class=\"vr\"><div class=\"r\">Amen.</div></div>\n  <p class=\"rubric\">Ha-t’fila ha-k’vu’a tama. T’filat ha-lev y’chola lavo lifnei ot ha-tzlav.</p>\n  </div>",
+  "gloria-patri": "  <div class=\"vr\"><div class=\"v\">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class=\"r\">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>",
+  "thanks": "  <div class=\"vr\"><div class=\"r\">Thanks be to God.</div></div>"
+ },
+ "spent": {
+  "4292eca5ac53": 1,
+  "b17616dfe3c9": 1,
+  "298965a3a4d8": 1,
+  "fd82d5de602e": 1,
+  "66e8c20e2e0b": 1,
+  "466a19bfe684": 1,
+  "49738c4008aa": 1,
+  "f1c7c922cf43": 1,
+  "25a7fa7bb1aa": 1,
+  "04fcc60f0797": 1,
+  "31610ef75739": 1,
+  "913d0b19f5c7": 1,
+  "d3441f636364": 1,
+  "6bf252553ec2": 1,
+  "0335af3db40e": 1,
+  "25874886446c": 1,
+  "c3d798ee705d": 1,
+  "689ab581b502": 1,
+  "70408d79a9ee": 1,
+  "24b8acc51ea4": 1,
+  "e4898af576ba": 1,
+  "5baeabeb1a95": 1,
+  "a515bfe28e64": 1,
+  "ecfd79a3998f": 1,
+  "16597563f662": 1,
+  "4119c66c0276": 1,
+  "09f488e378bb": 1,
+  "56feb48b21b3": 1,
+  "1651da11af2c": 1,
+  "737f3f3ca6ca": 1,
+  "02346f8e14e9": 1,
+  "11055931d5a1": 1,
+  "395d4df4bea9": 1,
+  "736ec8450b31": 1,
+  "8712ecec5ea8": 1,
+  "42651811dd0a": 1,
+  "fffb0b1926f2": 1,
+  "93a57d431173": 1,
+  "80d648204882": 1,
+  "1d113f1bde46": 1,
+  "013ec2a2ab7a": 1,
+  "200c7c5cd59a": 1,
+  "30ed79b666e0": 1,
+  "fc7dfca331e2": 1,
+  "f80f35872d05": 1,
+  "63c84e55cae9": 1,
+  "4495817f7f45": 1,
+  "7b7ccaedc2f1": 1,
+  "7b6c023ef79d": 1,
+  "6a23764f59c3": 1,
+  "5c7302204d50": 1,
+  "2e3c5f1af963": 1,
+  "d3a5802a76bd": 1,
+  "b8c96ee544f3": 1,
+  "7bef6e8a351c": 1,
+  "e63a35e338af": 1,
+  "4a47635fb0b0": 1,
+  "39791914908c": 1,
+  "4e257a9a60f3": 1,
+  "ded38dca8544": 1,
+  "7341fa0c13b1": 1,
+  "f7c13992a7e6": 1,
+  "b6e30ae2282b": 1,
+  "2b3e27facdd5": 1,
+  "089df33a0920": 1,
+  "1ff96b439bee": 1,
+  "998d8169d0c3": 1,
+  "7f1231b1bcab": 1,
+  "23492f9d69fd": 1,
+  "9657ac4bd020": 1,
+  "a3dbbdcc63bf": 1,
+  "14697d1ad101": 1,
+  "42cddb6a68ae": 1,
+  "479674268500": 1,
+  "212871180cdd": 1,
+  "6cca87709a78": 1,
+  "06967c9c0bde": 1,
+  "d398128e969c": 1,
+  "cddfb8ecde5b": 1,
+  "72bbafa19435": 1,
+  "6d39e1f2f5e4": 1,
+  "4ad3e45c7a5e": 1,
+  "3f5d5a5d2236": 1,
+  "c01200edbfad": 1,
+  "de21d86e57b1": 1,
+  "800689ba3f69": 1,
+  "79435eb96326": 1,
+  "7e3292db0abe": 1,
+  "94d42c8ec885": 1,
+  "7e349fa88024": 1,
+  "b12f0f307bdb": 1,
+  "c56e3ff06ed9": 1,
+  "b22d283f27ae": 1,
+  "a1418ab9a3a1": 1,
+  "6a95b6a5361b": 1,
+  "4d29af2151e5": 1,
+  "fd95651f97b3": 1,
+  "0f027a842f58": 1,
+  "ee234b80705c": 1,
+  "5f09ec904e9c": 1,
+  "fa0ea4a34606": 1,
+  "d0d9814bdb9d": 1,
+  "7c8a2a4f78af": 1,
+  "ef12e73e935f": 1,
+  "d2afaf8871db": 1,
+  "46245fd94a77": 1,
+  "52e1082f719c": 1,
+  "898dfe40b36a": 1,
+  "7f0f7149cebc": 1,
+  "2f8abf2a0458": 1,
+  "efc27e892db1": 1,
+  "de841a867eae": 1,
+  "9e00243e05ca": 1,
+  "7205336b24ee": 1,
+  "e5855330faa1": 1,
+  "d968c29cb887": 1,
+  "b44ced0b7caf": 1,
+  "5cf22dc0a73f": 1,
+  "e157d40b18eb": 1,
+  "88ee54c37087": 1,
+  "4cf2166c20f1": 1,
+  "c76f34f9cf55": 1,
+  "c93346415320": 1,
+  "a7dcbf02219e": 1,
+  "bade4ab1e2d8": 1,
+  "60102ada379d": 1,
+  "cc60dcb904f9": 1,
+  "85606972237b": 1,
+  "e527c6461345": 1,
+  "8bc9ea354a1b": 1,
+  "fe8363190ca9": 1,
+  "95f48b10f054": 1,
+  "d8130e224724": 1,
+  "914e020d503b": 1,
+  "51d1b92d1ccd": 1,
+  "5cfbf0e9ba5b": 1,
+  "6a7a4cbf3843": 1,
+  "9738ec1382c6": 1,
+  "fa9517a9eb73": 1,
+  "7cc6d69d0cc1": 1,
+  "4aa04fee5631": 1,
+  "3c3c97d06591": 1,
+  "60fbfb62c9fc": 1,
+  "e6ccea12dd00": 1,
+  "e28d9161b7b8": 1,
+  "51ea52ee2ade": 1,
+  "7b34d02b8939": 1,
+  "a8f892320ac0": 1,
+  "103632bf6001": 1,
+  "20ae23c56b08": 1,
+  "d75672b457d2": 1,
+  "943d0dd28e07": 1,
+  "c79704ae2ece": 1,
+  "5ff47f2a93f0": 1,
+  "50ddfb716b32": 1,
+  "80fea4b6dbbd": 1,
+  "99d26368541d": 1,
+  "33c6471238da": 1,
+  "4c42f45fce84": 1,
+  "8b6f0be3c72a": 1,
+  "bafb50dfe95a": 1,
+  "a4cf8aa53361": 1,
+  "65dbd28d5f86": 1,
+  "977e59a375d1": 1,
+  "9dd572c0bccf": 1,
+  "e3eb36460ccb": 1,
+  "13f4ac81d6e2": 1,
+  "a1c1428c2290": 1,
+  "3e21dd7d45ad": 1,
+  "b5a7c5525a11": 1,
+  "39fe77ba1861": 1,
+  "06bcdff028ea": 1,
+  "a49c92100ce8": 1,
+  "0fe4f203a588": 1,
+  "7732a3560ddc": 1,
+  "3b8297fa4637": 1,
+  "f51c49a88bfd": 1,
+  "97985a568c4c": 1,
+  "b23a67486799": 1,
+  "8e5ee9335139": 1,
+  "6f39a5a3d5c7": 1,
+  "030333207a56": 1,
+  "7efad5078af3": 1,
+  "a6cbcd21eca1": 1,
+  "d2e39ef043ba": 1,
+  "31db0cbe3f84": 1,
+  "f3fab12f194c": 1,
+  "83fd421a72b1": 1,
+  "5f6e9155870b": 1,
+  "97ecfaa9cada": 1,
+  "2ad6a61ff0dd": 1,
+  "9a404938c821": 1,
+  "0be4976512a2": 1,
+  "0a668b81f773": 1,
+  "bc244ceef5fd": 1,
+  "f03d47d6c127": 1,
+  "065611d5140a": 1,
+  "5f5ded00051c": 1,
+  "f3b5cb9f0513": 1,
+  "3150d2cccd4f": 1,
+  "64ccfb30b76d": 1,
+  "7086f1150c1c": 1,
+  "49f0942c6c5f": 1,
+  "fe53399acb4b": 1
+ },
+ "keysByDate": {
+  "2026-08-25": [
+   "4292eca5ac53",
+   "b17616dfe3c9",
+   "298965a3a4d8"
+  ],
+  "2026-08-26": [
+   "fd82d5de602e",
+   "66e8c20e2e0b",
+   "466a19bfe684"
+  ],
+  "2026-08-27": [
+   "49738c4008aa",
+   "f1c7c922cf43",
+   "25a7fa7bb1aa"
+  ],
+  "2026-08-28": [
+   "04fcc60f0797",
+   "31610ef75739",
+   "913d0b19f5c7"
+  ],
+  "2026-08-29": [
+   "d3441f636364",
+   "6bf252553ec2",
+   "0335af3db40e"
+  ],
+  "2026-08-30": [
+   "25874886446c",
+   "c3d798ee705d",
+   "689ab581b502"
+  ],
+  "2026-08-31": [
+   "70408d79a9ee",
+   "24b8acc51ea4",
+   "e4898af576ba"
+  ],
+  "2026-09-01": [
+   "5baeabeb1a95",
+   "a515bfe28e64",
+   "ecfd79a3998f"
+  ],
+  "2026-09-02": [
+   "16597563f662",
+   "4119c66c0276",
+   "09f488e378bb"
+  ],
+  "2026-09-03": [
+   "56feb48b21b3",
+   "1651da11af2c",
+   "737f3f3ca6ca"
+  ],
+  "2026-09-04": [
+   "02346f8e14e9",
+   "11055931d5a1",
+   "395d4df4bea9"
+  ],
+  "2026-09-05": [
+   "736ec8450b31",
+   "8712ecec5ea8",
+   "42651811dd0a"
+  ],
+  "2026-09-06": [
+   "fffb0b1926f2",
+   "93a57d431173",
+   "80d648204882"
+  ],
+  "2026-09-07": [
+   "1d113f1bde46",
+   "013ec2a2ab7a",
+   "200c7c5cd59a"
+  ],
+  "2026-09-08": [
+   "30ed79b666e0",
+   "fc7dfca331e2",
+   "f80f35872d05"
+  ],
+  "2026-09-09": [
+   "63c84e55cae9",
+   "4495817f7f45",
+   "7b7ccaedc2f1"
+  ],
+  "2026-09-10": [
+   "7b6c023ef79d",
+   "6a23764f59c3",
+   "5c7302204d50"
+  ],
+  "2026-09-11": [
+   "2e3c5f1af963",
+   "d3a5802a76bd",
+   "b8c96ee544f3"
+  ],
+  "2026-09-12": [
+   "7bef6e8a351c",
+   "e63a35e338af",
+   "4a47635fb0b0"
+  ],
+  "2026-09-13": [
+   "39791914908c",
+   "4e257a9a60f3",
+   "ded38dca8544"
+  ],
+  "2026-09-14": [
+   "7341fa0c13b1",
+   "f7c13992a7e6",
+   "b6e30ae2282b"
+  ],
+  "2026-09-15": [
+   "2b3e27facdd5",
+   "089df33a0920",
+   "1ff96b439bee"
+  ],
+  "2026-09-16": [
+   "998d8169d0c3",
+   "7f1231b1bcab",
+   "23492f9d69fd"
+  ],
+  "2026-09-17": [
+   "9657ac4bd020",
+   "a3dbbdcc63bf",
+   "14697d1ad101"
+  ],
+  "2026-09-18": [
+   "42cddb6a68ae",
+   "479674268500",
+   "212871180cdd"
+  ],
+  "2026-09-19": [
+   "6cca87709a78",
+   "06967c9c0bde",
+   "d398128e969c"
+  ],
+  "2026-09-20": [
+   "cddfb8ecde5b",
+   "72bbafa19435",
+   "6d39e1f2f5e4"
+  ],
+  "2026-09-21": [
+   "4ad3e45c7a5e",
+   "3f5d5a5d2236",
+   "c01200edbfad"
+  ],
+  "2026-09-22": [
+   "de21d86e57b1",
+   "800689ba3f69",
+   "79435eb96326"
+  ],
+  "2026-09-23": [
+   "7e3292db0abe",
+   "94d42c8ec885",
+   "7e349fa88024"
+  ],
+  "2026-09-24": [
+   "b12f0f307bdb",
+   "c56e3ff06ed9",
+   "b22d283f27ae"
+  ],
+  "2026-09-25": [
+   "a1418ab9a3a1",
+   "6a95b6a5361b",
+   "4d29af2151e5"
+  ],
+  "2026-09-26": [
+   "fd95651f97b3",
+   "0f027a842f58",
+   "ee234b80705c"
+  ],
+  "2026-09-27": [
+   "5f09ec904e9c",
+   "fa0ea4a34606",
+   "d0d9814bdb9d"
+  ],
+  "2026-09-28": [
+   "7c8a2a4f78af",
+   "ef12e73e935f",
+   "d2afaf8871db"
+  ],
+  "2026-09-29": [
+   "46245fd94a77",
+   "52e1082f719c",
+   "898dfe40b36a"
+  ],
+  "2026-09-30": [
+   "7f0f7149cebc",
+   "2f8abf2a0458",
+   "efc27e892db1"
+  ],
+  "2026-10-01": [
+   "de841a867eae",
+   "9e00243e05ca",
+   "7205336b24ee"
+  ],
+  "2026-10-02": [
+   "e5855330faa1",
+   "d968c29cb887",
+   "b44ced0b7caf"
+  ],
+  "2026-10-03": [
+   "5cf22dc0a73f",
+   "e157d40b18eb",
+   "88ee54c37087"
+  ],
+  "2026-10-04": [
+   "4cf2166c20f1",
+   "c76f34f9cf55",
+   "c93346415320"
+  ],
+  "2026-10-05": [
+   "a7dcbf02219e",
+   "bade4ab1e2d8",
+   "60102ada379d"
+  ],
+  "2026-10-06": [
+   "cc60dcb904f9",
+   "85606972237b",
+   "e527c6461345"
+  ],
+  "2026-10-07": [
+   "8bc9ea354a1b",
+   "fe8363190ca9",
+   "95f48b10f054"
+  ],
+  "2026-10-08": [
+   "d8130e224724",
+   "914e020d503b",
+   "51d1b92d1ccd"
+  ],
+  "2026-10-09": [
+   "5cfbf0e9ba5b",
+   "6a7a4cbf3843",
+   "9738ec1382c6"
+  ],
+  "2026-10-10": [
+   "fa9517a9eb73",
+   "7cc6d69d0cc1",
+   "4aa04fee5631"
+  ],
+  "2026-10-11": [
+   "3c3c97d06591",
+   "60fbfb62c9fc",
+   "e6ccea12dd00"
+  ],
+  "2026-10-12": [
+   "e28d9161b7b8",
+   "51ea52ee2ade",
+   "7b34d02b8939"
+  ],
+  "2026-10-13": [
+   "a8f892320ac0",
+   "103632bf6001",
+   "20ae23c56b08"
+  ],
+  "2026-10-14": [
+   "d75672b457d2",
+   "943d0dd28e07",
+   "c79704ae2ece"
+  ],
+  "2026-10-15": [
+   "5ff47f2a93f0",
+   "50ddfb716b32",
+   "80fea4b6dbbd"
+  ],
+  "2026-10-16": [
+   "99d26368541d",
+   "33c6471238da",
+   "4c42f45fce84"
+  ],
+  "2026-10-17": [
+   "8b6f0be3c72a",
+   "bafb50dfe95a",
+   "a4cf8aa53361"
+  ],
+  "2026-10-18": [
+   "65dbd28d5f86",
+   "977e59a375d1",
+   "9dd572c0bccf"
+  ],
+  "2026-10-19": [
+   "e3eb36460ccb",
+   "13f4ac81d6e2",
+   "a1c1428c2290"
+  ],
+  "2026-10-20": [
+   "3e21dd7d45ad",
+   "b5a7c5525a11",
+   "39fe77ba1861"
+  ],
+  "2026-10-21": [
+   "06bcdff028ea",
+   "a49c92100ce8",
+   "0fe4f203a588"
+  ],
+  "2026-10-22": [
+   "7732a3560ddc",
+   "3b8297fa4637",
+   "f51c49a88bfd"
+  ],
+  "2026-10-23": [
+   "97985a568c4c",
+   "b23a67486799",
+   "8e5ee9335139"
+  ],
+  "2026-10-24": [
+   "6f39a5a3d5c7",
+   "030333207a56",
+   "7efad5078af3"
+  ],
+  "2026-10-25": [
+   "a6cbcd21eca1",
+   "d2e39ef043ba",
+   "31db0cbe3f84"
+  ],
+  "2026-10-26": [
+   "f3fab12f194c",
+   "83fd421a72b1",
+   "5f6e9155870b"
+  ],
+  "2026-10-27": [
+   "97ecfaa9cada",
+   "2ad6a61ff0dd",
+   "9a404938c821"
+  ],
+  "2026-10-28": [
+   "0be4976512a2",
+   "0a668b81f773",
+   "bc244ceef5fd"
+  ],
+  "2026-10-29": [
+   "f03d47d6c127",
+   "065611d5140a",
+   "5f5ded00051c"
+  ],
+  "2026-10-30": [
+   "f3b5cb9f0513",
+   "3150d2cccd4f",
+   "64ccfb30b76d"
+  ],
+  "2026-10-31": [
+   "7086f1150c1c",
+   "49f0942c6c5f",
+   "fe53399acb4b"
+  ]
+ },
+ "slots": [
+  "psalm",
+  "first",
+  "second"
+ ],
+ "history": 21,
+ "stayWithBook": [
+  0.85,
+  0.8,
+  0.75,
+  0.65,
+  0.5,
+  0.3,
+  0.1
+ ],
+ "schedules": {
+  "first": [
+   1.0,
+   0.95,
+   0.9,
+   0.85,
+   0.8,
+   0.75,
+   0.7,
+   0.65,
+   0.6,
+   0.55,
+   0.5,
+   0.45,
+   0.4,
+   0.35,
+   0.3,
+   0.25,
+   0.2,
+   0.15,
+   0.1,
+   0.05
+  ]
+ }
+}

@@ -295,6 +295,7 @@ SANCTORAL = {
     (10, 7): ("Our Lady of the Rosary", "ourlady"),
     (10, 11): ("Maternity of the Blessed Virgin Mary", "ourlady"),
     (10, 15): ("Saint Teresa of Avila, Virgin", "virgin"),
+    (10, 17): ("Saint Margaret Mary Alacoque, Virgin", "virgin"),
     (10, 18): ("Saint Luke, Evangelist", "apostle"),
     (10, 22): ("Pope Saint John Paul II, Confessor", "confessor"),
     (10, 24): ("Saint Raphael the Archangel", "angels"),
@@ -382,6 +383,10 @@ FEAST_WORKS = {
     # is the one before.
     (10, 4): ["little flowers of saint francis"],
     (10, 15): ["of avila", "interior castle", "fire within"],
+    # Bougaud's life of her, which is also the book the revelations of the
+    # Sacred Heart are read from. Written as two words because "margaret"
+    # alone would be a thin thing to match a shelf on.
+    (10, 17): ["margaret mary"],
     (10, 22): ["pope st. john paul ii"],
     (11, 24): ["john of the cross", "science of the cross", "fire within"],
     (11, 26): ["leonard of port maurice"],

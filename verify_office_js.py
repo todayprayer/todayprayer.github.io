@@ -47,17 +47,21 @@ DEFAULT_DAYS = [
 RUNNER = r"""
 const fs = require("fs");
 const Office = require(process.argv[2]);
-const data = JSON.parse(fs.readFileSync(process.argv[3], "utf8"));
-const readings = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
+const which = process.argv[3];
+const data = JSON.parse(fs.readFileSync(process.argv[4], "utf8"));
+const readings = JSON.parse(fs.readFileSync(process.argv[5], "utf8"));
+const build = which === "night" ? Office.buildNightPage : Office.buildPage;
 const out = {};
-for (const iso of process.argv.slice(5)) {
-  out[iso] = Office.buildPage(data, readings, iso, true);
+for (const iso of process.argv.slice(6)) {
+  out[iso] = build(data, readings, iso, true);
 }
 process.stdout.write(JSON.stringify(out));
 """
 
 
-def js_pages(days: list[str]) -> dict[str, str]:
+def js_pages(days: list[str], office: str = "day") -> dict[str, str]:
+    data_file = "night_data.json" if office == "night" else "office_data.json"
+    pool_file = "night_readings.json" if office == "night" else "readings.json"
     with tempfile.TemporaryDirectory() as tmp:
         runner = Path(tmp) / "runner.js"
         runner.write_text(RUNNER, encoding="utf-8")
@@ -65,8 +69,9 @@ def js_pages(days: list[str]) -> dict[str, str]:
             [
                 "node", str(runner),
                 str(PROJECT_DIR / "office.js"),
-                str(PROJECT_DIR / "office_data.json"),
-                str(PROJECT_DIR / "readings.json"),
+                office,
+                str(PROJECT_DIR / data_file),
+                str(PROJECT_DIR / pool_file),
                 *days,
             ],
             capture_output=True,
@@ -95,29 +100,20 @@ def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--days", nargs="*", default=DEFAULT_DAYS)
+    parser.add_argument("--office", choices=["day", "night", "both"], default="both")
     parser.add_argument("--diff", action="store_true", help="print the first diff found")
     args = parser.parse_args()
 
-    spent = used_readings(DAYS_DIR)
-    export = json.loads((PROJECT_DIR / "office_data.json").read_text(encoding="utf-8"))
-    if set(export["spent"]) != spent:
-        raise SystemExit(
-            f"office_data.json is stale: it lists {len(export['spent'])} spent "
-            f"readings, days/ now has {len(spent)}. Re-run export_office_data.py."
-        )
-
-    built = js_pages(args.days)
     failures = 0
-    for iso in args.days:
-        day = datetime.date.fromisoformat(iso)
-        want = build_page(day, exclude_keys=set(spent), linked=True)
-        got = built[iso]
+    checked = 0
+
+    def report(iso: str, want: str, got: str, note: str) -> bool:
+        nonlocal failures
         if want == got:
-            print(f"  match   {iso}  {describe(day)}")
-            continue
+            print(f"  match   {iso}  {note}")
+            return True
         failures += 1
-        print(f"  DIFFER  {iso}  {describe(day)}  "
-              f"(python {len(want)} chars, js {len(got)})")
+        print(f"  DIFFER  {iso}  {note}  (python {len(want)}, js {len(got)})")
         if args.diff:
             diff = difflib.unified_diff(
                 want.splitlines(), got.splitlines(),
@@ -126,11 +122,47 @@ def main() -> None:
             for line in list(diff)[:40]:
                 print("    " + line)
             args.diff = False
+        return False
+
+    if args.office in ("day", "both"):
+        spent = used_readings(DAYS_DIR)
+        export = json.loads((PROJECT_DIR / "office_data.json").read_text(encoding="utf-8"))
+        if set(export["spent"]) != spent:
+            raise SystemExit(
+                f"office_data.json is stale: it lists {len(export['spent'])} spent "
+                f"readings, days/ now has {len(spent)}. Re-run export_office_data.py."
+            )
+        print("morning office")
+        built = js_pages(args.days, "day")
+        for iso in args.days:
+            day = datetime.date.fromisoformat(iso)
+            report(iso, build_page(day, exclude_keys=set(spent), linked=True),
+                   built[iso], describe(day))
+            checked += 1
+
+    if args.office in ("night", "both"):
+        import generate_night_page as night
+
+        night_spent = night.used_readings(night.NIGHTS_DIR)
+        nexport = json.loads((PROJECT_DIR / "night_data.json").read_text(encoding="utf-8"))
+        if nexport["spent"] != dict(night_spent):
+            raise SystemExit(
+                f"night_data.json is stale: it lists {len(nexport['spent'])} spent "
+                f"readings, nights/ now has {len(night_spent)}. "
+                "Re-run export_office_data.py."
+            )
+        print("\nnight office")
+        built = js_pages(args.days, "night")
+        for iso in args.days:
+            day = datetime.date.fromisoformat(iso)
+            want = night.build_page(day, exclude_keys=night_spent, linked=True)
+            report(iso, want, built[iso], day.strftime("%a"))
+            checked += 1
 
     print()
     if failures:
-        raise SystemExit(f"{failures} of {len(args.days)} days differ")
-    print(f"all {len(args.days)} days byte-identical to generate_page.py")
+        raise SystemExit(f"{failures} of {checked} pages differ")
+    print(f"all {checked} pages byte-identical to the Python generators")
 
 
 if __name__ == "__main__":

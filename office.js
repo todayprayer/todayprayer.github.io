@@ -508,6 +508,192 @@
     return out;
   }
 
+  // ---- the night --------------------------------------------------------
+
+  var NIGHT_ROMAN = ["I", "II", "III", "IV", "V", "VI", "VII", "VIII"];
+
+  // generate_night_page.render_reading
+  function renderNightReading(reading, keyOf) {
+    var blocks = reading.text.split("\n\n").map(function (paragraph) {
+      var lines = paragraph.split("\n");
+      if (lines.length === 1) { return "    <p>" + esc(lines[0]) + "</p>"; }
+      // Verse. A leading tab is the source's own further indentation.
+      return lines.map(function (line) {
+        var indent = line.charAt(0) === "\t" ? " indent" : "";
+        return '    <p class="line' + indent + '">'
+          + esc(line.replace(/^\t+/, "")) + "</p>";
+      }).join("\n");
+    });
+    var argument = reading.summary || "";
+    return (argument ? '  <p class="rubric">' + esc(argument) + "</p>\n" : "")
+      + '  <blockquote data-reading="' + keyOf(reading) + '">\n'
+      + blocks.join("\n") + "\n  </blockquote>\n"
+      + '  <p class="attribution">&mdash; ' + esc(reading.citation)
+      + '<span class="source">' + esc(reading.source) + "</span></p>";
+  }
+
+  function renderNightNeighbours(y, m, d) {
+    return "    <nav>\n"
+      + '      <a href="' + shiftIso(y, m, d, -1) + '.html" rel="prev">&larr; Last night</a>\n'
+      + '      <a href="' + shiftIso(y, m, d, 1) + '.html" rel="next">Tomorrow &rarr;</a>\n'
+      + "    </nav>\n";
+  }
+
+  // sorted() on strings, by code point as Python compares them. The book
+  // titles are ASCII, so this and the default sort agree; it is written out
+  // because the default sort coerces to string and compares UTF-16 units,
+  // which is not the same rule and would be the wrong one to rely on.
+  function pySorted(list) {
+    return list.slice().sort(function (a, b) {
+      return a < b ? -1 : (a > b ? 1 : 0);
+    });
+  }
+
+  // generate_night_page.run_length
+  function runLength(recent, slot, title) {
+    var nights = 0;
+    for (var i = 0; i < recent.length; i++) {
+      var here = recent[i][slot];
+      if (!here || here.title !== title) { break; }
+      nights += 1;
+    }
+    return nights;
+  }
+
+  // generate_night_page.psalm_for
+  function psalmFor(ordinal, pools, spent, recent, keyOf) {
+    var psalms = pools.psalms;
+    var last = (recent[0] || {}).psalm;
+    if (last && last.part < last.parts) {
+      // Last night left a psalm unfinished; the rest of it comes next.
+      var lastKey = keyOf(last);
+      for (var i = 0; i < psalms.length; i++) {
+        if (keyOf(psalms[i]) === lastKey) { return psalms[i + 1]; }
+      }
+    }
+    var openings = psalms.filter(function (p) { return p.part === 1; });
+    var fewest = Infinity;
+    openings.forEach(function (p) {
+      var n = spent.get(keyOf(p)) || 0;
+      if (n < fewest) { fewest = n; }
+    });
+    var due = openings.filter(function (p) {
+      return (spent.get(keyOf(p)) || 0) === fewest;
+    });
+    return new PyRandom(ordinal * 1000).choice(due);
+  }
+
+  // generate_night_page.reading_for
+  function readingFor(ordinal, pools, pool, spent, salt, recent, slot, data, keyOf) {
+    var entries = pools[pool];
+    var fresh = entries.filter(function (r) { return !spent.has(keyOf(r)); });
+    if (!fresh.length) { fresh = entries; }
+
+    // Insertion order, which is the order of the pool, because each book's
+    // earliest unread passage is the one taken.
+    var byBook = new Map();
+    fresh.forEach(function (r) {
+      if (!byBook.has(r.title)) { byBook.set(r.title, []); }
+      byBook.get(r.title).push(r);
+    });
+
+    var rng = new PyRandom(ordinal * 1000 + salt);
+    var carriedFrom = (recent[0] || {})[slot];
+    var carried = carriedFrom ? carriedFrom.title : undefined;
+
+    if (carried !== undefined && byBook.has(carried)) {
+      var schedule = data.schedules[slot] || data.stayWithBook;
+      var nights = runLength(recent, slot, carried);
+      var chance = nights <= schedule.length ? schedule[nights - 1] : 0.0;
+      if (rng.random() < chance) { return byBook.get(carried)[0]; }
+    }
+
+    var all = Array.from(byBook.keys());
+    var titles = pySorted(all.filter(function (t) { return t !== carried; }));
+    if (!titles.length) { titles = pySorted(all); }
+    var weights = titles.map(function (t) { return Math.sqrt(byBook.get(t).length); });
+    return byBook.get(rng.choices(titles, weights, 1)[0])[0];
+  }
+
+  /* generate_night_page.build_page.
+   *
+   * `data` is night_data.json, `pools` is night_readings.json. Unlike the
+   * morning, this office has a memory: which book each slot is working
+   * through comes off the nights already written, which night_data.json
+   * carries as three keys per date. */
+  function buildNightPage(data, pools, iso, linked) {
+    var parts = iso.split("-");
+    var y = Number(parts[0]), m = Number(parts[1]), d = Number(parts[2]);
+    var ordinal = toOrdinal(y, m, d);
+
+    var keyCache = new Map();
+    function keyOf(entry) {
+      var k = keyCache.get(entry);
+      if (k === undefined) { k = readingKey(entry.text); keyCache.set(entry, k); }
+      return k;
+    }
+
+    // by_key: every reading in the pools, found by the key a page records.
+    var byKey = new Map();
+    ["psalms", "first", "second"].forEach(function (pool) {
+      pools[pool].forEach(function (r) { byKey.set(keyOf(r), r); });
+    });
+
+    // recent_nights: the nights before this one, newest first. The dates are
+    // the ones actually written, filtered and sliced exactly as the Python
+    // walks the folder.
+    var earlier = pySorted(Object.keys(data.keysByDate).filter(function (k) {
+      return k < iso;
+    }));
+    var recent = earlier.slice(Math.max(0, earlier.length - data.history))
+      .reverse()
+      .map(function (date) {
+        var keys = data.keysByDate[date], night = {};
+        data.slots.forEach(function (slot, i) {
+          if (i < keys.length && byKey.has(keys[i])) { night[slot] = byKey.get(keys[i]); }
+        });
+        return night;
+      });
+
+    // Counts, not a set: psalm_for picks among the psalms said fewest times.
+    var spent = new Map();
+    Object.keys(data.spent).forEach(function (k) { spent.set(k, data.spent[k]); });
+
+    var psalm = psalmFor(ordinal, pools, spent, recent, keyOf);
+    var first = readingFor(ordinal, pools, "first", spent, 1, recent, "first", data, keyOf);
+    spent.set(keyOf(first), (spent.get(keyOf(first)) || 0) + 1);
+    var second = readingFor(ordinal, pools, "second", spent, 2, recent, "second", data, keyOf);
+
+    var fixed = data.fixed;
+    // The psalm carries its own Glory be, and the first reading its Thanks be
+    // to God; both belong to what they follow and go inside its section.
+    var psalmBody = renderNightReading(psalm, keyOf) + "\n" + fixed["gloria-patri"];
+    var firstBody = renderNightReading(first, keyOf) + "\n" + fixed.thanks;
+
+    var sections = [
+      ["sign-open", "Sign of the Cross", fixed.sign],
+      ["jesus-prayer", "The Jesus Prayer", fixed["jesus-prayer"]],
+      ["hail-mary", "Hail Mary", fixed["hail-mary"]],
+      ["psalm", "Psalm — " + psalm.citation, psalmBody],
+      ["reading-wisdom", "First Reading — " + first.citation, firstBody],
+      ["reading-apocrypha", "Second Reading — " + second.citation,
+        renderNightReading(second, keyOf)],
+      ["mental-prayer", "Greater Doxology", fixed.doxology],
+      ["sign-close", "Sign of the Cross", fixed.sign]
+    ];
+
+    var rendered = sections.map(function (s, index) {
+      return renderSection(NIGHT_ROMAN[index], s[1], s[2], "", s[0], true);
+    });
+
+    function fill(text, sentinel, value) { return text.split(sentinel).join(value); }
+    var out = data.shell;
+    out = fill(out, data.sentinels.date, datePretty(y, m, d));
+    out = fill(out, data.sentinels.nav, linked ? renderNightNeighbours(y, m, d) : "");
+    out = fill(out, data.sentinels.sections, rendered.join("\n"));
+    return out;
+  }
+
   return {
     PyRandom: PyRandom,
     sha1Hex: sha1Hex,
@@ -517,6 +703,7 @@
     pyJson: pyJson,
     toOrdinal: toOrdinal,
     datePretty: datePretty,
-    buildPage: buildPage
+    buildPage: buildPage,
+    buildNightPage: buildNightPage
   };
 });

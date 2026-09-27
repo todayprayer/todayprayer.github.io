@@ -408,7 +408,17 @@
     });
   }
 
-  if (office && wanted && folder === "days") {
+  // Which offices office.js can build. The two basic offices under simple/
+  // are not among them: they are read in course from a plan, and a page of
+  // theirs follows from its place in the sequence rather than from its date,
+  // so there is nothing for the browser to work out.
+  var BUILDABLE = {
+    "days": { data: "office_data.json", pool: "readings.json", fn: "buildPage" },
+    "nights": { data: "night_data.json", pool: "night_readings.json", fn: "buildNightPage" }
+  };
+  var buildable = folder ? BUILDABLE[folder] : null;
+
+  if (office && wanted && buildable) {
     document.getElementById("generate").hidden = false;
     say("It is built from the same prayers and the same readings the generator "
       + "uses, and comes out the same page. About three megabytes to fetch.");
@@ -422,8 +432,8 @@
       load(root + "office.js")
         .then(function () {
           return Promise.all([
-            getJson(root + "office_data.json"),
-            getJson(root + "readings.json")
+            getJson(root + buildable.data),
+            getJson(root + buildable.pool)
           ]);
         })
         .then(function (both) {
@@ -431,7 +441,7 @@
           // A tick, so the note paints before the digests are computed.
           return new Promise(function (resolve) {
             setTimeout(function () {
-              resolve(Office.buildPage(both[0], both[1], iso(wanted), true));
+              resolve(Office[buildable.fn](both[0], both[1], iso(wanted), true));
             }, 16);
           });
         })

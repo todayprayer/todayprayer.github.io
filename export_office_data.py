@@ -35,6 +35,7 @@ from pathlib import Path
 
 import calendar_1962
 import holidays_us
+import night_prayers
 import prayers
 from generate_page import (
     DAYS_DIR,
@@ -51,6 +52,7 @@ from generate_page import (
 
 PROJECT_DIR = Path(__file__).parent
 OUT_FILE = PROJECT_DIR / "office_data.json"
+NIGHT_OUT_FILE = PROJECT_DIR / "night_data.json"
 
 # The sentinels the browser fills in. Chosen so that nothing in the prayers,
 # the CSS or the script can contain them.
@@ -190,6 +192,55 @@ def steering(days: list[datetime.date]) -> dict[str, dict]:
     return out
 
 
+def night_data() -> dict:
+    """What the browser needs to build a night page itself.
+
+    The night office has no calendar in it at all — nothing is chosen by the
+    feast — but it does have a memory, which the morning has not. Which book
+    each slot is working through, and whether last night left a psalm
+    unfinished, is read off the pages already in nights/. A browser cannot
+    list that folder, so the three keys each existing page recorded are
+    exported here, by date, and recent_nights becomes a lookup rather than
+    twenty-one requests.
+    """
+    import generate_night_page as night
+
+    shell = night.PAGE_TEMPLATE.format(
+        date_pretty=DATE, neighbours=NAV, sections=SECTIONS
+    )
+    sign = night.render_multilingual(night_prayers.SIGN_OF_THE_CROSS, "sign")
+
+    keys_by_date: dict[str, list[str]] = {}
+    if night.NIGHTS_DIR.is_dir():
+        for page in sorted(night.NIGHTS_DIR.glob("*.html")):
+            found = night._READING_KEY.findall(page.read_text(encoding="utf-8"))
+            keys_by_date[page.stem] = found
+
+    return {
+        "shell": shell,
+        "sentinels": {"date": DATE, "nav": NAV, "sections": SECTIONS},
+        "fixed": {
+            "sign": sign,
+            "jesus-prayer": night.render_multilingual(night_prayers.JESUS_PRAYER, "jesus"),
+            "hail-mary": night.render_multilingual(night_prayers.HAIL_MARY, "hail-mary"),
+            "doxology": night.render_multilingual(
+                night_prayers.GREATER_DOXOLOGY, "doxology"
+            ),
+            "gloria-patri": render_prayer(night_prayers.GLORIA_PATRI),
+            "thanks": render_prayer(prayers.THANKS_BE_TO_GOD),
+        },
+        # Counts, not a set: the psalter is seventy long and comes round
+        # again, so psalm_for picks among the psalms said fewest times.
+        "spent": dict(night.used_readings(night.NIGHTS_DIR)),
+        # In date order, which is the order recent_nights walks them in.
+        "keysByDate": keys_by_date,
+        "slots": list(night.SLOTS),
+        "history": night.HISTORY,
+        "stayWithBook": list(night.STAY_WITH_BOOK),
+        "schedules": {k: list(v) for k, v in night.SCHEDULES.items()},
+    }
+
+
 def main() -> None:
     sys.stdout.reconfigure(encoding="utf-8")
     parser = argparse.ArgumentParser(description=__doc__)
@@ -229,12 +280,21 @@ def main() -> None:
         encoding="utf-8",
         newline="\n",
     )
-    size = out.stat().st_size
-    print(f"wrote {out.name}, {size / 1024:.0f} KB")
+    print(f"wrote {out.name}, {out.stat().st_size / 1024:.0f} KB")
     print(f"  {len(days)} days covered, {first} to {last}")
     print(f"  {len(verses)} distinct verse bodies, {len(hymns)} holiday hymns")
     print(f"  {len(data['steering'])} days with feast steering")
     print(f"  {len(data['spent'])} readings already spent by days/")
+
+    night = night_data()
+    NIGHT_OUT_FILE.write_text(
+        json.dumps(night, ensure_ascii=False, indent=1) + "\n",
+        encoding="utf-8",
+        newline="\n",
+    )
+    print(f"wrote {NIGHT_OUT_FILE.name}, {NIGHT_OUT_FILE.stat().st_size / 1024:.0f} KB")
+    print(f"  {len(night['keysByDate'])} nights already written")
+    print(f"  {len(night['spent'])} readings already spent by nights/")
 
 
 if __name__ == "__main__":

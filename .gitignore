@@ -11,6 +11,7 @@
 # agrees with the Python byte for byte.
 !office.js
 !office_data.json
+!night_data.json
 !export_office_data.py
 !verify_office_js.py
 !prayers.py
