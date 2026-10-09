@@ -357,6 +357,10 @@ FEAST_WORKS = {
     (2, 7): ["blessed pope pius ix"],
     (3, 7): ["aquinas", "nature and creature"],
     (4, 28): ["montfort"],
+    # Both of hers: the Dialogue she dictated and the letters she sent.
+    # Written with the place attached, because "catherine" alone would also
+    # reach Catherine of Genoa and Catherine of Alexandria.
+    (4, 30): ["catherine of siena"],
     # The Roman Catechism is the catechism of Pius V: the Council ordered it
     # and he published it, and it has gone under his name ever since.
     (5, 5): ["catechism of the council of trent"],
