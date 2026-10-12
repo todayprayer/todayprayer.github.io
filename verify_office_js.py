@@ -38,7 +38,12 @@ DEFAULT_DAYS = [
     "2026-10-01",   # a plain feria
     "2026-10-04",   # Saint Francis of Assisi — a day with books of his own
     "2026-10-05",   # the day the 404 page was written against
-    "2026-11-11",   # Veterans Day — a civil holiday, so a hymn and the Pledge
+    # A civil holiday, so a hymn — which the office sings second, after the
+    # invocation of the Holy Spirit — and the Pledge held on. Not Veterans
+    # Day, which this list named until the hymn moved and the move went
+    # unchecked: holidays_us carries no hymn for it, so the day it was
+    # standing in for was never tested.
+    "2026-11-26",   # Thanksgiving Day
     "2026-12-25",   # Christmas
     "2027-01-17",   # a Sunday in the new year
     "2027-06-06",   # far enough out to catch a bad ordinal

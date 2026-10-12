@@ -272,8 +272,12 @@
 
   // generate_page.render_excerpt
   function renderExcerpt(entry, spentFlag) {
+    // generate_page.SPACED_STOP: the space some of these editions set before a
+    // colon or semicolon, closed up at the rendering so that the reading as
+    // transcribed, and the key taken from it, are both left alone. Not before
+    // a full stop, which is nearly always a spaced ellipsis.
     var paragraphs = entry.text.split("\n\n").map(function (p) {
-      return "    <p>" + esc(p).replace(/\n/g, "<br>") + "</p>";
+      return "    <p>" + esc(p.replace(/ +(?=[;:?!,])/g, "")).replace(/\n/g, "<br>") + "</p>";
     }).join("\n");
     var attr = spentFlag ? "data-reading" : "data-reading-unspent";
     var attribution = entry.creator
@@ -435,7 +439,17 @@
       { id: "sign-open", title: "Sign of the Cross", body: fixed["sign-open"],
         label: "Sign of the Cross (opening)", required: true },
       { id: "holy-spirit", title: "Invocation of the Holy Spirit",
-        body: fixed["holy-spirit"], required: true },
+        body: fixed["holy-spirit"], required: true }
+    ];
+    // A hymn is sung into the office and not appended to it, so the holiday's
+    // stands where a hymn stands in the breviary: at the opening, once the Holy
+    // Spirit has been called down on what is to follow.
+    if (hasHoliday) {
+      var hymn = data.hymns.pool[hymnIndex];
+      sections.push({ id: "holiday-hymn", title: hymn.title, body: hymn.body,
+        rule: "holidays" });
+    }
+    sections.push(
       { id: "creed", title: "Tridentine Creed", body: fixed.creed,
         extra: data.lang_button, auto: sunday, rule: "Sundays" },
       { id: "acts", title: "Acts of Faith, Hope, and Love", body: fixed.acts,
@@ -459,14 +473,7 @@
       { id: "doxology", title: "Doxology", body: fixed.doxology, required: true },
       { id: "verse-of-the-day", title: "Verse for the Day", body: verseBody },
       { id: "pledge", title: "Pledge of Allegiance", body: fixed.pledge,
-        auto: hasHoliday || !sunday, rule: "weekdays and holidays" }
-    ];
-    if (hasHoliday) {
-      var hymn = data.hymns.pool[hymnIndex];
-      sections.push({ id: "holiday-hymn", title: hymn.title, body: hymn.body,
-        rule: "holidays" });
-    }
-    sections.push(
+        auto: hasHoliday || !sunday, rule: "weekdays and holidays" },
       { id: "closing-verses", title: "Closing Verses", body: fixed["closing-verses"],
         required: true },
       { id: "sign-close", title: "Sign of the Cross", body: fixed["sign-close"],

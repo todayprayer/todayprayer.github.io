@@ -790,6 +790,24 @@ def render_optional(cls, prayer) -> str:
     return f'  <div class="pill-row">\n{buttons}\n  </div>\n{texts}'
 
 
+# Several of these editions follow the French convention and set a space
+# before a colon, a semicolon, a question or an exclamation mark — Caxton's
+# Golden Legend, Cicero's Offices, the Catena Aurea, the City of God: "and he
+# answered : The visitation of the light perdurable". It is the printer's
+# spacing and not the author's words, and on a page set in English it reads as
+# a mistake, so it is closed up.
+#
+# Here and not in readings.json, for two reasons. The reading as transcribed
+# stays the reading as the edition sets it, which is what the file is for. And
+# the key below is taken from that transcription, so closing a space up cannot
+# turn a reading the written pages have already spent into one they have not.
+#
+# Not before a full stop. A space there is almost always an ellipsis standing
+# clear of the word in front of it — "I am waiting for the moment ..." — and
+# closing that up would weld the ellipsis onto the word.
+SPACED_STOP = re.compile(r" +(?=[;:?!,])")
+
+
 def render_excerpt(excerpt: Excerpt, spent: bool = True) -> str:
     """A reading, and the record of whether the page has spent it.
 
@@ -802,7 +820,7 @@ def render_excerpt(excerpt: Excerpt, spent: bool = True) -> str:
     """
     # A single newline inside a paragraph is a verse line break (Dante, Faust).
     paragraphs = "\n".join(
-        f"    <p>{html.escape(p).replace(chr(10), '<br>')}</p>"
+        f"    <p>{html.escape(SPACED_STOP.sub('', p)).replace(chr(10), '<br>')}</p>"
         for p in excerpt.text.split("\n\n")
     )
     # The key records which reading this page spent, so that a later day can
@@ -1063,6 +1081,16 @@ def build_page(
           label="Sign of the Cross (opening)", required=True),
         S("holy-spirit", "Invocation of the Holy Spirit",
           render_prayer(prayers.INVOCATION_OF_THE_HOLY_SPIRIT), required=True),
+    ]
+    # A hymn is sung into the office and not appended to it, so the holiday's
+    # stands where a hymn stands in the breviary: at the opening, once the Holy
+    # Spirit has been called down on what is to follow.
+    if holiday:
+        sections.append(
+            S("holiday-hymn", holiday.hymn_title, render_prayer(holiday.hymn),
+              rule="holidays")
+        )
+    sections += [
         S("creed", "Tridentine Creed", render_lang_prayer(prayers.TRIDENTINE_CREED),
           extra=lang_button, auto=sunday, rule="Sundays"),
         S("acts", "Acts of Faith, Hope, and Love", render_prayer(prayers.ACTS),
@@ -1087,13 +1115,6 @@ def build_page(
         S("verse-of-the-day", "Verse for the Day", render_prayer(verse_of_the_day(day))),
         S("pledge", "Pledge of Allegiance", render_prayer(prayers.PLEDGE_OF_ALLEGIANCE),
           auto=bool(holiday) or not sunday, rule="weekdays and holidays"),
-    ]
-    if holiday:
-        sections.append(
-            S("holiday-hymn", holiday.hymn_title, render_prayer(holiday.hymn),
-              rule="holidays")
-        )
-    sections += [
         S("closing-verses", "Closing Verses", render_prayer(prayers.CLOSING_VERSES),
           required=True),
         S("sign-close", "Sign of the Cross", render_prayer(prayers.SIGN_OF_THE_CROSS),
