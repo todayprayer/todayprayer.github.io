@@ -41,3 +41,13 @@
 !simple/days/*.html
 !simple/nights/
 !simple/nights/*.html
+
+# The Latin instructor, which the front page now links to in place of the
+# basic office. One page and three scripts, all of them served as they are;
+# engine.test.js is deliberately not here, being a test and not part of the
+# site.
+!latin/
+!latin/index.html
+!latin/engine.js
+!latin/mass.js
+!latin/app.js

@@ -1,0 +1,731 @@
+/*
+ * Latin engine — vocabulary, morphology, sentence generator, parser and answer checkers.
+ *
+ * Pure logic, no DOM. Everything the UI shows is produced here by rule, and every
+ * generated sentence is re-parsed before it is handed out, so the generator and the
+ * checker can never disagree.
+ *
+ * Meaning representation ("M"), shared by generator, parser and English matcher:
+ *   { verb, person, num, inf, subj, obj, dat, pp }
+ *   verb   finite verb id (e.g. 'amare'); person 1..3; num 'sg' | 'pl'
+ *   inf    complementary infinitive id or null (only after verbs with takesInf)
+ *   subj   explicit subject NP or null (null = subject implied by the verb ending)
+ *   obj    direct object NP or null; dat indirect object NP or null
+ *   pp     prepositional phrase or null: NP plus { prep: 'in' | 'ad', case: 'abl' | 'acc' }
+ *          (obj/dat/pp belong to the infinitive when there is one, otherwise to the verb)
+ *   NP     { n: noun id, num, gen: { n, num } | null }
+ */
+(function (root) {
+  'use strict';
+
+  // ─── Inflection tables ────────────────────────────────────────────────────
+
+  const CASES = ['nom', 'gen', 'dat', 'acc', 'abl'];
+  const NUMS = ['sg', 'pl'];
+  const CASE_NAMES = { nom: 'Nominative', gen: 'Genitive', dat: 'Dative', acc: 'Accusative', abl: 'Ablative' };
+  const NUM_NAMES = { sg: 'Singular', pl: 'Plural' };
+
+  const DECL1 = {
+    sg: { nom: 'a', gen: 'ae', dat: 'ae', acc: 'am', abl: 'ā' },
+    pl: { nom: 'ae', gen: 'ārum', dat: 'īs', acc: 'ās', abl: 'īs' },
+  };
+
+  const PERSONS = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
+  const PERSON_NAMES = {
+    '1sg': '1st person singular', '2sg': '2nd person singular', '3sg': '3rd person singular',
+    '1pl': '1st person plural', '2pl': '2nd person plural', '3pl': '3rd person plural',
+  };
+  const CONJ1 = { '1sg': 'ō', '2sg': 'ās', '3sg': 'at', '1pl': 'āmus', '2pl': 'ātis', '3pl': 'ant', inf: 'āre' };
+
+  // ─── Vocabulary ───────────────────────────────────────────────────────────
+  // kind: 'person' nouns can act (subjects), receive (indirect objects) and own (genitives).
+
+  const NOUNS = [
+    { id: 'agricola', stem: 'agricol', gender: 'm', kind: 'person', en: [['farmer', 'farmers']] },
+    { id: 'rosa', stem: 'ros', gender: 'f', kind: 'thing', en: [['rose', 'roses']] },
+    { id: 'filia', stem: 'fīli', gender: 'f', kind: 'person', en: [['daughter', 'daughters']],
+      alt: { 'pl.dat': ['fīliābus'], 'pl.abl': ['fīliābus'] } },
+    { id: 'regina', stem: 'rēgīn', gender: 'f', kind: 'person', en: [['queen', 'queens']] },
+    { id: 'aqua', stem: 'aqu', gender: 'f', kind: 'thing', en: [['water', 'waters']] },
+    { id: 'puella', stem: 'puell', gender: 'f', kind: 'person', en: [['girl', 'girls']] },
+    { id: 'mensa', stem: 'mēns', gender: 'f', kind: 'thing', en: [['table', 'tables']] },
+    { id: 'via', stem: 'vi', gender: 'f', kind: 'thing',
+      en: [['road', 'roads'], ['way', 'ways'], ['street', 'streets'], ['path', 'paths']] },
+    { id: 'fabula', stem: 'fābul', gender: 'f', kind: 'thing',
+      en: [['story', 'stories'], ['tale', 'tales'], ['fable', 'fables']] },
+    { id: 'vita', stem: 'vīt', gender: 'f', kind: 'thing', en: [['life', 'lives']] },
+    { id: 'ecclesia', stem: 'ecclēsi', gender: 'f', kind: 'thing', en: [['church', 'churches']] },
+    { id: 'nauta', stem: 'naut', gender: 'm', kind: 'person', en: [['sailor', 'sailors']] },
+    { id: 'poeta', stem: 'poēt', gender: 'm', kind: 'person', en: [['poet', 'poets']] },
+    { id: 'insula', stem: 'īnsul', gender: 'f', kind: 'thing', en: [['island', 'islands']] },
+  ];
+
+  // Prepositional phrases, by meaning. "in" takes the ablative for place where and the
+  // accusative for motion into; "ad" (+ accusative) is motion toward.
+  const PREPS = [
+    { id: 'in', form: 'in', cases: ['abl', 'acc'] },
+    { id: 'ad', form: 'ad', cases: ['acc'] },
+  ];
+  const PP_KINDS = {
+    where: { prep: 'in', case: 'abl', name: 'place where', en: ['in', 'on', 'at', 'upon'] },
+    into: { prep: 'in', case: 'acc', name: 'motion into', en: ['into', 'onto', 'in to', 'on to'] },
+    to: { prep: 'ad', case: 'acc', name: 'motion toward', en: ['to', 'toward', 'towards', 'up to'] },
+  };
+  const ppKind = (prep, c) => Object.keys(PP_KINDS).find(k => PP_KINDS[k].prep === prep && PP_KINDS[k].case === c);
+  // Natural English preposition for each phrase ("on the island", "in the church", "onto the road").
+  const PP_EN = { where: { insula: 'on', via: 'on', aqua: 'on' }, into: { via: 'onto' }, to: {} };
+  const ppWord = (kind, n) => PP_EN[kind][n] || PP_KINDS[kind].en[0];
+
+  const PEOPLE = NOUNS.filter(n => n.kind === 'person').map(n => n.id);
+  const PLACES = ['insula', 'via', 'ecclesia'];   // in + ablative: where something happens
+
+  // English verb forms: [base, 3rd singular, -ing]
+  // where / into / to: nouns allowed after in + abl., in + acc., ad + acc. (default: where = PLACES)
+  const VERBS = [
+    { id: 'amare', stem: 'am', en: [['love', 'loves', 'loving'], ['like', 'likes', 'liking']],
+      objs: ['agricola', 'rosa', 'filia', 'regina', 'aqua', 'puella', 'via', 'fabula', 'vita', 'ecclesia', 'nauta', 'poeta', 'insula'],
+      takesInf: true },
+    { id: 'laudare', stem: 'laud', en: [['praise', 'praises', 'praising']],
+      objs: ['agricola', 'rosa', 'filia', 'regina', 'puella', 'fabula', 'vita', 'ecclesia', 'nauta', 'poeta', 'insula'] },
+    { id: 'vocare', stem: 'voc', en: [['call', 'calls', 'calling'], ['summon', 'summons', 'summoning']],
+      objs: ['agricola', 'filia', 'regina', 'puella', 'nauta', 'poeta'],
+      to: ['ecclesia', 'mensa', 'insula'], into: ['ecclesia'] },
+    { id: 'pugnare', stem: 'pugn', en: [['fight', 'fights', 'fighting']] },
+    { id: 'ambulare', stem: 'ambul', en: [['walk', 'walks', 'walking']],
+      to: ['insula', 'ecclesia', 'via', 'aqua', 'mensa'].concat(PEOPLE), into: ['ecclesia', 'aqua', 'via'] },
+    { id: 'orare', stem: 'ōr', en: [['pray', 'prays', 'praying']] },
+    { id: 'cantare', stem: 'cant', en: [['sing', 'sings', 'singing']] },
+    { id: 'laborare', stem: 'labōr', en: [['work', 'works', 'working'], ['labor', 'labors', 'laboring'],
+      ['labour', 'labours', 'labouring'], ['toil', 'toils', 'toiling']] },
+    { id: 'portare', stem: 'port', en: [['carry', 'carries', 'carrying'], ['bear', 'bears', 'bearing']],
+      objs: ['rosa', 'aqua', 'mensa'],
+      to: ['insula', 'ecclesia', 'mensa'].concat(PEOPLE), into: ['ecclesia'] },
+    { id: 'narrare', stem: 'narr', en: [['tell', 'tells', 'telling'], ['narrate', 'narrates', 'narrating'],
+      ['relate', 'relates', 'relating'], ['recount', 'recounts', 'recounting']],
+      objs: ['fabula', 'vita'], dats: 'recipients' },
+    { id: 'navigare', stem: 'nāvig', en: [['sail', 'sails', 'sailing']],
+      where: ['aqua'], to: ['insula'] },
+    { id: 'dare', stem: 'd', en: [['give', 'gives', 'giving']],
+      objs: ['rosa', 'aqua', 'mensa'], dats: 'recipients',
+      // dăre keeps a short a: damus, datis, dare (not *dāmus)
+      forms: { '1sg': 'dō', '2sg': 'dās', '3sg': 'dat', '1pl': 'damus', '2pl': 'datis', '3pl': 'dant', inf: 'dare' } },
+  ];
+
+  const NOUN = Object.fromEntries(NOUNS.map(n => [n.id, n]));
+  const PREP = Object.fromEntries(PREPS.map(p => [p.id, p]));
+  const VERB = Object.fromEntries(VERBS.map(v => [v.id, v]));
+  const RECIPIENTS = PEOPLE.concat(['ecclesia']);
+  // Which nouns may stand in the genitive with which head ("fīlia rēgīnae", not "nauta fīliae").
+  const OWNERS = {
+    agricola: ['regina'], nauta: ['regina'], poeta: ['regina'], puella: [],
+    filia: ['agricola', 'regina', 'nauta', 'poeta'],
+    regina: ['agricola', 'nauta', 'poeta'],
+    rosa: PEOPLE, fabula: PEOPLE,
+    aqua: PEOPLE.concat(['ecclesia']), mensa: PEOPLE.concat(['ecclesia']), vita: PEOPLE.concat(['ecclesia']),
+    via: PEOPLE.concat(['vita', 'insula']),
+    ecclesia: ['agricola', 'puella', 'nauta', 'poeta', 'insula'],
+    insula: ['agricola', 'regina', 'nauta', 'poeta'],
+  };
+  const POSSESSORS = [...new Set(Object.values(OWNERS).flat())];
+
+  NOUNS.forEach(n => {
+    n.lemma = nounForm(n, 'nom', 'sg');
+    n.genSg = nounForm(n, 'gen', 'sg');
+  });
+  VERBS.forEach(v => {
+    v.trans = !!v.objs;
+    v.datList = v.dats === 'recipients' ? RECIPIENTS : [];
+    v.where = v.where || PLACES;
+    v.to = v.to || [];
+    v.into = v.into || [];
+    v.lemma = verbForm(v, 'inf');
+    v.first = verbForm(v, '1sg');
+  });
+
+  // ─── Morphology ───────────────────────────────────────────────────────────
+
+  function nounForm(n, c, num) { return n.stem + DECL1[num][c]; }
+  function nounAlts(n, c, num) { return (n.alt && n.alt[num + '.' + c]) || []; }
+  function verbForm(v, p) { return v.forms ? v.forms[p] : v.stem + CONJ1[p]; }
+
+  /** Lowercase, strip macrons/accents and punctuation, treat v as u. Used for all comparisons. */
+  function norm(s) {
+    return s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/v/g, 'u').replace(/[^a-z]/g, '');
+  }
+  function hasMacron(s) { return /[āēīōūȳĀĒĪŌŪ]|̄/.test(s.normalize('NFC')); }
+  function stripMacrons(s) { return s.normalize('NFD').replace(/̄/g, '').normalize('NFC'); }
+
+  // Every inflected form, keyed without macrons → [{ form, analysis }].
+  const FORMS = new Map();
+  function addForm(form, analysis) {
+    const key = norm(form);
+    if (!FORMS.has(key)) FORMS.set(key, []);
+    FORMS.get(key).push({ form: form.normalize('NFC').toLowerCase(), analysis });
+  }
+  /** Typed macrons must be right; missing ones are fine (īnsulā, insulā and insula all fit īnsulā). */
+  function macronsFit(typed, form) {
+    const t = [...typed], f = [...form];
+    return t.length === f.length && t.every((c, i) => (hasMacron(c) ? c === f[i] : norm(c) === norm(f[i])));
+  }
+  NOUNS.forEach(n => NUMS.forEach(num => CASES.forEach(c => {
+    [nounForm(n, c, num)].concat(nounAlts(n, c, num)).forEach(f => addForm(f, { pos: 'noun', id: n.id, case: c, num }));
+  })));
+  VERBS.forEach(v => {
+    PERSONS.forEach(p => addForm(verbForm(v, p), { pos: 'verb', id: v.id, person: +p[0], num: p.slice(1) }));
+    addForm(verbForm(v, 'inf'), { pos: 'inf', id: v.id });
+  });
+  PREPS.forEach(p => addForm(p.form, { pos: 'prep', id: p.id }));
+
+  /** Analyses of one word. Macrons the user typed are respected (rosā ≠ rosa); missing ones are not required. */
+  function analyze(word) {
+    const typed = word.normalize('NFC').toLowerCase().replace(/[^\p{L}]/gu, '');
+    const seen = new Set();
+    return (FORMS.get(norm(word)) || [])
+      .filter(x => !hasMacron(typed) || macronsFit(typed, x.form))
+      .map(x => x.analysis)
+      .filter(a => { const k = JSON.stringify(a); return !seen.has(k) && seen.add(k); });
+  }
+
+  function describe(a) {
+    if (a.pos === 'noun') return CASE_NAMES[a.case] + ' ' + NUM_NAMES[a.num].toLowerCase();
+    if (a.pos === 'verb') return PERSON_NAMES[a.person + a.num];
+    if (a.pos === 'prep') return 'Preposition';
+    return 'Present infinitive';
+  }
+
+  function tokenize(text) {
+    return text.split(/[\s,.;:!?"“”«»()]+/).filter(w => /\p{L}/u.test(w));
+  }
+
+  // ─── Parser ───────────────────────────────────────────────────────────────
+  // Free word order. A genitive must stand directly next to the noun it modifies, and a
+  // preposition directly before its noun (or before that noun's genitive: "in rēgīnae īnsulā").
+
+  const ROLE_NAMES = {
+    subj: 'subject', obj: 'direct object', dat: 'indirect object', gen: 'possessor (of …)',
+    verb: 'main verb', inf: 'complementary infinitive', prep: 'preposition', pobj: 'object of the preposition',
+  };
+
+  function parseLatin(text) {
+    const words = tokenize(text);
+    const tokens = words.map(w => ({ word: w, analyses: analyze(w) }));
+    const unknown = tokens.filter(t => !t.analyses.length).map(t => t.word);
+    const result = { tokens, unknown, readings: [], parses: [] };
+    if (unknown.length || !tokens.length) return result;
+
+    // Each token can take a set of (analysis, role) options.
+    const options = tokens.map((t, i) => {
+      const out = [];
+      t.analyses.forEach(a => {
+        if (a.pos === 'verb') out.push({ a, role: 'verb' });
+        else if (a.pos === 'inf') out.push({ a, role: 'inf' });
+        else if (a.pos === 'prep') out.push({ a, role: 'prep' });
+        else if (a.case === 'nom') out.push({ a, role: 'subj' });
+        else if (a.case === 'acc') out.push({ a, role: 'obj' }, { a, role: 'pobj' });
+        else if (a.case === 'dat') out.push({ a, role: 'dat' });
+        else if (a.case === 'abl') out.push({ a, role: 'pobj' });
+        else if (a.case === 'gen') {
+          if (i > 0) out.push({ a, role: 'gen', head: i - 1 });
+          if (i < tokens.length - 1) out.push({ a, role: 'gen', head: i + 1 });
+        }
+      });
+      return out;
+    });
+
+    const seen = new Set();
+    const pick = [];
+    const counts = { verb: 0, inf: 0, subj: 0, obj: 0, dat: 0, prep: 0, pobj: 0 };
+    (function walk(i) {
+      if (i === tokens.length) {
+        const m = buildReading(pick);
+        if (m) {
+          const k = key(m);
+          if (!seen.has(k)) { seen.add(k); result.readings.push(m); result.parses.push(pick.slice()); }
+        }
+        return;
+      }
+      for (const o of options[i]) {
+        if (o.role !== 'gen' && counts[o.role] >= 1) continue;
+        if (o.role !== 'gen') counts[o.role]++;
+        pick.push(o);
+        walk(i + 1);
+        pick.pop();
+        if (o.role !== 'gen') counts[o.role]--;
+      }
+    })(0);
+    return result;
+  }
+
+  function buildReading(pick) {
+    const at = role => pick.findIndex(o => o.role === role);
+    const vi = at('verb');
+    if (vi < 0) return null;
+    const finite = VERB[pick[vi].a.id];
+    const ii = at('inf');
+    let head = finite;
+    if (ii >= 0) {
+      if (!finite.takesInf || pick[ii].a.id === finite.id) return null;
+      head = VERB[pick[ii].a.id];
+    }
+
+    // genitives: head must be a non-genitive noun, one genitive per noun, sensible possessor
+    const gens = {};
+    for (let i = 0; i < pick.length; i++) {
+      const o = pick[i];
+      if (o.role !== 'gen') continue;
+      const h = pick[o.head];
+      if (!['subj', 'obj', 'dat', 'pobj'].includes(h.role) || gens[o.head]) return null;
+      if (!OWNERS[h.a.id].includes(o.a.id)) return null;
+      gens[o.head] = { n: o.a.id, num: o.a.num };
+    }
+    const np = role => {
+      const i = at(role);
+      return i < 0 ? null : { n: pick[i].a.id, num: pick[i].a.num, gen: gens[i] || null };
+    };
+    const subj = np('subj'), obj = np('obj'), dat = np('dat');
+    const { person, num } = pick[vi].a;
+
+    if (subj && (person !== 3 || subj.num !== num || !PEOPLE.includes(subj.n))) return null;
+    if (head.trans ? !obj || !head.objs.includes(obj.n) : obj) return null;
+    if (dat && !head.datList.includes(dat.n)) return null;
+
+    // preposition + its noun, the noun right after it (or after its own genitive)
+    const pi = at('prep'), qi = at('pobj');
+    if ((pi < 0) !== (qi < 0)) return null;
+    let pp = null;
+    if (pi >= 0) {
+      const between = pick[pi + 1];
+      if (qi !== pi + 1 && !(qi === pi + 2 && between.role === 'gen' && between.head === qi)) return null;
+      const kind = ppKind(pick[pi].a.id, pick[qi].a.case);
+      if (!kind || !head[kind].includes(pick[qi].a.id)) return null;
+      pp = { prep: pick[pi].a.id, case: pick[qi].a.case, ...np('pobj') };
+    }
+
+    return { verb: finite.id, person, num, inf: ii >= 0 ? head.id : null, subj, obj, dat, pp };
+  }
+
+  function key(m) {
+    const np = x => x ? [x.n, x.num, x.gen ? [x.gen.n, x.gen.num] : null] : null;
+    const pp = m.pp ? [m.pp.prep, m.pp.case].concat(np(m.pp)) : null;
+    return JSON.stringify([m.verb, m.person, m.num, m.inf, np(m.subj), np(m.obj), np(m.dat), pp]);
+  }
+
+  // ─── Rendering ────────────────────────────────────────────────────────────
+
+  function npLatin(np, genFirst) {
+    const n = NOUN[np.n], c = np.role;
+    const head = nounForm(n, c, np.num);
+    if (!np.gen) return [head];
+    const g = nounForm(NOUN[np.gen.n], 'gen', np.gen.num);
+    return genFirst ? [g, head] : [head, g];
+  }
+
+  /** Latin word list for a meaning. order: 'canonical' (S-IO-O-PP-Inf-V) or a shuffled arrangement. */
+  function latinWords(m, rng, vary) {
+    const v = VERB[m.verb];
+    const parts = [];
+    if (m.subj) parts.push(npLatin({ ...m.subj, role: 'nom' }, vary && rng() < 0.3));
+    if (m.dat) parts.push(npLatin({ ...m.dat, role: 'dat' }, vary && rng() < 0.3));
+    if (m.obj) parts.push(npLatin({ ...m.obj, role: 'acc' }, vary && rng() < 0.3));
+    if (m.pp) parts.push([PREP[m.pp.prep].form].concat(npLatin({ ...m.pp, role: m.pp.case }, vary && rng() < 0.3)));
+    if (m.inf) parts.push([verbForm(VERB[m.inf], 'inf')]);
+    parts.push([verbForm(v, m.person + m.num)]);
+    if (vary) shuffle(parts, rng);
+    return parts.flat();
+  }
+
+  function sentenceCase(words) {
+    const s = words.join(' ');
+    return s.charAt(0).toUpperCase() + s.slice(1) + '.';
+  }
+
+  const PRONOUN_DISPLAY = { '1sg': 'I', '2sg': 'you (sg.)', '3sg': 'he/she', '1pl': 'we', '2pl': 'you (pl.)', '3pl': 'they' };
+
+  function npEnglish(np) {
+    const head = NOUN[np.n].en[0][np.num === 'sg' ? 0 : 1];
+    if (!np.gen) return 'the ' + head;
+    const g = NOUN[np.gen.n].en[0];
+    return np.gen.num === 'sg' ? `the ${g[0]}'s ${head}` : `the ${head} of the ${g[1]}`;
+  }
+
+  /** English of a prepositional phrase alone: "on the island", "into the church". */
+  function ppEnglish(pp) {
+    return ppWord(ppKind(pp.prep, pp.case), pp.n) + ' ' + npEnglish(pp);
+  }
+
+  /** One natural English rendering. opts.pronoun overrides the 3rd-person-singular pronoun. */
+  function englishOf(m, opts = {}) {
+    const agr = m.person + m.num;
+    const subj = m.subj ? npEnglish(m.subj) : (agr === '3sg' && opts.pronoun) || PRONOUN_DISPLAY[agr];
+    const finite = VERB[m.verb].en[0];
+    const out = [subj, agr === '3sg' ? finite[1] : finite[0]];
+    if (m.inf) out.push('to ' + VERB[m.inf].en[0][0]);
+    if (m.obj) out.push(npEnglish(m.obj));
+    if (m.dat) out.push('to ' + npEnglish(m.dat));
+    if (m.pp) out.push(ppEnglish(m.pp));
+    return sentenceCase(out);
+  }
+
+  // ─── English answer matching ──────────────────────────────────────────────
+  // Each meaning compiles to one anchored regex covering the acceptable phrasings:
+  // optional articles, "X's Y" / "Y of X", simple / progressive / emphatic present,
+  // "gives A to B" / "gives B A", "loves to sing" / "loves singing", synonyms.
+
+  const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const alt = list => '(?:' + list.join('|') + ')';
+  const DET = { sg: '(?:(?:the|a|an|some|one) )?', pl: '(?:(?:the|some) )?' };
+  const PRONOUN_RE = {
+    '1sg': 'i', '2sg': 'you', '3sg': "(?:he|she|it|he/she|she/he|he or she|she or he)",
+    '1pl': 'we', '2pl': "(?:you|you all|y'all|ye|you guys|you people)", '3pl': 'they',
+  };
+  const BE = { '1sg': 'am', '3sg': 'is' };
+  const PAST = { sing: 'sang', give: 'gave', tell: 'told', fight: 'fought', bear: 'bore' }; // only for hints
+  const DO = { '3sg': 'does' };
+
+  function nounRe(n, num) { return alt(NOUN[n].en.map(p => esc(p[num === 'sg' ? 0 : 1]))); }
+  function possRe(n, num) { return alt(NOUN[n].en.map(p => esc(num === 'sg' ? p[0] + "'s" : p[1] + "'"))); }
+
+  function npRe(np) {
+    const head = nounRe(np.n, np.num);
+    if (!np.gen) return DET[np.num] + head;
+    const g = np.gen;
+    return alt([
+      `${DET[np.num]}${head} of ${DET[g.num]}${nounRe(g.n, g.num)}`,
+      `${DET[g.num]}${possRe(g.n, g.num)} ${head}`,
+    ]);
+  }
+
+  function finiteRe(v, agr, allowProgressive) {
+    const forms = [];
+    VERB[v].en.forEach(([base, s, ing]) => {
+      forms.push(agr === '3sg' ? s : base);
+      forms.push(`${DO[agr] || 'do'} ${base}`);
+      if (allowProgressive) forms.push(`${BE[agr] || 'are'} ${ing}`);
+    });
+    return alt(forms.map(esc));
+  }
+
+  function englishRegex(m) {
+    const agr = m.person + m.num;
+    const subj = m.subj ? npRe(m.subj) : PRONOUN_RE[agr];
+    let verb;
+    if (m.inf) {
+      const infs = [];
+      VERB[m.inf].en.forEach(([base, , ing]) => { infs.push('to ' + base, ing); });
+      verb = finiteRe(m.verb, agr, false) + ' ' + alt(infs.map(esc));
+    } else {
+      verb = finiteRe(m.verb, agr, true);
+    }
+    let rest = '';
+    if (m.obj && m.dat) rest = ' ' + alt([`${npRe(m.obj)} (?:to|for) ${npRe(m.dat)}`, `${npRe(m.dat)} ${npRe(m.obj)}`]);
+    else if (m.obj) rest = ' ' + npRe(m.obj);
+    else if (m.dat) rest = ' (?:to|for) ' + npRe(m.dat);
+    const core = `${subj} ${verb}${rest}`;
+    if (!m.pp) return new RegExp(`^${core}$`);
+    // the phrase goes at the end, or first ("On the island the sailors sing")
+    const pp = ppRe(m.pp);
+    return new RegExp(`^(?:${core} ${pp}|${pp} ${core})$`);
+  }
+
+  function ppRe(pp) {
+    return alt(PP_KINDS[ppKind(pp.prep, pp.case)].en.map(esc)) + ' ' + npRe(pp);
+  }
+
+  function normEnglish(s) {
+    return (' ' + s.toLowerCase().replace(/[’‘`´]/g, "'") + ' ')
+      .replace(/[^a-z'/ ]+/g, ' ')
+      .replace(/\s+/g, ' ')
+      .replace(/ you (?:sg|pl|singular|plural) /g, ' you ')
+      .replace(/ i'm /g, ' i am ')
+      .replace(/ (he|she|it)'s /g, ' $1 is ')
+      .replace(/ (we|you|they)'re /g, ' $1 are ')
+      .trim();
+  }
+
+  // ─── Generator ────────────────────────────────────────────────────────────
+
+  const MAX_WORDS = 8;
+
+  function makeRng(seed) {
+    if (seed == null) return Math.random;
+    let s = seed >>> 0;
+    return () => { s = (s + 0x6D2B79F5) >>> 0; let t = s; t = Math.imul(t ^ (t >>> 15), t | 1); t ^= t + Math.imul(t ^ (t >>> 7), t | 61); return ((t ^ (t >>> 14)) >>> 0) / 4294967296; };
+  }
+  function pickOne(list, rng) { return list[Math.floor(rng() * list.length)]; }
+  function shuffle(list, rng = Math.random) {
+    for (let i = list.length - 1; i > 0; i--) { const j = Math.floor(rng() * (i + 1)); [list[i], list[j]] = [list[j], list[i]]; }
+    return list;
+  }
+
+  // Every (finite verb, optional infinitive) pattern, with its minimum word count and optional slots.
+  // A slot adds one word, except a prepositional phrase, which adds two.
+  const SLOT_COST = { pp: 2 };
+  const cost = s => SLOT_COST[s] || 1;
+  const FRAMES = [];
+  VERBS.forEach(finite => {
+    const infs = finite.takesInf ? [null].concat(VERBS.filter(v => v !== finite)) : [null];
+    infs.forEach(inf => {
+      const head = inf || finite;
+      const optional = ['subj', 'subjGen'];
+      if (head.trans) optional.push('objGen');
+      if (head.datList.length) optional.push('dat', 'datGen');
+      const kinds = Object.keys(PP_KINDS).filter(k => head[k].length);
+      if (kinds.length) optional.push('pp', 'ppGen');
+      const base = 1 + (inf ? 1 : 0) + (head.trans ? 1 : 0);
+      FRAMES.push({ finite, inf, head, base, max: base + optional.reduce((t, s) => t + cost(s), 0), optional, kinds });
+    });
+  });
+
+  /**
+   * Random sentence with exactly `length` Latin words.
+   * Returns { m, latin, words, english, englishPrompt, readings }.
+   */
+  function generateSentence(length, opts = {}) {
+    const rng = opts.rng || Math.random;
+    const frames = FRAMES.filter(f => length >= f.base && length <= f.max);
+    if (!frames.length) throw new Error('No sentence pattern has ' + length + ' words');
+    for (let attempt = 0; attempt < 2000; attempt++) {
+      // Pick the verb first (uniformly), then one of its frames that fits the length.
+      const verbs = [...new Set(frames.map(f => f.finite))];
+      const finite = pickOne(verbs, rng);
+      let mine = frames.filter(f => f.finite === finite);
+      const plain = mine.filter(f => !f.inf);
+      if (plain.length && plain.length < mine.length) mine = rng() < 0.5 ? plain : mine.filter(f => f.inf);
+      const { inf, head, base, optional, kinds } = pickOne(mine, rng);
+
+      const slots = new Set();
+      const needs = { subjGen: 'subj', datGen: 'dat', ppGen: 'pp' };
+      let extra = length - base;
+      while (extra > 0) {
+        const avail = optional.filter(s => !slots.has(s) && (!needs[s] || slots.has(needs[s])) && cost(s) <= extra);
+        if (!avail.length) break;
+        const s = pickOne(avail, rng);
+        slots.add(s);
+        extra -= cost(s);
+      }
+      if (extra > 0) continue;
+
+      const used = new Set();
+      const noun = list => {
+        const pool = list.filter(n => !used.has(n));
+        if (!pool.length) return null;
+        const n = pickOne(pool, rng);
+        used.add(n);
+        return n;
+      };
+      const num = () => (rng() < 0.5 ? 'sg' : 'pl');
+      const np = (list, withGen) => {
+        const n = noun(list);
+        if (!n) return null;
+        const out = { n, num: num(), gen: null };
+        if (withGen) out.gen = { n: noun(OWNERS[n]), num: num() };
+        return out;
+      };
+
+      // Fill the subject first so person/number follow it.
+      const subj = slots.has('subj') ? np(PEOPLE, slots.has('subjGen')) : null;
+      const obj = head.trans ? np(head.objs, slots.has('objGen')) : null;
+      const dat = slots.has('dat') ? np(head.datList, slots.has('datGen')) : null;
+      let pp = null;
+      if (slots.has('pp')) {
+        const kind = pickOne(kinds, rng);
+        const phrase = np(head[kind], slots.has('ppGen'));
+        if (!phrase) continue;
+        pp = { prep: PP_KINDS[kind].prep, case: PP_KINDS[kind].case, ...phrase };
+      }
+      if ([subj, obj, dat, pp].some(x => x && x.gen && !x.gen.n) || (head.trans && !obj)) continue;
+
+      const person = subj ? 3 : 1 + Math.floor(rng() * 3);
+      const m = { verb: finite.id, person, num: subj ? subj.num : num(), inf: inf ? inf.id : null, subj, obj, dat, pp };
+      const words = latinWords(m, rng, !!opts.varyOrder);
+      const latin = sentenceCase(words);
+
+      // Self-check: the parser must recover this exact meaning from the Latin.
+      const parsed = parseLatin(latin);
+      if (!parsed.readings.some(r => key(r) === key(m))) continue;
+
+      const pronoun = rng() < 0.5 ? 'he' : 'she';
+      return {
+        m, words, latin,
+        english: englishOf(m),
+        englishPrompt: englishOf(m, { pronoun }),
+        readings: parsed.readings,
+      };
+    }
+    throw new Error('Could not generate a sentence of length ' + length);
+  }
+
+  // ─── Checking ─────────────────────────────────────────────────────────────
+
+  /** Latin answer to an English prompt. Correct if any parse of the answer equals the target meaning. */
+  function checkLatin(answer, target) {
+    const parsed = parseLatin(answer);
+    const correct = parsed.readings.some(r => key(r) === key(target.m));
+    const out = { correct, parsed, notes: [] };
+    if (correct) {
+      if (norm(answer) !== norm(target.words.join(''))) out.notes.push('Word order differs from the model answer, which is fine — Latin word order is free.');
+      return out;
+    }
+    if (!parsed.tokens.length) { out.notes.push('Type a Latin sentence.'); return out; }
+    parsed.unknown.forEach(w => out.notes.push(`“${w}” isn't a form in the current vocabulary.`));
+
+    // Diff the user's words against the model answer, matching on exact forms first.
+    const roleOf = latinRoles(target);
+    const want = target.words.map((w, i) => ({ w, role: roleOf[i], done: false }));
+    const extra = [];
+    parsed.tokens.forEach(t => {
+      const hit = want.find(x => !x.done && norm(x.w) === norm(t.word) &&
+        (!hasMacron(t.word) || t.word.normalize('NFC').toLowerCase() === x.w.toLowerCase()));
+      if (hit) hit.done = true; else extra.push(t);
+    });
+    const missing = want.filter(x => !x.done);
+    extra.forEach(t => {
+      if (!t.analyses.length) return;
+      const lemmaHit = missing.find(x => analyze(x.w).some(a => t.analyses.some(b => b.id === a.id)));
+      const prepMiss = t.analyses[0].pos === 'prep' && missing.find(x => !x.done && x.role.role === 'prep');
+      if (prepMiss) {
+        prepMiss.done = true;
+        out.notes.push(`“${t.word}” ${PREP_SENSE[t.analyses[0].id]}; for “${ppEnglish(target.m.pp)}” you need “${prepMiss.w}”, which ${PREP_SENSE[target.m.pp.prep]}.`);
+      } else if (lemmaHit) {
+        lemmaHit.done = true;
+        out.notes.push(`“${t.word}” is ${t.analyses.map(describe).join(' / ').toLowerCase()}; as the ${ROLE_NAMES[lemmaHit.role.role]} you need “${lemmaHit.w}” (${lemmaHit.role.label.toLowerCase()}).`);
+      } else {
+        const a = t.analyses[0];
+        out.notes.push(a.pos === 'prep'
+          ? `“${t.word}” doesn't belong in this sentence.`
+          : `“${t.word}” (${a.pos === 'noun' ? NOUN[a.id].lemma : VERB[a.id].lemma}) doesn't belong in this sentence.`);
+      }
+    });
+    missing.filter(x => !x.done).forEach(x => out.notes.push(`Missing the ${ROLE_NAMES[x.role.role]}: “${x.w}”.`));
+    if (!out.notes.length) {
+      out.notes.push(target.m.pp
+        ? 'All the right words, but the arrangement changes the meaning — keep each genitive next to its noun, and the preposition right before its noun.'
+        : 'All the right words, but the arrangement changes the meaning — keep each genitive right next to the noun it belongs to.');
+    }
+    return out;
+  }
+
+  const PREP_SENSE = {
+    in: 'means “in, on” with the ablative and “into, onto” with the accusative',
+    ad: 'means “to, toward” and takes the accusative',
+  };
+
+  /** Role + form label for each word of a generated sentence, aligned with target.words. */
+  function latinRoles(target) {
+    const parsed = parseLatin(target.words.join(' '));
+    const idx = parsed.readings.findIndex(r => key(r) === key(target.m));
+    const pick = parsed.parses[idx];
+    return pick.map(o => ({ role: o.role, label: describe(o.a) }));
+  }
+
+  /** English answer to a Latin prompt. Correct if it fits any grammatical reading of the Latin. */
+  function checkEnglish(answer, target) {
+    const text = normEnglish(answer);
+    const readings = target.readings;
+    const matchIdx = readings.findIndex(r => englishRegex(r).test(text));
+    const out = { correct: matchIdx >= 0, reading: readings[matchIdx] || null, notes: [] };
+    if (out.correct || !text) {
+      if (!text) out.notes.push('Type an English translation.');
+      return out;
+    }
+    // Hints against the intended reading: nouns in the wrong number, missing verb.
+    const m = target.m;
+    const words = new Set(text.split(' ').map(w => w.replace(/'s?$/, '')));
+    const nps = [m.subj, m.obj, m.dat, m.pp].flatMap(x => (x ? [x, x.gen] : [])).filter(Boolean);
+    nps.forEach(np => {
+      const n = NOUN[np.n];
+      const right = n.en.map(p => p[np.num === 'sg' ? 0 : 1]);
+      const wrong = n.en.map(p => p[np.num === 'sg' ? 1 : 0]);
+      if (right.some(w => words.has(w))) return;
+      const formWord = target.words.find(w => analyze(w).some(a => a.id === np.n));
+      if (wrong.some(w => words.has(w))) out.notes.push(`Check the number of “${formWord}” — it is ${np.num === 'sg' ? 'singular' : 'plural'} here.`);
+      else out.notes.push(`“${formWord}” (${n.lemma}, ${n.en[0][0]}) isn't translated.`);
+    });
+    [m.verb, m.inf].filter(Boolean).forEach(v => {
+      const vb = VERB[v];
+      if (vb.en.some(f => f.some(w => words.has(w)))) return;
+      const past = vb.en.flatMap(([base]) => [PAST[base], base + 'd', base + 'ed', base.replace(/y$/, 'ied')]);
+      if (past.some(w => words.has(w))) out.notes.push(`${vb.lemma} is in the present tense here — “${englishOf({ ...m, inf: null, obj: null, dat: null, verb: v }).replace(/\.$/, '')}”, not the past.`);
+      else out.notes.push(`The verb ${vb.lemma} (“to ${vb.en[0][0]}”) isn't translated.`);
+    });
+    if (m.pp && !out.notes.length) {
+      const kind = ppKind(m.pp.prep, m.pp.case);
+      if (!PP_KINDS[kind].en.some(w => (' ' + text + ' ').includes(' ' + w + ' '))) {
+        const words = latinPP(target);
+        out.notes.push(`“${words}” is ${PREP[m.pp.prep].form} + ${CASE_NAMES[m.pp.case].toLowerCase()}, ${PP_KINDS[kind].name}: “${ppEnglish(m.pp)}”.`);
+      }
+    }
+    if (!m.subj && !out.notes.length) {
+      const agr = m.person + m.num;
+      if (!new RegExp(`^${PRONOUN_RE[agr]} `).test(text)) out.notes.push(`The ending of “${verbForm(VERB[m.verb], agr)}” shows the subject: ${PERSON_NAMES[agr]} (“${PRONOUN_DISPLAY[agr]}”).`);
+    }
+    if (!out.notes.length) out.notes.push('The words are right but the roles don\'t match — check who does what to whom (case endings).');
+    return out;
+  }
+
+  /** The Latin words of the target's prepositional phrase, as written in the sentence. */
+  function latinPP(target) {
+    const i = target.words.findIndex(w => analyze(w).some(a => a.pos === 'prep'));
+    const n = target.words.findIndex((w, j) => j > i && analyze(w).some(a => a.id === target.m.pp.n));
+    return target.words.slice(i, n + 1).join(' ');
+  }
+
+  /** Word-by-word analysis of a sentence under a given reading. */
+  function breakdown(target, reading) {
+    const parsed = parseLatin(target.words.join(' '));
+    const idx = parsed.readings.findIndex(r => key(r) === key(reading || target.m));
+    const pick = parsed.parses[Math.max(idx, 0)];
+    return target.words.map((w, i) => {
+      const o = pick[i];
+      const a = o.a;
+      const pp = pick.find(x => x.role === 'pobj');
+      const kind = pp && ppKind(pick.find(x => x.role === 'prep').a.id, pp.a.case);
+      let role = ROLE_NAMES[o.role];
+      if (o.role === 'gen') role = 'possessor of ' + target.words[o.head];
+      if (o.role === 'pobj') role = `object of ${PREP[pick[i - 1].role === 'prep' ? pick[i - 1].a.id : pick[i - 2].a.id].form} (${PP_KINDS[kind].name})`;
+      if (a.pos === 'prep') {
+        return {
+          word: w, lemma: PREP[a.id].form + (a.id === 'in' ? ' + abl. / acc.' : ' + acc.'),
+          gloss: PP_KINDS[kind].en.slice(0, 2).join(', '), form: `Preposition + ${CASE_NAMES[pp.a.case].toLowerCase()}`, role: PP_KINDS[kind].name,
+        };
+      }
+      const entry = a.pos === 'noun' ? NOUN[a.id] : VERB[a.id];
+      return {
+        word: w,
+        lemma: a.pos === 'noun' ? `${entry.lemma}, ${entry.genSg}` : `${entry.first}, ${entry.lemma}`,
+        gloss: a.pos === 'noun' ? entry.en[0][0] : 'to ' + entry.en[0][0],
+        form: describe(a),
+        role,
+      };
+    });
+  }
+
+  // ─── Drill helpers ────────────────────────────────────────────────────────
+
+  function nounParadigm(n) {
+    return NUMS.flatMap(num => CASES.map(c => ({ case: c, num, form: nounForm(n, c, num), alts: nounAlts(n, c, num) })));
+  }
+  function verbParadigm(v) {
+    return PERSONS.map(p => ({ p, form: verbForm(v, p) })).concat([{ p: 'inf', form: verbForm(v, 'inf') }]);
+  }
+
+  /** English meaning of a single verb form, e.g. vocant → "they call". */
+  function verbFormEnglish(v, p) {
+    if (p === 'inf') return 'to ' + v.en[0][0];
+    const pron = { '1sg': 'I', '2sg': 'you (sg.)', '3sg': 'he/she/it', '1pl': 'we', '2pl': 'you (pl.)', '3pl': 'they' }[p];
+    return pron + ' ' + v.en[0][p === '3sg' ? 1 : 0];
+  }
+
+  const API = {
+    CASES, NUMS, CASE_NAMES, NUM_NAMES, PERSONS, PERSON_NAMES, DECL1, CONJ1, ROLE_NAMES,
+    NOUNS, VERBS, NOUN, VERB, PEOPLE, POSSESSORS, OWNERS, MAX_WORDS,
+    PREPS, PREP, PP_KINDS, PREP_SENSE, ppKind, ppEnglish,
+    nounForm, nounAlts, verbForm, nounParadigm, verbParadigm, verbFormEnglish,
+    norm, stripMacrons, hasMacron, analyze, describe, tokenize,
+    parseLatin, key, englishOf, englishRegex, normEnglish,
+    generateSentence, checkLatin, checkEnglish, breakdown,
+    makeRng, pickOne, shuffle,
+  };
+  if (typeof module !== 'undefined' && module.exports) module.exports = API;
+  else root.Latin = API;
+})(typeof self !== 'undefined' ? self : this);

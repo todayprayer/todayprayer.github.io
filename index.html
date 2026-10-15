@@ -201,10 +201,9 @@
     </nav>
 
     <div class="aside">
-      <p class="label">Experimental &mdash; the basic office</p>
+      <p class="label">Also &mdash; a simple Latin instructor</p>
       <nav>
-        <a class="btn" id="simple-day-link" href="#">Simple Morning</a>
-        <a class="btn btn-night" id="simple-night-link" href="#">Simple Night</a>
+        <a class="btn" href="latin/index.html">Latin Instructor</a>
       </nav>
     </div>
   </div>
@@ -243,10 +242,12 @@
   // Only the two doors. Yesterday and tomorrow used to hang here as well, but
   // every day page and every night page now carries its own arrows, so the
   // front page has no reason to offer a second way to the same place.
+  //
+  // These two are the only links the script has to write, because they are the
+  // only ones that depend on the date. The Latin instructor below is one page
+  // and the same page every day, so its link is in the markup.
   document.getElementById("today-link").href = "days/" + iso(today) + ".html";
   document.getElementById("night-link").href = "nights/" + iso(today) + ".html";
-  document.getElementById("simple-day-link").href = "simple/days/" + iso(today) + ".html";
-  document.getElementById("simple-night-link").href = "simple/nights/" + iso(today) + ".html";
 </script>
 </body>
 </html>
