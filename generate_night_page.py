@@ -28,6 +28,7 @@ from __future__ import annotations
 
 import argparse
 import collections
+import dataclasses
 import datetime
 import html
 import json
@@ -400,6 +401,50 @@ HISTORY = max(len(s) for s in (STAY_WITH_BOOK, *SCHEDULES.values())) + 1
 SLOTS = ("psalm", "first", "second")
 
 
+@dataclasses.dataclass(frozen=True)
+class Appointment:
+    """The reading a slot is to take on one day of the year.
+
+    Named by its citation and not by its book, because a feast wants a
+    particular passage and not whatever of the book is next. The day is kept
+    as month and day, so it comes round every year rather than being spent on
+    one.
+    """
+
+    slot: str
+    citation: str
+    when: tuple[int, int]
+    why: str
+
+
+# The night office has no calendar in it. Which psalm and which readings a
+# night gets is a draw, and a feast changes nothing -- the morning office is
+# where the day's own saints and their own books belong. This is the one
+# exception to that, and it is kept as small as it can be: a proper of the
+# saints one line long, for a feast that cannot be kept without its lesson.
+#
+# Raphael is one of the three angels the Church names, and Tobias is the one
+# book of scripture that tells of him -- 1 Enoch, in the second pool here,
+# lists him among the archangels and says nothing more. He walks the length
+# of Tobias under a human name, Azarias, and says who he is only at 12:15:
+# "For I am the angel Raphael, one of the seven, who stand before the Lord."
+# That passage is the lesson of his feast, so the night of the 24th of
+# October reads it and the rest of the book is left to the draw.
+#
+# Taken whether or not it has been read before, which is the one place this
+# office repeats a reading on purpose. A proper lesson comes round every year
+# -- that is what makes it proper -- and one night a year is no dent in a pool
+# of two thousand.
+APPOINTMENTS = (
+    Appointment(
+        slot="first",
+        citation="Tobias 12:10–22",
+        when=(10, 24),
+        why="Saint Raphael the Archangel, who names himself in it",
+    ),
+)
+
+
 def by_key(pools: dict[str, list[dict]]) -> dict[str, dict]:
     """Every reading in the pools, found by the key its page records it under."""
     return {reading_key(r["text"]): r for pool in pools.values() for r in pool}
@@ -441,6 +486,18 @@ def run_length(recent: list[dict], slot: str, title: str) -> int:
             break
         nights += 1
     return nights
+
+
+def appointed(day: datetime.date, slot: str) -> str:
+    """The reading the calendar appoints to this slot tonight, if any.
+
+    Its citation, or the empty string, which is what almost every night of
+    the year gets: see APPOINTMENTS.
+    """
+    for item in APPOINTMENTS:
+        if item.slot == slot and item.when == (day.month, day.day):
+            return item.citation
+    return ""
 
 
 def psalm_for(
@@ -506,8 +563,29 @@ def reading_for(
 
     Spent readings stay in reserve rather than raising: when the pool is
     finally exhausted, a repeat beats a blank page.
+
+    Before any of that, a reading the calendar has appointed to the night
+    takes the slot outright -- see APPOINTMENTS, which is the only place this
+    office looks at the date for anything but a seed.
     """
     entries = pools[pool]
+
+    # A reading the calendar has appointed to tonight comes before everything
+    # below: before the carry, before the draw, and before any roll is made,
+    # so that the nights without an appointment see the same stream of chance
+    # they would have seen without this. Looked up in the whole pool rather
+    # than in what is unread, because the passage is the point of the night
+    # and a feast does not take second best.
+    wanted = appointed(day, slot)
+    if wanted:
+        for reading in entries:
+            if reading["citation"] == wanted:
+                return reading
+        raise LookupError(
+            f"APPOINTMENTS asks the {slot} slot for {wanted!r}, which is not "
+            f"a reading in the {pool} pool"
+        )
+
     fresh = [r for r in entries if reading_key(r["text"]) not in spent] or entries
 
     by_book: dict[str, list[dict]] = {}

@@ -732,6 +732,21 @@ def render_paragraph(item) -> str:
         return f'  <h3 class="subheading">{html.escape(item.text)}</h3>'
     if isinstance(item, prayers.Response):
         return f'  <div class="vr"><div class="r">{decorate(item.text)}</div></div>'
+    if isinstance(item, prayers.Quotation):
+        # Set the way render_excerpt sets a reading, and deliberately without
+        # the reading's key: this is nobody's lesson and nothing is spent by
+        # printing it. The class is also what keeps BLOCKQUOTE below from
+        # taking it for a reading -- see the note there.
+        #
+        # Escaped rather than decorated, because decorate paints every
+        # parenthetical liturgical red and italicises "Let us pray.", and both
+        # of those belong to the office speaking in its own voice. A quotation
+        # is somebody else talking, and is set plainly.
+        return (
+            '  <blockquote class="quote">\n'
+            f"    <p>{html.escape(item.text)}</p>\n  </blockquote>\n"
+            f'  <p class="attribution">&mdash; {html.escape(item.attribution)}</p>'
+        )
     if isinstance(item, prayers.Stanza):
         lines = "<br>\n    ".join(decorate(ln) for ln in item.text.split("\n"))
         return f'  <p class="stanza">{lines}</p>'
@@ -835,6 +850,11 @@ def render_excerpt(excerpt: Excerpt, spent: bool = True) -> str:
 
 
 DAYS_DIR = PROJECT_DIR / "days"
+# A reading's blockquote, which carries its key and nothing else after the
+# tag name. The quotation under the day's verse is set as a blockquote too,
+# but with class="quote", so this does not match it -- which is the point. It
+# is not a reading, it has no key, and matching it would send used_readings
+# into the fallback below that recovers a key from a blockquote's own text.
 BLOCKQUOTE = re.compile(
     r'<blockquote(?: data-reading="([0-9a-f]+)")?'
     r'(?: data-reading-unspent="([0-9a-f]+)")?>(.*?)</blockquote>',
@@ -953,6 +973,23 @@ def verse_of_the_day(day: datetime.date) -> list:
         return [prayers.Rubric(feast.name), feast.verse]
     rotation = prayers.CLOSING_VERSES_FOR_THE_DAY
     return [rotation[day.toordinal() % len(rotation)]]
+
+
+def acutis_quote(day: datetime.date) -> prayers.Quotation:
+    """The day's saying of Saint Carlo Acutis, which stands under the verse.
+
+    A fixed step down the list each morning rather than a draw, so that the
+    sixty-two are heard in turn and none of them twice before all have been
+    heard; the reasoning is written out at prayers.ACUTIS_STRIDE. The step is
+    taken on the ordinal, which is what everything else here counts days by,
+    so the saying is the same however the day is built -- by this script, or
+    by office.js in the browser, or by either of them again next year.
+    """
+    quotes = prayers.ACUTIS_QUOTES
+    return prayers.Quotation(
+        quotes[day.toordinal() * prayers.ACUTIS_STRIDE % len(quotes)],
+        prayers.ACUTIS_ATTRIBUTION,
+    )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1112,7 +1149,8 @@ def build_page(
         S("suffrage", "Suffrage", render_prayer(prayers.SUFFRAGE)),
         S("closing-prayer", "Closing Prayer", render_prayer(prayers.CLOSING_PRAYER)),
         S("doxology", "Doxology", render_prayer(prayers.DOXOLOGY), required=True),
-        S("verse-of-the-day", "Verse for the Day", render_prayer(verse_of_the_day(day))),
+        S("verse-of-the-day", "Verse for the Day",
+          render_prayer(verse_of_the_day(day) + [acutis_quote(day)])),
         S("pledge", "Pledge of Allegiance", render_prayer(prayers.PLEDGE_OF_ALLEGIANCE),
           auto=bool(holiday) or not sunday, rule="weekdays and holidays"),
         S("closing-verses", "Closing Verses", render_prayer(prayers.CLOSING_VERSES),

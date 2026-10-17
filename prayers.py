@@ -10,6 +10,7 @@ body is a list of paragraphs; a paragraph may be:
   - a Subheading, rendered as a small heading within the section;
   - a Response, rendered as a lone response line;
   - a Stanza, rendered as indented verse, one line per line.
+  - a Quotation, rendered as a block quotation with an attribution line.
 """
 
 from dataclasses import dataclass
@@ -39,6 +40,19 @@ class Subheading:
 @dataclass
 class Response:
     text: str
+
+
+@dataclass
+class Quotation:
+    """Somebody else's words, set off from the prayer around them.
+
+    Rendered as a block quotation with its attribution under it, which is how
+    the readings are already set, so a saying quoted inside a section reads as
+    a quotation and not as a line of the office.
+    """
+
+    text: str
+    attribution: str
 
 
 @dataclass
@@ -650,6 +664,179 @@ CLOSING_VERSES_FOR_THE_DAY = [
     "In peace in the selfsame I will sleep, and I will rest: for Thou, O Lord, singularly hast "
     "settled me in hope. (Psalm 4:9-10)",
     "Create a clean heart in me, O God: and renew a right spirit within my bowels. (Psalm 50:12)",
+]
+
+# Saint Carlo Acutis, 1991-2006, canonised in 2025 and the first saint of his
+# own century: a boy who kept a website of the Eucharistic miracles and died
+# of leukaemia at fifteen. One of his sayings stands under the day's verse,
+# after it rather than instead of it — the verse is scripture and speaks in
+# the office's own voice, and a saint quoted beside it is somebody else
+# talking.
+#
+# Transcribed from the compilation `Carlo Acutis Quotes-Revised.pdf`, which
+# acutis_quotes.py reads; `python acutis_quotes.py --check` says whether this
+# list is still what the file says. The compiler's own line breaks are not
+# kept: he sets the short sayings a clause to a line, which is typography and
+# not the way Carlo wrote.
+ACUTIS_ATTRIBUTION = "St. Carlo Acutis"
+
+# How far down the list each day steps. Any number coprime with the length of
+# the list walks the whole of it before it comes back to where it started, so
+# every saying is heard once in sixty-two days and none is heard twice before
+# then. That is what is wanted of a daily quote and it is not what drawing one
+# at random would give: a draw would land on the same saying two mornings
+# running often enough to notice, and leave others unsaid for half a year.
+# Scattered, then, rather than sequential, but not random. Coprimality is
+# checked by acutis_quotes.py --check, which is also what will catch it if
+# sayings are added and the stride is left alone.
+ACUTIS_STRIDE = 23
+
+ACUTIS_QUOTES = [
+    "Everyone is born original, but most end up dying as photocopies.",
+    "I offer all the sufferings that I will have to undergo to the Lord for the pope and the "
+    "Church, so that I can avoid Purgatory and go straight to heaven.",
+    "The doctor has given me a wake-up call! … There are a lot of people suffering a lot more "
+    "than me.",
+    "The Heart of Jesus and the Heart of Mary are indissolubly joined, and when we receive "
+    "Communion, we come into direct contact with Our Lady and the saints in heaven. God is "
+    "extremely pleased by the souls that approach the great gifts of the Eucharist and the "
+    "Sacrament of Confession.",
+    "Virtue is acquired primarily through an intense sacramental life, and the Eucharist is "
+    "undoubtedly the culmination of charity. Through this sacrament the Lord makes us be "
+    "complete persons, created in his image.",
+    "We are all likely to fall short because as soon as someone says something we don’t like, "
+    "we instantly grow angry.",
+    "Those who enjoy a high income or have a string of noble titles after their names should "
+    "not boast or think they are better than others… Noble titles and money mean so little. "
+    "What really counts in life is the nobility of the soul or the manner in which we love "
+    "God and neighbor… all men and women are created by God.",
+    "The biggest gift that God made to men was to send his only Son, Jesus Christ… It is very "
+    "important to pray that Jesus Christ be loved and known by all peoples throughout the "
+    "world.",
+    "With these inter-religious meetings, the pope gives everyone the possibility of knowing "
+    "and loving Jesus Christ, the one Savior of the world upon whom the salvation of all "
+    "human beings depends.",
+    "Our Lady is the only lady in my life!",
+    "Reciting the Rosary is “the most important appointment of the day.”",
+    "If a goodhearted, simple kid like Francesco had to recite so many rosaries to get to "
+    "heaven, what chance do I have?",
+    "Even the smallest defect keeps us stuck to this earth like a helium balloon grasped "
+    "lightly between two fingers.",
+    "In order to climb higher, a hot-air balloon needs to shed weight, just as a soul needs "
+    "to shed itself of venial sins to ascend to heaven. If one happens to fall into mortal "
+    "sin, the soul falls to earth, and confession is like the fire that reinflates the "
+    "balloon and allows it to ascend once more to heaven. We need to go to confession often "
+    "because the soul is a very complex reality.",
+    "If people really recognized the risk involved in breaking God’s commandments, they would "
+    "be very much warier of committing serious sins, and they would try harder to admonish "
+    "their brothers and sisters who live in a way that betrays the baptism they have "
+    "received.",
+    "If—as the Scriptures affirm, and as the Fatima apparitions confirm in a stunning "
+    "way—souls really run the risk of eternal damnation, I marvel that anyone hardly ever "
+    "talks about hell, because it is such a terrible and frightening reality. It sends "
+    "shivers down my spine just thinking about it.",
+    "God alone knows how long we have on this earth.",
+    "If you criticize the Church, you are simply criticizing yourself.",
+    "The Eucharist is my highway to heaven.",
+    "Jesus is really present to the world, just as when his apostles and disciples saw him "
+    "walk the streets of Jerusalem.",
+    "I think that many people do not fully understand the value of Mass, because if they "
+    "recognized the enormous blessing we have in a Lord who gives himself as our food and "
+    "drink in the Sacred Host, they would go to Mass every day to participate in the fruits "
+    "of the sacrifice and let go of so many superfluous things.",
+    "Who can intercede more for us than a God who offers himself to God? During the "
+    "consecration, we must beg God the Father for grace through the merits of his only Son "
+    "Jesus Christ, his Holy Wounds, his most precious Blood and through the tears and sorrows "
+    "of the Virgin Mary who, as his mother, intercedes for us more than anyone else.",
+    "Through the Sacred Heart of Jesus and the Immaculate Heart of Mary, I present to you all "
+    "my petitions and I beg you to hear me.",
+    "Jesus, make yourself at home! Live within me as if it were your own dwelling!",
+    "You can go straight to heaven if you avail yourself of the Eucharist every day!",
+    "Jesus is very creative because he hides in a little piece of bread, and only God could "
+    "do something so incredible!",
+    "Jesus Christ took on flesh to come to us and save us both from original sin inherited "
+    "from our first parents and the sins each of us commits every day—even "
+    "involuntarily—because unfortunately we are limited. But the Eucharist is nothing other "
+    "than the heavenly food that keeps us out of temptation. When in the Lord’s Prayer we "
+    "say, ‘give us this day our daily bread, and lead us not into temptation,’ Jesus meant, "
+    "‘give us today the daily Eucharist.’",
+    "The Lord Jesus took on flesh by choosing a poor fifteen-year-old girl as his mother and "
+    "a carpenter as his adoptive father. When he was born, a lot of people refused to let him "
+    "in because they didn’t know where to put him, but someone finally found him in a barn "
+    "[which] was certainly better than a lot of houses that refuse to let the Lord in today "
+    "or betray him, because he is received unworthily. A poor fifteen-year-old girl and a "
+    "poor carpenter became the parents of God who chose poverty rather than riches. I think "
+    "this is absolutely incredible.",
+    "[T]here are so many tabernacles where I can visit Jesus at any time, so I don’t feel the "
+    "need to go to Jerusalem. We have Jerusalem right out our front door.",
+    "If Jesus stays with us wherever there is a consecrated Host, what need is there to go on "
+    "pilgrimage to Jerusalem to visit places he lived two thousand years ago? If only people "
+    "visited tabernacles with the same devotion!",
+    "God has written a unique and unrepeatable story for each of us, but he lets us write the "
+    "ending.",
+    "We can find God in his Body, Soul, and Divinity present in all the tabernacles of the "
+    "world! If we think about it, we are much more fortunate than those who met Jesus on this "
+    "earth two thousand years ago, because we have God ‘really and substantially’ with us "
+    "always. It is enough to visit a nearby church. ‘Jerusalem’ is in every church! No room "
+    "for despair!",
+    "God is always with us and will never abandon us. How can people grasp this truth? "
+    "Throngs of people stand in interminable lines to buy tickets to rock concerts or soccer "
+    "matches, but I don’t see crowds of people lined up outside church waiting to see Jesus "
+    "in the Eucharist. This should make us pause and reflect.",
+    "Perhaps people really haven’t yet understood! Jesus is present among us in his very Body "
+    "just as he was during his mortal life among his friends. If we reflected on this "
+    "seriously, we would never leave him alone in the tabernacles waiting for us with love, "
+    "wanting to help us and to support us on our earthly journey.",
+    "Our frenetic pace of life has made us forget that each of us must climb Golgotha sooner "
+    "or later. Our journey on this earth is marked from the beginning: We are all invited to "
+    "take up our cross and climb Golgotha.",
+    "Our lives will truly be beautiful only if we discover how to love God above all things "
+    "and our neighbor as ourselves.",
+    "Jesus is Love, and he has made himself food and drink for us in the Eucharist. The more "
+    "we nourish ourselves on the Body, Blood, Soul, and Divinity of Christ, the more we will "
+    "be able to love… The Eucharist configures us in a special way to God, who is Love.",
+    "[T]he sacrifice on the cross which occurred two thousand years ago is just as present to "
+    "us in all the Masses celebrated today. Just like John, we can unite ourselves to the "
+    "sacrifice on the cross and show our love for God by participating in Mass every day. We "
+    "cannot ignore Jesus’ invitation to unite ourselves with him.",
+    "[The Eucharistic Liturgy is] the most important prayer we can perform to help the "
+    "departed souls to leave purgatory.",
+    "The body is the temple of the Holy Spirit.",
+    "The Lord would not be pleased if I reacted violently.",
+    "I am dying peacefully because I have lived my life without wasting a single minute of it "
+    "in things that displease God.",
+    "What good would it be for a human being to win a thousand battles if he is incapable of "
+    "conquering his very self?",
+    "We must make our Exodus from sin with complete conviction.",
+    "Our ultimate goal must be the Infinite and not the finite… If God possesses our hearts, "
+    "then we will possess the Infinite.",
+    "Find God and you will find the meaning of your life.",
+    "[I cannot understand] why many people are so concerned with the beauty of their bodies "
+    "rather than spending time on the beauty of their souls.",
+    "Conversion is nothing other than turning one’s gaze away from the inferior to the "
+    "superior. It takes nothing more than diverting our eyes to another direction.",
+    "Sadness is simply a look of self-pity directed at yourself, and happiness is to turn our "
+    "gaze to God.",
+    "Life is a gift, because as long as we are on this planet, we can grow in our ability to "
+    "love. The more we learn to love, the more we will enjoy eternal blessedness with God.",
+    "[E]very minute that passes in vain is a missed opportunity to become more holy.",
+    "The more often we receive the Eucharist, the more we become like Jesus and the more we "
+    "get a foretaste of heaven.",
+    "Without Him, we can do nothing.",
+    "[Through the Eucharist], you go directly to heaven, and we are given the opportunity to "
+    "do it everyday.",
+    "[T]he Lord is the only person that we don’t have to ask if he’s available. I can always "
+    "confide something in him. I can also complain or question him in silent moments and tell "
+    "him the things that I don’t understand. Then I find within me some words he sends me; "
+    "some passage from the Gospel that cloaks me in security and confidence.",
+    "We have seen his glory!",
+    "Holiness is not a process of adding anything, but of subtraction. It is a removal of "
+    "myself to make space for God… Not I, but God!",
+    "I love to talk with Jesus about everything I am experiencing and feeling.",
+    "The Lord will surely come.",
+    "To always be united with Christ: This is my life’s program.",
+    "Discover how many friends you have in heaven.",
+    "I will die young.",
 ]
 
 CLOSING_VERSES = [

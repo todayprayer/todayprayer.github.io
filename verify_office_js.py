@@ -45,6 +45,13 @@ DEFAULT_DAYS = [
     # standing in for was never tested.
     "2026-11-26",   # Thanksgiving Day
     "2026-12-25",   # Christmas
+    # The one night in the year the night office has a proper lesson: Saint
+    # Raphael's feast, which reads the passage of Tobias where he names
+    # himself. The first reading takes it before it rolls for the book it read
+    # last night, so a port that did not know about APPOINTMENTS would go on
+    # with that book instead -- checked: Tobias 12 with the appointment, and
+    # Daniel 3 without it.
+    "2027-10-24",   # Saint Raphael the Archangel
     "2027-01-17",   # a Sunday in the new year
     "2027-06-06",   # far enough out to catch a bad ordinal
 ]

@@ -427,6 +427,13 @@
       throw new Error("office_data.json does not cover " + iso
         + " (it covers " + data.covers.first + " to " + data.covers.last + ")");
     }
+    // The day's saying of Saint Carlo Acutis, which stands under the verse in
+    // the same section. A fixed step down the list rather than a draw, so the
+    // sixty-two are heard in turn; see generate_page.acutis_quote, whose
+    // arithmetic this is. The ordinal runs to seven figures and the step to
+    // two, so the product is nowhere near where a double stops counting.
+    var sayings = data.acutis.pool;
+    var sayingBody = sayings[(ordinal * data.acutis.stride) % sayings.length];
 
     var saints = data.saints;
     var rotation = saints.rotation;
@@ -471,7 +478,8 @@
       { id: "suffrage", title: "Suffrage", body: fixed.suffrage },
       { id: "closing-prayer", title: "Closing Prayer", body: fixed["closing-prayer"] },
       { id: "doxology", title: "Doxology", body: fixed.doxology, required: true },
-      { id: "verse-of-the-day", title: "Verse for the Day", body: verseBody },
+      { id: "verse-of-the-day", title: "Verse for the Day",
+        body: verseBody + "\n" + sayingBody },
       { id: "pledge", title: "Pledge of Allegiance", body: fixed.pledge,
         auto: hasHoliday || !sunday, rule: "weekdays and holidays" },
       { id: "closing-verses", title: "Closing Verses", body: fixed["closing-verses"],
@@ -567,6 +575,18 @@
     return nights;
   }
 
+  // generate_night_page.appointed
+  function appointedReading(appointments, month, dayOfMonth, slot) {
+    for (var i = 0; i < appointments.length; i++) {
+      var item = appointments[i];
+      if (item.slot === slot && item.when[0] === month
+          && item.when[1] === dayOfMonth) {
+        return item.citation;
+      }
+    }
+    return "";
+  }
+
   // generate_night_page.psalm_for
   function psalmFor(ordinal, pools, spent, recent, keyOf) {
     var psalms = pools.psalms;
@@ -591,8 +611,23 @@
   }
 
   // generate_night_page.reading_for
-  function readingFor(ordinal, pools, pool, spent, salt, recent, slot, data, keyOf) {
+  // The calendar date comes in beside the ordinal, because an appointment is
+  // kept by month and day and the ordinal does not say which those are.
+  function readingFor(ordinal, pools, pool, spent, salt, recent, slot, data,
+                      keyOf, month, dayOfMonth) {
     var entries = pools[pool];
+
+    // A reading the calendar has appointed to tonight, ahead of everything
+    // below and before any roll. The Python raises if the citation is not in
+    // the pool at all; that is a fault in APPOINTMENTS and not a thing a page
+    // can hit.
+    var wanted = appointedReading(data.appointments, month, dayOfMonth, slot);
+    if (wanted) {
+      for (var i = 0; i < entries.length; i++) {
+        if (entries[i].citation === wanted) { return entries[i]; }
+      }
+    }
+
     var fresh = entries.filter(function (r) { return !spent.has(keyOf(r)); });
     if (!fresh.length) { fresh = entries; }
 
@@ -667,9 +702,11 @@
     Object.keys(data.spent).forEach(function (k) { spent.set(k, data.spent[k]); });
 
     var psalm = psalmFor(ordinal, pools, spent, recent, keyOf);
-    var first = readingFor(ordinal, pools, "first", spent, 1, recent, "first", data, keyOf);
+    var first = readingFor(ordinal, pools, "first", spent, 1, recent, "first",
+      data, keyOf, m, d);
     spent.set(keyOf(first), (spent.get(keyOf(first)) || 0) + 1);
-    var second = readingFor(ordinal, pools, "second", spent, 2, recent, "second", data, keyOf);
+    var second = readingFor(ordinal, pools, "second", spent, 2, recent, "second",
+      data, keyOf, m, d);
 
     var fixed = data.fixed;
     // The psalm carries its own Glory be, and the first reading its Thanks be

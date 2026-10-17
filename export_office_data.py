@@ -12,6 +12,8 @@ So the browser is handed:
   - the page shell, already formatted, with four sentinels left in it;
   - every section whose body is the same on every day, already rendered;
   - the saints' rotation, each line already rendered, to be indexed by date;
+  - the sayings of Saint Carlo Acutis, each already rendered, to be stepped
+    through by date;
   - per date: the verse of the day, the holiday hymn if there is one, and the
     feast's topics and rank, which is all the calendar the browser needs;
   - the keys of every reading the pages in days/ have already spent.
@@ -146,6 +148,24 @@ def verse_bodies(days: list[datetime.date]) -> tuple[list[str], dict[str, int]]:
     return pool, index
 
 
+def acutis_sayings() -> dict:
+    """The sayings of Saint Carlo Acutis, rendered, and the step between them.
+
+    One of them stands under the day's verse. Which one is arithmetic on the
+    date and nothing else -- see generate_page.acutis_quote -- so the browser
+    is handed the sayings and the step rather than a saying per date. A map of
+    two and a half thousand rows standing in for a formula of one line is the
+    kind of thing steering() below declines to ship.
+    """
+    return {
+        "pool": [
+            render_prayer([prayers.Quotation(saying, prayers.ACUTIS_ATTRIBUTION)])
+            for saying in prayers.ACUTIS_QUOTES
+        ],
+        "stride": prayers.ACUTIS_STRIDE,
+    }
+
+
 def holiday_bodies(days: list[datetime.date]) -> tuple[list[dict], dict[str, int]]:
     """The holiday hymn section, for the days that carry one."""
     pool: list[dict] = []
@@ -237,6 +257,19 @@ def night_data() -> dict:
         "slots": list(night.SLOTS),
         "history": night.HISTORY,
         "stayWithBook": list(night.STAY_WITH_BOOK),
+        # The proper lessons: a feast's own reading, by the day it falls on.
+        # The whole of the calendar this office has, and the one thing in it
+        # the browser could not work out for itself.
+        # generate_night_page.appointed is the rule and this is its table; why
+        # each one is there stays in the source, where a reader of it is.
+        "appointments": [
+            {
+                "slot": item.slot,
+                "citation": item.citation,
+                "when": list(item.when),
+            }
+            for item in night.APPOINTMENTS
+        ],
         "schedules": {k: list(v) for k, v in night.SCHEDULES.items()},
     }
 
@@ -265,6 +298,7 @@ def main() -> None:
         "fixed": fixed_sections(),
         "saints": saints(),
         "verses": {"pool": verses, "byDate": verse_index},
+        "acutis": acutis_sayings(),
         "hymns": {"pool": hymns, "byDate": hymn_index},
         "steering": steering(days),
         # What the pages in days/ have already prayed. The browser cannot list
@@ -283,6 +317,8 @@ def main() -> None:
     print(f"wrote {out.name}, {out.stat().st_size / 1024:.0f} KB")
     print(f"  {len(days)} days covered, {first} to {last}")
     print(f"  {len(verses)} distinct verse bodies, {len(hymns)} holiday hymns")
+    print(f"  {len(data['acutis']['pool'])} sayings of Saint Carlo Acutis, "
+          f"stepped {data['acutis']['stride']} at a time")
     print(f"  {len(data['steering'])} days with feast steering")
     print(f"  {len(data['spent'])} readings already spent by days/")
 
