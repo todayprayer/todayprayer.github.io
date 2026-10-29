@@ -1182,7 +1182,7 @@
               }),
               checked && !correct(c) ? h('span', { class: 'fix' }, c.accept.map(show).join(' or ')) : null)))))),
         h('div', { class: 'game-foot' },
-          h('span', { class: 'muted' }, checked ? `${timedOut ? '⏱  Time’s up — ' : ''}${right} of ${all.length} correct` : 'Tab moves between cells · Enter checks'),
+          h('span', { class: 'muted' }, checked ? `${timedOut ? '⏱  Time’s up — ' : ''}${right} of ${all.length} correct` : 'Tab goes down each column · Enter checks'),
           h('span', null,
             !checked ? h('button', { class: 'btn ghost', onclick: setup }, 'Skip') : null, ' ',
             h('button', { class: 'btn primary', id: 'p-check', onclick: check }, checked ? 'Next table' : 'Check'))));
@@ -1194,7 +1194,16 @@
       el,
       focus() { const first = $('input[data-r]', el); if (first) first.focus(); },
       rerender() { if (checked) render(); },
-      onKey(e) { if (e.key === 'Enter' && (e.target.matches('input[data-r]') || checked)) { e.preventDefault(); check(); } },
+      onKey(e) {
+        if (e.key === 'Enter' && (e.target.matches('input[data-r]') || checked)) { e.preventDefault(); check(); }
+        // Tab runs down the Singular column, then down Plural; a one-cell row (the infinitive) comes last.
+        if (e.key === 'Tab' && !e.ctrlKey && !e.altKey && !e.metaKey && e.target.matches('input[data-r]')) {
+          const col = inp => (rows[inp.dataset.r].cells.length === 1 ? item.cols.length : +inp.dataset.c);
+          const order = $$('input[data-r]', el).sort((a, b) => col(a) - col(b) || a.dataset.r - b.dataset.r);
+          const next = order[order.indexOf(e.target) + (e.shiftKey ? -1 : 1)];
+          if (next) { e.preventDefault(); next.focus(); }   // past either end, Tab leaves the table as usual
+        }
+      },
       stop: timer.stop,
       restartTimer() { if (!checked) timer.start(); },
     };
