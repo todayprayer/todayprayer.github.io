@@ -1,0 +1,861 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Morning Prayer — Thursday, November 19, 2026</title>
+<style>
+  :root, :root[data-theme="light"] {
+    --ink: #2b2216;
+    --accent: #7a1f1f;
+    --paper: #faf6ee;
+    --rule: #d8cdb8;
+    --muted: #6b5d48;
+    color-scheme: light;
+  }
+  :root[data-theme="paper"] {
+    --ink: #3a2e1c;
+    --accent: #7a1f1f;
+    --paper: #f4e8d0;
+    --rule: #d9c49c;
+    --muted: #6f5f45;
+    color-scheme: light;
+  }
+  :root[data-theme="dark"] {
+    --ink: #e2dacb;
+    --accent: #d19a9a;
+    --paper: #16150f;
+    --rule: #3a352b;
+    --muted: #9a9080;
+    color-scheme: dark;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.65;
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 38rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  /* The days are a series, and a page of a series should say which way is
+     back. Set small and quiet: it is furniture, not part of the office. */
+  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
+  section { margin: 2.2rem 0; }
+  h2 {
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  h2 .numeral { display: inline-block; min-width: 2.6rem; }
+  p { margin: 0.8rem 0; }
+  .vr { margin: 0.8rem 0; }
+  .vr .v::before { content: "\2123. "; color: var(--accent); }
+  .vr .r::before { content: "\211F. "; color: var(--accent); }
+  .vr .r { margin-left: 1.4rem; }
+  .bilingual { margin: 0.5rem 0; }
+  .bilingual .la { font-style: italic; color: var(--muted); }
+  .antiphon .label { color: var(--accent); font-style: italic; }
+  .red { color: var(--accent); }
+  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }
+  .stanza {
+    margin: 0.9rem 0 0.9rem 1.2rem;
+    text-indent: -1.2rem;
+    line-height: 1.55;
+  }
+  h3.subheading {
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+    font-weight: normal;
+    margin: 1.2rem 0 0.4rem;
+  }
+  .pill {
+    font-family: inherit;
+    font-size: 0.75rem;
+    letter-spacing: 0.08em;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.15rem 0.7rem;
+    cursor: pointer;
+  }
+  .pill.active { border-color: var(--accent); color: var(--accent); }
+  h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
+  .pill-row { margin: 0.6rem 0 0.2rem; }
+  .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.2rem 0 0.2rem 1.2rem;
+    border-left: 3px solid var(--rule);
+  }
+  .attribution {
+    text-align: right;
+    font-style: normal;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--accent);
+    font-size: 1.3rem;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active {
+    background: var(--accent);
+    color: var(--paper);
+  }
+
+  [hidden] { display: none !important; }
+  .settings-backdrop {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.35);
+    z-index: 20;
+  }
+  .settings {
+    position: fixed;
+    z-index: 21;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    /* The page sets no box-sizing, so without this the 1.3rem padding and the
+       border are added outside the width and the panel hangs off both edges of
+       a phone. */
+    box-sizing: border-box;
+    width: min(30rem, calc(100vw - 1.5rem));
+    max-height: min(38rem, calc(100vh - 2rem));
+    /* Where it is supported, the dynamic viewport unit keeps the panel clear
+       of a phone browser's retracting address bar. */
+    max-height: min(38rem, calc(100dvh - 2rem));
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 0.4rem;
+    box-shadow: 0 1rem 3rem rgba(0, 0, 0, 0.3);
+    padding: 1.2rem 1.3rem 1.4rem;
+  }
+  .settings h2 {
+    margin: 0 0 0.2rem;
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  .settings .hint {
+    font-size: 0.8rem;
+    font-style: italic;
+    color: var(--muted);
+    margin: 0.5rem 0 0.9rem;
+  }
+  .settings-close {
+    float: right;
+    font-family: inherit;
+    font-size: 1rem;
+    line-height: 1;
+    background: none;
+    border: none;
+    color: var(--muted);
+    cursor: pointer;
+    padding: 0 0.2rem;
+  }
+  .set-list { list-style: none; margin: 0; padding: 0; }
+  .set-row {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.32rem 0.2rem;
+    border-bottom: 1px solid var(--rule);
+    background: var(--paper);
+  }
+  .set-row.dragging {
+    border: 1px dashed var(--accent);
+    box-shadow: 0 0.3rem 0.8rem rgba(0, 0, 0, 0.22);
+    position: relative;
+    z-index: 1;
+  }
+  /* While a row is in hand, nothing anywhere should turn blue under the
+     pointer. Without this a drag reads as a clumsy text selection. */
+  body.dragging-row, body.dragging-row * {
+    user-select: none;
+    -webkit-user-select: none;
+    cursor: grabbing !important;
+  }
+  .set-handle {
+    cursor: grab;
+    color: var(--muted);
+    font-size: 0.9rem;
+    line-height: 1;
+    padding: 0.35rem 0.3rem;
+    background: none;
+    border: none;
+    font-family: inherit;
+    /* The handle refuses the browser's own gestures: without touch-action a
+       finger scrolls the list instead of picking the row up. The two -webkit-
+       rules are for iOS, where holding a spot to drag it otherwise raises the
+       selection callout and the magnifier over the thing being dragged. */
+    touch-action: none;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-touch-callout: none;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .set-handle:focus-visible { outline: 1px solid var(--accent); }
+  /* No touch-action here on purpose. The names are most of the list's
+     surface, and a finger dragging down them has to scroll it. Only the
+     handle refuses the scroll gesture, and only the handle drags on touch. */
+  .set-name {
+    flex: 1;
+    font-size: 0.88rem;
+    cursor: grab;
+  }
+  .set-row.is-off .set-name { color: var(--muted); }
+  .set-rule {
+    display: block;
+    font-size: 0.72rem;
+    font-style: italic;
+    color: var(--muted);
+  }
+  .seg { display: flex; flex: none; }
+  .seg button {
+    font-family: inherit;
+    font-size: 0.65rem;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    background: none;
+    border: 1px solid var(--rule);
+    border-right: none;
+    color: var(--muted);
+    padding: 0.16rem 0.45rem;
+    cursor: pointer;
+  }
+  .seg button:first-child { border-radius: 1rem 0 0 1rem; padding-left: 0.6rem; }
+  .seg button:last-child {
+    border-right: 1px solid var(--rule);
+    border-radius: 0 1rem 1rem 0;
+    padding-right: 0.6rem;
+  }
+  .seg button.active { background: var(--accent); color: var(--paper); border-color: var(--accent); }
+  .set-always {
+    flex: none;
+    font-size: 0.68rem;
+    font-style: italic;
+    letter-spacing: 0.06em;
+    color: var(--muted);
+    padding-right: 0.3rem;
+  }
+  .settings-foot {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 1rem;
+  }
+
+</style>
+<script>
+  (function () {
+    var t = localStorage.getItem("prayerTheme");
+    if (t) { document.documentElement.setAttribute("data-theme", t); }
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="light">Light</button>
+  <button type="button" data-theme-value="paper">Paper</button>
+  <button type="button" data-theme-value="dark">Dark</button>
+  <button type="button" id="settings-open" title="Choose sections" aria-label="Choose sections">&#9881;</button>
+</div>
+<div class="settings-backdrop" id="settings-backdrop" hidden></div>
+<div class="settings" id="settings" role="dialog" aria-modal="true" aria-labelledby="settings-title" hidden>
+  <button type="button" class="settings-close" id="settings-close" aria-label="Close">&#10005;</button>
+  <h2 id="settings-title">Sections</h2>
+  <p class="hint">Drag to reorder. <em>Auto</em> keeps a section on the day&rsquo;s own
+     custom; <em>On</em> and <em>Off</em> settle it for every day. Kept on this device.</p>
+  <ul class="set-list" id="set-list"></ul>
+  <div class="settings-foot">
+    <button type="button" class="pill" id="settings-reset">Restore defaults</button>
+    <button type="button" class="pill" id="settings-done">Done</button>
+  </div>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Morning Prayer</h1>
+    <div class="date">Thursday, November 19, 2026</div>
+    <nav>
+      <a href="2026-11-18.html" rel="prev">&larr; Yesterday</a>
+      <a href="2026-11-20.html" rel="next">Tomorrow &rarr;</a>
+    </nav>
+  </header>
+  <section data-section="sign-open">
+    <h2><span class="numeral">I.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="holy-spirit">
+    <h2><span class="numeral">II.</span>Invocation of the Holy Spirit</h2>
+  <div class="vr"><div class="v">Come, Holy Spirit, fill the hearts of Thy faithful and kindle in them the fire of Thy love.</div><div class="r">Send forth Thy Spirit, and they shall be created; and Thou shalt renew the face of the earth.</div></div>
+  <p><em>Let us pray.</em></p>
+  <p>O God, Who by the light of the Holy Spirit didst instruct the hearts of the faithful, grant that by the same Holy Spirit we may be truly wise and ever rejoice in His consolations. Through Christ our Lord.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="creed" hidden>
+    <h2><span class="numeral">.</span>Tridentine Creed <button type="button" id="lang-btn" name="lang-btn" class="pill" data-next="latin">Latin</button></h2>
+  <div class="lang-english">
+  <p>I, <span class="red">N.</span>, with a firm faith believe and profess each and everything which is contained in the Creed which the Holy Roman Church maketh use of. To wit:</p>
+  <p>I believe in one God, The Father Almighty, Maker of heaven and earth, and of all things visible and invisible. And in one Lord, Jesus Christ, the Only-begotten Son of God. Born of the Father before all ages. God of God, Light of Light, true God of true God. Begotten, not made, of one substance with the Father. By whom all things were made. Who for us men and for our salvation came down from heaven. And became incarnate by the Holy Spirit of the Virgin Mary: and was made man. He was also crucified for us, suffered under Pontius Pilate, and was buried. And on the third day He rose again according to the Scriptures. He ascended into heaven and sits at the right hand of the Father. He will come again in glory to judge the living and the dead and His kingdom will have no end. And in the Holy Spirit, the Lord and Giver of life, Who proceeds from the Father and the Son. Who together with the Father and the Son is adored and glorified, and who spoke through the prophets. And one holy, Catholic and Apostolic Church. I confess one baptism for the forgiveness of sins and I await the resurrection of the dead and the life of the world to come. Amen.</p>
+  <p>The Apostolic and Ecclesiastical traditions and all other observances and constitutions of that same Church I firmly admit to and embrace.</p>
+  <p>I also accept the Holy Scripture according to that sense which holy mother the Church hath held, and doth hold, and to whom it belongeth to judge the true sense and interpretations of the Scriptures. Neither will I ever take and interpret them otherwise than according to the unanimous consent of the Fathers.</p>
+  <p>I also profess that there are truly and properly Seven Sacraments of the New Law, instituted by Jesus Christ our Lord, and necessary for the salvation of mankind, though not all are necessary for everyone; to wit, Baptism, Confirmation, Eucharist, Penance, Extreme Unction, Holy Orders, and Matrimony; and that they confer grace; and that of these, Baptism, Confirmation, and Holy Orders cannot be repeated without sacrilege. I also receive and admit the accepted and approved ceremonies of the Catholic Church in the solemn administration of the aforesaid sacraments.</p>
+  <p>I embrace and accept each and everything which has been defined and declared in the holy Council of Trent concerning original sin and justification.</p>
+  <p>I profess, likewise, that in the Mass there is offered to God a true, proper, and propitiatory sacrifice for the living and the dead; and that in the most holy sacrament of the Eucharist there is truly, really, and substantially, the Body and Blood, together with the soul and divinity, of our Lord Jesus Christ; and that a conversion takes place of the whole substance of the bread into the Body, and of the whole substance of the wine into the Blood, which conversion the Catholic Church calls Transubstantiation. I also confess that under either species alone Christ is received whole and entire, and a true sacrament.</p>
+  <p>I steadfastly hold that there is a Purgatory, and that the souls therein detained are helped by the suffrages of the faithful. Likewise, that the saints, reigning together with Christ, are to be honored and invoked, and that they offer prayers to God for us, and that their relics are to be venerated. I most firmly assert that the images of Christ, of the Mother of God, ever virgin, and also of other Saints, ought to be kept and retained, and that due honor and veneration is to be given them.</p>
+  <p>I also affirm that the power of indulgences was left by Christ in the Church, and that the use of them is most wholesome to Christian people.</p>
+  <p>I acknowledge the Holy Catholic Apostolic Roman Church as the mother and teacher of all churches; and I promise true obedience to the Bishop of Rome, successor to St. Peter, Prince of the Apostles, and Vicar of Jesus Christ.</p>
+  <p>I likewise undoubtedly receive and profess all other things delivered, defined, and declared by the sacred Canons, and general Councils, and particularly by the holy Council of Trent, and by the ecumenical Council of the Vatican, particularly concerning the primacy of the Roman Pontiff and his infallible teaching. I condemn, reject, and anathematize all things contrary thereto, and all heresies which the Church hath condemned, rejected, and anathematized.</p>
+  <p>This true Catholic faith, outside of which no one can be saved, which I now freely profess and to which I truly adhere, I do so profess and swear to maintain inviolate and with firm constancy with the help of God until the last breath of life. And I shall strive, as far as possible, that this same faith shall be held, taught, and professed by all those over whom I have charge. I <span class="red">N.</span> do so pledge, promise, and swear, so help me God and these Holy Gospels of God.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="lang-latin">
+  <p>Ego <span class="red">N.</span> firma fide credo et profiteor omnia et singula, quae continentur in Symbolo, quo Sancta Romana ecclesia utitur, videlicet:</p>
+  <p>Credo in unum Deum, Patrem omnipotentem, factorem caeli et terrae, visibilium omnium et invisibilium. Et in unum Dominum Iesum Christum, Filium Dei unigenitum, et ex Patre natum ante omnia saecula. Deum de Deo, Lumen de Lumine, Deum verum de Deo vero, genitum non factum, consubstantialem Patri; per quem omnia facta sunt. Qui propter nos homines et propter nostram salutem descendit de caelis. Et incarnatus est de Spiritu Sancto ex Maria Virgine, et homo factus est. Crucifixus etiam pro nobis sub Pontio Pilato, passus et sepultus est, et resurrexit tertia die, secundum Scripturas, et ascendit in caelum, sedet ad dexteram Patris. Et iterum venturus est cum gloria, iudicare vivos et mortuos, cuius regni non erit finis. Et in Spiritum Sanctum, Dominum et vivificantem, qui ex Patre Filioque procedit. Qui cum Patre et Filio simul adoratur et conglorificatur: qui locutus est per prophetas. Et unam, sanctam, catholicam et apostolicam Ecclesiam. Confiteor unum baptisma in remissionem peccatorum. Et expecto resurrectionem mortuorum, et vitam venturi saeculi. Amen.</p>
+  <p>Apostolicas et Ecclesiasticas traditiones reliquasque eiusdem ecclesiae observationes et constitutiones firmissime admitto et amplector.</p>
+  <p>Item sacram Scripturam iuxta eum sensum, quem tenuit et tenet sancta Mater Ecclesia, cuius est iudicare de vero sensu et interpretatione sacrarum Scripturarum, admitto; nec eam umquam nisi iuxta unanimem consensum Patrum, accipiam et interpretabor.</p>
+  <p>Profiteor quoque septem esse vere et proprie Sacramenta novae legis a Iesu Christo Domino nostro instituta, atque ad salutem humani generis, licet non omnia singulis, necessaria: scilicet Baptismum, Confirmationem, Eucharistiam, Paenitentiam, Extremam Unctionem, Ordinem et Matrimonium; illaque gratiam conferre; et ex his Baptismum, Confirmationem et Ordinem sine sacrilegio reiterari non posse. Receptos quoque et approbatos Ecclesiae catholicae ritus in supradictorum omnium Sacramentorum solemni administratione recipio et admitto.</p>
+  <p>Omnia et singula, quae de peccato originali et de iustificatione in sacrosancta Tridentina Synodo definita et declarata fuerunt, amplector et recipio.</p>
+  <p>Profiteor pariter, in Missa offerri Deo verum, proprium et propitiatorium sacrificium pro vivis et defunctis. Atque in sanctissimo Eucharistiae Sacramento esse vere, realiter et substantialiter Corpus et Sanguinem, una cum anima et divinitate Domini nostri Iesu Christi, fierique conversionem totius substantiae panis in Corpus ac totius substantiae vini in Sanguinem, quam conversionem Ecclesia catholica transubstantiationem appellat. Fateor etiam sub altera tantum specie totum atque integrum Christum verumque Sacramentum sumi.</p>
+  <p>Constanter teneo, Purgatorium esse, animasque ibi detentas fidelium suffragiis iuvari. Similiter et Sanctos, una cum Christo regnantes, venerandos atque invocandos esse, eosque orationes Deo pro nobis offerre, atque eorum reliquias esse venerandas. Firmiter2 assero, imagines Christi ac Deiparae semper Virginis, necnon aliorum Sanctorum habendas et retinendas esse, atque eis debitum honorem et venerationem impertiendam.</p>
+  <p>Indulgentiarum etiam potestatem a Christo in Ecclesia relictam fuisse, illarumque usum Christiano populo maxime salutarem esse affirmo.</p>
+  <p>Sanctam, catholicam et apostolicam Romanam Ecclesiam omnium ecclesiarum matrem et magistram agnosco, Romanoque Pontifici, beati Petri Apostolorum principis successori, ac Iesu Christi Vicario, veram oboedientiam spondeo ac iuro.</p>
+  <p>Cetera item omnia a sacris canonibus et oecumenicis Conciliis, ac praecipue a sacrosancta Tridentina Synodo, et ab oecumenico Concilio Vaticano tradita, definita et declarata, praesertim de Romani Pontificis Primatu et infallibili Magisterio, indubitanter recipio ac profiteor; simulque contraria omnia, atque haereses quascumque ab Ecclesia damnatas et reiectas et anathematizatas ego pariter damno, reicio, et anathematizo.</p>
+  <p>Hanc veram Catholicam Fidem, extra quam nemo salvus esse potest, quam in praesenti sponte profiteor et veraciter teneo, eandem integram, et immaculatam usque ad extremum vitae spiritum, constantissime, Deo adiuvante, retinere et confiteri, atque a meis subditis, vel illis, quorum cura ad me in munere meo spectabit, teneri, doceri et praedicari, quantum in me erit, curaturum, ego idem <span class="red">N.</span> spondeo, voveo ac iuro. Sic me Deus adiuvet et haec sancta Dei Evangelia.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section data-section="acts">
+    <h2><span class="numeral">III.</span>Acts of Faith, Hope, and Love</h2>
+  <p class="rubric">Act of Faith</p>
+  <p>O my God, I firmly believe that you are one God in three divine Persons, Father, Son, and Holy Spirit. I believe that your divine Son became man and died for our sins and that he will come to judge the living and the dead. I believe these and all the truths which the Holy Catholic Church teaches because you have revealed them who are eternal truth and wisdom, who can neither deceive nor be deceived. In this faith I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Act of Hope</p>
+  <p>O Lord God, I hope by your grace for the pardon of all my sins and after life here to gain eternal happiness because you have promised it who are infinitely powerful, faithful, kind, and merciful. In this hope I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Act of Love</p>
+  <p>O Lord God, I love you above all things and I love my neighbor for your sake because you are the highest, infinite and perfect good, worthy of all my love. In this love I intend to live and die.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="contrition">
+    <h2><span class="numeral">IV.</span>Act of Contrition</h2>
+  <div class="pill-row">
+    <button type="button" class="pill contrition-btn" data-toggle-value="Act of Sorrow">Act of Sorrow</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="O my God, I am heartily sorry">O my God, I am heartily sorry</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="Confiteor">Confiteor</button>
+    <button type="button" class="pill contrition-btn" data-toggle-value="O my God, I don't want to go to hell">O my God, I don&#x27;t want to go to hell</button>
+  </div>
+  <div class="contrition" data-toggle-value="Act of Sorrow">
+  <p>O God of my soul, I am sincerely sorry for not having loved You. Instead of having loved You, I have, for the sake of my pleasures, offended and despised Your infinite goodness: I have turned my back on You; in a word, O my God, I have lost You through my own will. Lord, I am sorry, from the bottom of my heart, for all my sins. I hate above all things the offenses, which I have committed against You. You have already cleansed me from the stain of sin in the sacrament of penance, but I desire to become still purer in Your sight. Wash in Your Blood this soul, and make it Your dwelling place.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="O my God, I am heartily sorry">
+  <p>O my God, I am heartily sorry for having offended Thee, and I detest all of my sins because I fear the loss of Heaven and the pains of Hell, but most of all because they offend Thee, my God, Who art all good and deserving of all of my love. I firmly resolve, with the help of Thy grace, to sin no more, to avoid the near occasion of sin, and to do penance. Our Lord Jesus Christ died on the Cross for my sins. In His name,</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="Confiteor">
+  <p>I confess to Almighty God, to blessed Mary ever Virgin, to blessed Michael the Archangel, to blessed John the Baptist, to the holy Apostles Peter and Paul, and to all the Saints, that I have sinned exceedingly in thought, word, and deed: <span class="red">(strikes his breast)</span> through my fault, through my fault, through my most grievous fault. Therefore I beseech blessed Mary ever Virgin, blessed Michael the Archangel, blessed John the Baptist, the holy Apostles Peter and Paul, and all the Saints, to pray for me to the Lord our God. May Almighty God have mercy on me, forgive me my sins, and bring me to everlasting life.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="contrition" data-toggle-value="O my God, I don't want to go to hell">
+  <p>O my God, I don&#x27;t want to go to hell. I know that because of my many sins I deserve to go there. Help me get rid of my sins. I don&#x27;t want to lose my soul in everlasting torment, without all happiness, banished from You forever. Help me realize that I shall have to make up for my venial sins, too, and that some of the punishment due to all sin, even if we escape hell, must be paid in purgatory. Help me do some real penance to make up for my sins, and get rid of part of my purgatory before I die.</p>
+  <p>O my God, now I see very clearly that I have not given You the service that I owe You for so many reasons. I have abused Your wonderful gifts, using them to offend You who are so good and so lovable. I sinned even in Your presence. I saddened Your Heart at the very moment when You were looking on me with perfect love. I was so blind and ungrateful as to love creatures more than You, my creator, who because You are infinitely good and lovable deserve all my love; I preferred my own pleasure to doing Your will. Pardon me, O my God, for all the sins of my whole life. I am sorry for them. I hate them from the bottom of my heart because You hate them. I beg of You, say to me, &quot;Your sins are forgiven.&quot;</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section data-section="lords-prayer">
+    <h2><span class="numeral">V.</span>Kyrie and Lord&#x27;s Prayer</h2>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <p>Our Father, Who art in Heaven, hallowed be Thy name; Thy kingdom come; Thy will be done on earth as it is in Heaven. Give us this day our daily bread; and forgive us our trespasses as we forgive those who trespass against us; and lead us not into temptation, but deliver us from evil.</p>
+  <p class="rubric">(Silent prayer to God the Father is encouraged here before the embolism)</p>
+  <p>Deliver us, we beseech Thee, O Lord, from all evils, past, present, and to come; and by the intercession of the Blessed and glorious ever-Virgin Mary, Mother of God, together with Thy blessed apostles Peter and Paul, and Andrew, and all the Saints, mercifully grant peace in our days: that through the bounteous help of Thy mercy we may be always free from sin, and safe from all disquiet. Through the same Jesus Christ, Thy Son our Lord. Who is God living and reigning with Thee in the unity of the Holy Spirit, World without end.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="offering">
+    <h2><span class="numeral">VI.</span>Morning Offering</h2>
+  <div class="pill-row">
+    <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, through the Immaculate Heart">O Jesus, through the Immaculate Heart</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, I come before You">O Jesus, I come before You</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="Eternal Father">Eternal Father</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="God, our Father">God, our Father</button>
+    <button type="button" class="pill offering-btn" data-toggle-value="Short Offering">Short Offering</button>
+  </div>
+  <div class="offering" data-toggle-value="O Jesus, through the Immaculate Heart">
+  <p>O Jesus, through the Immaculate Heart of Mary, I offer Thee my prayers, works, joys, and sufferings of this day, for all the intentions of Thy Sacred Heart, in union with the Holy Sacrifice of the Mass throughout the world, in reparation for my sins, for the intentions of all my relatives and friends, and in particular for the intentions of the Holy Father.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="O Jesus, I come before You">
+  <p>O Jesus, I come before you at the beginning of this day, I gaze at your face, I look upon your side pierced by the lance. Your wounded heart speaks to me of God&#x27;s love poured out for us. Take, Lord, and receive my heart: the words of faith that I speak, the works of justice I would do, my joys and sufferings. When I come to the Eucharistic altar, gather my offerings to your own for the life of the world. At the end of the day, place me with Mary, your mother, with Saint <span class="red">N.</span> and all the saints by your side, forever surrounded by your love.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="Eternal Father">
+  <p>Eternal Father, I offer You everything I do this day: my work, my prayers, my apostolic efforts; my time with family and friends; my hours of relaxation; my difficulties, problems, distress, which I shall try to bear with patience. Join these, my gifts, to the unique offering which Jesus Christ, Your Son, renews today in the Eucharist. Grant, I pray, that, vivified by the Holy Spirit and united to the Sacred Heart of Jesus and the Immaculate Heart of Mary, my life this day may be of service to You and to Your children and help consecrate the world to You.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="God, our Father">
+  <p>God, our Father, I offer you my day, my prayers, thoughts and words, my actions, joys, and sufferings in union with the Christ your Son, for the salvation of the world. May the Holy Spirit, who guided Jesus, be my guide and my strength today so that I may witness to your love. With Mary, the mother of our Lord and the Church, with Saint <span class="red">N.</span> and all your saints I pray for my family and friends, for the sick and the suffering, those at home and those who are travelling <span class="red">(mention other particular intentions)</span> and all the clergy and religious especially our Holy Father <span class="red">N.</span> and bishop <span class="red">N.</span> both of whose intentions I commend to your goodness.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="offering" data-toggle-value="Short Offering">
+  <p>Heavenly Father, I offer you this day all that I do and think and say uniting it in the power of the Holy Spirit with what was done by Jesus Christ, your only Son.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section data-section="saints">
+    <h2><span class="numeral">VII.</span>Invocation of the Saints</h2>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
+  <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
+  <div class="vr"><div class="v">Holy Mary, Mother of God,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint John the Baptist,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Joseph,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saints Peter and Paul,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint John the Evangelist,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Michael the Archangel,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Raphael the Archangel,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Dominic,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Saint Teresa of Avila,</div><div class="r">pray for us.</div></div>
+  <div class="vr"><div class="v">Angel of God, my guardian dear, to whom God&#x27;s love commits me here, ever this day be at my side, to light and guard, to rule and guide.</div><div class="r">Amen</div></div>
+  <p class="rubric">(Other saints may be added)</p>
+  <div class="vr"><div class="v">All ye holy Martyrs, Angels, Virgins, Apostles, and Saints of God,</div><div class="r">intercede for us.</div></div>
+  </section>
+  <section data-section="reading-doctrinal">
+    <h2><span class="numeral">VIII.</span>From “The Apostolic Constitutions, Book V”</h2>
+  <blockquote data-reading="ddd22d55aaa7">
+    <p>Brethren, observe the festival days; and first of all the birthday which you are to celebrate on the twenty-fifth of the ninth month; after which let the Epiphany be to you the most honoured, in which the Lord made to you a display of His own Godhead, and let it take place on the sixth of the tenth month; after which the fast of Lent is to be observed by you as containing a memorial of our Lord’s mode of life and legislation. But let this solemnity be observed before the fast of the passover, beginning from the second day of the week, and ending at the day of the preparation. After which solemnities, breaking off your fast, begin the holy week of the passover, fasting in the same all of you with fear and trembling, praying in them for those that are about to perish.</p>
+  </blockquote>
+  <p class="attribution">&mdash; The Apostolic Constitutions, Book V — The Constitutions of the Holy Apostles, in Ante-Nicene Fathers, Volume VII</p>
+  </section>
+  <section data-section="reading-general">
+    <h2><span class="numeral">IX.</span>From “The Sayings of the Desert Fathers”</h2>
+  <blockquote data-reading="16a9d48802d9">
+    <p>Certain brethren, whilst talking to an old man about the thoughts, said unto him, “Our hearts are hard, and we are not afraid of God; what shall we do that we may fear God?” The old man said unto them, “I think that if a man have knowledge in his heart about Him that will rebuke him, it will bring him to the fear of God.” Then the brethren said unto him, “What is the rebuke?” The old man said, “In every matter a man should rebuke himself, saying, ‘Remember that ‘thou art about to go forth to meet God.’ And he should also say, ‘What do I require from man?’ And I think that if a man remain in these things the fear which is in God will come to him.”</p>
+  </blockquote>
+  <p class="attribution">&mdash; The Sayings of the Desert Fathers — The Desert Fathers, tr. E. A. Wallis Budge</p>
+  </section>
+  <section data-section="reading-historical">
+    <h2><span class="numeral">X.</span>From “The Law of Nations, or Principles of Natural Law”</h2>
+  <blockquote data-reading="ca1ba66f9bec">
+    <p>In cases where the rights at issue are doubtful and where no essential interests are involved, if one of the parties will not listen to proposals of conference, adjustment, or compromise, there remains for the other party the last resort for the defense of itself and its rights, the resort to arms; and the use of force against so stubborn an opponent is justifiable; for where the rights at issue are doubtful, the parties can only ask that all reasonable means be used to throw light upon the question, to decide the dispute, or adjust the conflicting claims (§ 331).</p>
+  </blockquote>
+  <p class="attribution">&mdash; The Law of Nations, or Principles of Natural Law — Emer de Vattel</p>
+  </section>
+  <section data-section="suffrage">
+    <h2><span class="numeral">XI.</span>Suffrage</h2>
+  <p class="antiphon"><span class="label">Ant.</span> May the Blessed Virgin Mary, Mother of God, and all the Saints intercede for us with the Lord.</p>
+  <div class="vr"><div class="v">The Lord hath made his holy one wonderful:</div><div class="r">The Lord will hear me when I cry unto him.</div></div>
+  <p class="rubric">At the letter N., the name of the Titular of the local church is said, if the title is not a divine person or a mystery of the Lord, and when the name is not already in the prayer, the names of the holy Angels and of St. John the Baptist, if they are titulars, are said before the name of St. Joseph. In all these cases, the words blessed N. are omitted.</p>
+  <p><em>Let us pray.</em></p>
+  <p>O Lord, we ask thee to save us from dangers to mind and to body: and, by the intercession of the blessed and glorious Virgin Mother of God, blessed Joseph, the blessed Apostles Peter and Paul, blessed <span class="red">N.</span> and all the Saints, to eliminate all enmity and errors, that thy Church may safely serve thee in freedom.</p>
+  <p>Through the same Jesus Christ, thy Son, Our Lord, Who liveth and reigneth with thee in the unity of the Holy Spirit, God, world without end.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="closing-prayer">
+    <h2><span class="numeral">XII.</span>Closing Prayer</h2>
+  <p><em>Let us pray.</em></p>
+  <p>Lord, may everything we do begin with your inspiration and continue with your help, so that all our prayers and works may begin in you and by you be happily ended. We ask this through Christ our Lord.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="doxology">
+    <h2><span class="numeral">XIII.</span>Doxology</h2>
+  <p>Hear, O Israel: the Lord thy God is one God. And thou shalt love the Lord thy God with thy whole heart, and with thy whole soul, and with thy whole mind, and with thy whole strength. This is the first commandment. And the second is like to it: Thou shalt love thy neighbour as thyself. </p>
+  <p>There is no other commandment greater than these. <span class="red">(Mark 12:29-31)</span></p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <section data-section="verse-of-the-day">
+    <h2><span class="numeral">XIV.</span>Verse for the Day</h2>
+  <p>My grace is sufficient for thee: for power is made perfect in infirmity. <span class="red">(2 Corinthians 12:9)</span></p>
+  <blockquote class="quote">
+    <p>We can find God in his Body, Soul, and Divinity present in all the tabernacles of the world! If we think about it, we are much more fortunate than those who met Jesus on this earth two thousand years ago, because we have God ‘really and substantially’ with us always. It is enough to visit a nearby church. ‘Jerusalem’ is in every church! No room for despair!</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Carlo Acutis</p>
+  </section>
+  <section data-section="pledge">
+    <h2><span class="numeral">XV.</span>Pledge of Allegiance</h2>
+  <p>I pledge allegiance to the Flag of the United States of America, and to the Republic for which it stands, one Nation under God, indivisible, with liberty and justice for all.</p>
+  </section>
+  <section data-section="closing-verses">
+    <h2><span class="numeral">XVI.</span>Closing Verses</h2>
+  <div class="vr"><div class="v">May the divine assistance <span class="red">✠</span> remain always with us and may the souls of the faithfully departed, through the mercy of God, rest in peace.</div><div class="r">Amen.</div></div>
+  <div class="vr"><div class="v">Eternal rest grant unto them, O Lord;</div><div class="r">and let perpetual light shine upon them.</div></div>
+  </section>
+  <section data-section="sign-close">
+    <h2><span class="numeral">XVII.</span>Sign of the Cross</h2>
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </section>
+  <footer>&#10013;</footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button[data-theme-value]").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("prayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button[data-theme-value]").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("prayerTheme") || "light");
+
+  function setLang(lang) {
+    document.querySelectorAll(".lang-english").forEach(function (el) {
+      el.style.display = lang === "english" ? "" : "none";
+    });
+    document.querySelectorAll(".lang-latin").forEach(function (el) {
+      el.style.display = lang === "latin" ? "" : "none";
+    });
+    document.querySelectorAll('[name="lang-btn"]').forEach(function (el, idx) {
+      el.textContent = lang === "english" ? "Latin" : "English";
+      el.dataset.next = lang === "english" ? "latin" : "english";
+    });
+    localStorage.setItem("prayerLang", lang);
+  }
+  document.querySelectorAll('[name="lang-btn"]').forEach(function (btn, idx) {
+    btn.addEventListener("click", function () { setLang(this.dataset.next); });
+  });
+  setLang(localStorage.getItem("prayerLang") || "english");
+
+  function setupToggleButtons(buttonClass, contentClass, storageKey) {
+    function setActive(value) {
+      document.querySelectorAll("." + contentClass).forEach(function (el) {
+        el.style.display = el.dataset.toggleValue === value ? "" : "none";
+      });
+      document.querySelectorAll("." + buttonClass).forEach(function (btn) {
+        btn.classList.toggle("active", btn.dataset.toggleValue === value);
+      });
+      localStorage.setItem(storageKey, value);
+    }
+
+    document.querySelectorAll("." + buttonClass).forEach(function (btn) {
+      btn.addEventListener("click", function () { setActive(this.dataset.toggleValue); });
+    });
+
+    const firstBtn = document.querySelector("." + buttonClass);
+    const defaultValue = firstBtn ? firstBtn.dataset.toggleValue : "0";
+    setActive(localStorage.getItem(storageKey) || defaultValue);
+  }
+
+  setupToggleButtons("offering-btn", "offering", "morningOffering");
+  setupToggleButtons("contrition-btn", "contrition", "actofcontrition");
+</script>
+<script type="application/json" id="section-meta">[{"id": "sign-open", "label": "Sign of the Cross (opening)", "auto": true, "required": true, "rule": ""}, {"id": "holy-spirit", "label": "Invocation of the Holy Spirit", "auto": true, "required": true, "rule": ""}, {"id": "creed", "label": "Tridentine Creed", "auto": false, "required": false, "rule": "Sundays"}, {"id": "acts", "label": "Acts of Faith, Hope, and Love", "auto": true, "required": false, "rule": "weekdays"}, {"id": "contrition", "label": "Act of Contrition", "auto": true, "required": false, "rule": ""}, {"id": "lords-prayer", "label": "Kyrie and Lord's Prayer", "auto": true, "required": true, "rule": ""}, {"id": "offering", "label": "Morning Offering", "auto": true, "required": true, "rule": ""}, {"id": "saints", "label": "Invocation of the Saints", "auto": true, "required": false, "rule": ""}, {"id": "reading-doctrinal", "label": "First reading — catechism, council, encyclical", "auto": true, "required": true, "rule": ""}, {"id": "reading-general", "label": "Second reading — spiritual writing", "auto": true, "required": false, "rule": ""}, {"id": "reading-historical", "label": "Third reading — history and lives", "auto": true, "required": false, "rule": "weekdays"}, {"id": "suffrage", "label": "Suffrage", "auto": true, "required": false, "rule": ""}, {"id": "closing-prayer", "label": "Closing Prayer", "auto": true, "required": false, "rule": ""}, {"id": "doxology", "label": "Doxology", "auto": true, "required": true, "rule": ""}, {"id": "verse-of-the-day", "label": "Verse for the Day", "auto": true, "required": false, "rule": ""}, {"id": "pledge", "label": "Pledge of Allegiance", "auto": true, "required": false, "rule": "weekdays and holidays"}, {"id": "closing-verses", "label": "Closing Verses", "auto": true, "required": true, "rule": ""}, {"id": "sign-close", "label": "Sign of the Cross (closing)", "auto": true, "required": true, "rule": ""}]</script>
+<script>
+
+(function () {
+  var KEY = "prayerSections";
+  var meta = JSON.parse(document.getElementById("section-meta").textContent);
+  var byId = {};
+  var defaults = meta.map(function (s) { byId[s.id] = s; return s.id; });
+
+  function load() {
+    try { return JSON.parse(localStorage.getItem(KEY)) || {}; } catch (e) { return {}; }
+  }
+  function save(cfg) {
+    try { localStorage.setItem(KEY, JSON.stringify(cfg)); } catch (e) {}
+  }
+
+  // A saved order is a list of ids from whenever it was saved, so it will not
+  // mention a section that did not exist that day — the holiday hymn above
+  // all, which only some pages carry. Rather than discard the saved order or
+  // append the stranger at the end, each unknown id is dropped back beside the
+  // neighbour it defaults to following, which is where the reader would have
+  // put it anyway.
+  function mergedOrder(saved) {
+    var order = (saved || []).filter(function (id) { return byId[id]; });
+    var have = {};
+    order.forEach(function (id) { have[id] = true; });
+    defaults.forEach(function (id, i) {
+      if (have[id]) return;
+      var at = 0;
+      for (var j = i - 1; j >= 0; j--) {
+        var p = order.indexOf(defaults[j]);
+        if (p >= 0) { at = p + 1; break; }
+      }
+      order.splice(at, 0, id);
+      have[id] = true;
+    });
+    return order;
+  }
+
+  function stateOf(cfg, id) {
+    if (byId[id].required) return "on";
+    return (cfg.state || {})[id] || "auto";
+  }
+
+  function isVisible(cfg, id) {
+    var st = stateOf(cfg, id);
+    if (st === "on") return true;
+    if (st === "off") return false;
+    return byId[id].auto;
+  }
+
+  function roman(n) {
+    var map = [[50, "L"], [40, "XL"], [10, "X"], [9, "IX"], [5, "V"], [4, "IV"], [1, "I"]];
+    var out = "";
+    for (var i = 0; i < map.length; i++) {
+      while (n >= map[i][0]) { out += map[i][1]; n -= map[i][0]; }
+    }
+    return out;
+  }
+
+  // Move the real <section> elements about rather than rebuild them, so the
+  // language toggle, the offering pills and the reading keys inside them keep
+  // the listeners already bound and the page keeps recording what it spent.
+  function apply() {
+    var cfg = load();
+    var main = document.querySelector("main");
+    var footer = main.querySelector("footer");
+    var n = 0;
+    mergedOrder(cfg.order).forEach(function (id) {
+      var el = main.querySelector('section[data-section="' + id + '"]');
+      if (!el) return;
+      main.insertBefore(el, footer);
+      var show = isVisible(cfg, id);
+      el.hidden = !show;
+      if (show) {
+        n += 1;
+        var num = el.querySelector(".numeral");
+        if (num) { num.textContent = roman(n) + "."; }
+      }
+    });
+  }
+
+  var list = document.getElementById("set-list");
+
+  function rowFor(cfg, id) {
+    var s = byId[id];
+    var li = document.createElement("li");
+    li.className = "set-row";
+    li.dataset.id = id;
+
+    var handle = document.createElement("button");
+    handle.type = "button";
+    handle.className = "set-handle";
+    handle.innerHTML = "&#8942;&#8942;";
+    handle.setAttribute("aria-label", "Move " + s.label);
+    li.appendChild(handle);
+
+    var name = document.createElement("span");
+    name.className = "set-name";
+    name.textContent = s.label;
+    if (s.rule) {
+      var rule = document.createElement("span");
+      rule.className = "set-rule";
+      rule.textContent = "auto: " + s.rule;
+      name.appendChild(rule);
+    }
+    li.appendChild(name);
+
+    if (s.required) {
+      var always = document.createElement("span");
+      always.className = "set-always";
+      always.textContent = "always";
+      li.appendChild(always);
+    } else {
+      // Three choices where the section has a day rule to fall back on, two
+      // where it has none: for a section shown every day anyway, "auto" and
+      // "on" would be the same button twice.
+      var seg = document.createElement("span");
+      seg.className = "seg";
+      var choices = s.rule ? ["auto", "on", "off"] : ["on", "off"];
+      var current = stateOf(cfg, id);
+      if (!s.rule && current === "auto") { current = s.auto ? "on" : "off"; }
+      choices.forEach(function (choice) {
+        var b = document.createElement("button");
+        b.type = "button";
+        b.textContent = choice;
+        b.className = choice === current ? "active" : "";
+        b.addEventListener("click", function () {
+          var c = load();
+          c.state = c.state || {};
+          c.state[id] = choice;
+          save(c);
+          render();
+          apply();
+        });
+        seg.appendChild(b);
+      });
+      li.appendChild(seg);
+      li.classList.toggle("is-off", !isVisible(cfg, id));
+    }
+
+    attachDrag(li, [handle, name]);
+    return li;
+  }
+
+  function commitOrder() {
+    var cfg = load();
+    cfg.order = Array.prototype.map.call(list.children, function (li) { return li.dataset.id; });
+    save(cfg);
+    apply();
+  }
+
+  // Pointer events rather than the HTML drag-and-drop API, which does not fire
+  // on touch.
+  //
+  // The listeners go on the window, and deliberately not on the handle with
+  // setPointerCapture, which is the obvious way to write this and does not
+  // work: capture is released as soon as the captured element moves in the
+  // document, and moving the row is the whole point. The first reorder would
+  // silently end the drag, leaving the row stuck looking picked up because its
+  // pointerup never arrived.
+  function attachDrag(li, grips) {
+    function start(ev) {
+      if (ev.button) { return; }
+      ev.preventDefault();
+      li.classList.add("dragging");
+      document.body.classList.add("dragging-row");
+
+      // Insert before the first row whose middle is below the pointer, or at
+      // the end if there is none. Reading the position off the other rows
+      // rather than off the one in hand keeps it from chasing itself as the
+      // list reflows under the drag.
+      function move(e) {
+        e.preventDefault();
+        var before = null;
+        var rows = Array.prototype.slice.call(list.children);
+        for (var i = 0; i < rows.length; i++) {
+          if (rows[i] === li) { continue; }
+          var box = rows[i].getBoundingClientRect();
+          if (e.clientY < box.top + box.height / 2) { before = rows[i]; break; }
+        }
+        if (before !== li.nextSibling) { list.insertBefore(li, before); }
+      }
+      function stop() {
+        li.classList.remove("dragging");
+        document.body.classList.remove("dragging-row");
+        window.removeEventListener("pointermove", move);
+        window.removeEventListener("pointerup", stop);
+        window.removeEventListener("pointercancel", stop);
+        commitOrder();
+      }
+      window.addEventListener("pointermove", move);
+      window.addEventListener("pointerup", stop);
+      window.addEventListener("pointercancel", stop);
+    }
+    // The handle always grips. The name grips for a mouse only — with a
+    // finger it must stay free to scroll the list, which is the whole reason
+    // the row names carry no touch-action.
+    grips.forEach(function (el, i) {
+      el.addEventListener("pointerdown", function (ev) {
+        if (i > 0 && ev.pointerType !== "mouse") { return; }
+        start(ev);
+      });
+    });
+    var handle = grips[0];
+
+    // Dragging is unreachable by keyboard, so the arrow keys move a focused
+    // row as well.
+    handle.addEventListener("keydown", function (e) {
+      if (e.key !== "ArrowUp" && e.key !== "ArrowDown") { return; }
+      e.preventDefault();
+      if (e.key === "ArrowUp" && li.previousElementSibling) {
+        list.insertBefore(li, li.previousElementSibling);
+      } else if (e.key === "ArrowDown" && li.nextElementSibling) {
+        list.insertBefore(li, li.nextElementSibling.nextSibling);
+      }
+      commitOrder();
+      handle.focus();
+    });
+  }
+
+  function render() {
+    var cfg = load();
+    list.textContent = "";
+    mergedOrder(cfg.order).forEach(function (id) {
+      if (byId[id]) { list.appendChild(rowFor(cfg, id)); }
+    });
+  }
+
+  var panel = document.getElementById("settings");
+  var backdrop = document.getElementById("settings-backdrop");
+
+  function open() { render(); panel.hidden = false; backdrop.hidden = false; }
+  function close() { panel.hidden = true; backdrop.hidden = true; }
+
+  document.getElementById("settings-open").addEventListener("click", open);
+  document.getElementById("settings-close").addEventListener("click", close);
+  document.getElementById("settings-done").addEventListener("click", close);
+  backdrop.addEventListener("click", close);
+  document.addEventListener("keydown", function (e) {
+    if (e.key === "Escape" && !panel.hidden) { close(); }
+  });
+  document.getElementById("settings-reset").addEventListener("click", function () {
+    try { localStorage.removeItem(KEY); } catch (e) {}
+    render();
+    apply();
+  });
+
+  apply();
+})();
+
+</script>
+</body>
+</html>

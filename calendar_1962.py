@@ -392,6 +392,17 @@ FEAST_WORKS = {
     # alone would be a thin thing to match a shelf on.
     (10, 17): ["margaret mary"],
     (10, 22): ["pope st. john paul ii"],
+    # All Saints takes the two books that are collections of the saints
+    # themselves rather than any one of them: Voragine's legendary, which was
+    # read on their days for three centuries, and Ælfric's set of sermons for
+    # the same. The other lives in the collection belong to particular days —
+    # the Little Flowers to Francis, the Desert Fathers to Anthony — and are
+    # left to them.
+    (11, 1): ["the golden legend", "lives of saints"],
+    # All Souls takes the books on the last things. "holy dying" is written
+    # out because Jeremy Taylor's other half, Holy Living, is here too and is
+    # not a book for this day.
+    (11, 2): ["holy dying", "preparation for death", "life everlasting"],
     (11, 24): ["john of the cross", "science of the cross", "fire within"],
     (11, 26): ["leonard of port maurice"],
 }

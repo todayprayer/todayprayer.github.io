@@ -4863,7 +4863,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2026-11-02": {
    "topics": [
@@ -4873,7 +4876,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2026-11-04": {
    "topics": [
@@ -7215,7 +7222,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2027-11-02": {
    "topics": [
@@ -7225,7 +7235,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2027-11-04": {
    "topics": [
@@ -9633,7 +9647,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2028-11-02": {
    "topics": [
@@ -9643,7 +9660,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2028-11-04": {
    "topics": [
@@ -11995,7 +12016,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2029-11-02": {
    "topics": [
@@ -12005,7 +12029,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2029-11-04": {
    "topics": [
@@ -14327,7 +14355,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2030-11-02": {
    "topics": [
@@ -14337,7 +14368,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2030-11-03": {
    "topics": [
@@ -16744,7 +16779,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2031-11-02": {
    "topics": [
@@ -16754,7 +16792,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2031-11-04": {
    "topics": [
@@ -19114,7 +19156,10 @@
    ],
    "prefer_min": 12,
    "boost": 8,
-   "works": []
+   "works": [
+    "the golden legend",
+    "lives of saints"
+   ]
   },
   "2032-11-02": {
    "topics": [
@@ -19124,7 +19169,11 @@
    ],
    "prefer_min": 25,
    "boost": 4,
-   "works": []
+   "works": [
+    "holy dying",
+    "preparation for death",
+    "life everlasting"
+   ]
   },
   "2032-11-04": {
    "topics": [
@@ -19533,12 +19582,15 @@
   "00ee9f35cabf",
   "018431e9911f",
   "01a5fe73dd75",
+  "0433cd8b7c07",
   "04d0be3b4399",
   "0552a9bca323",
   "061aeeec2030",
   "065c2203e0dd",
+  "08dbede5e04e",
   "090035d90fe6",
   "098ddee69724",
+  "0b29eb0d1ace",
   "0b8ae12ef3da",
   "0c68c759c6c5",
   "0cb399861365",
@@ -19549,33 +19601,43 @@
   "0f94c4d2d0b2",
   "0f9b5d33658c",
   "10f89700b805",
+  "110d3ca4fc0a",
   "11d950fcbab6",
   "1284f4d58175",
   "128f5213d6c4",
   "12a5ba22ab6b",
   "132e45588487",
+  "138750690cd1",
+  "146117a6323e",
   "148d2700b97e",
   "157fddaef61b",
+  "16021ff3a538",
   "1609ebc0fbcd",
   "16827b63061f",
+  "16a9d48802d9",
+  "16cc6db149ed",
   "17727e590b35",
   "18428acfbbcf",
   "1860a4b17b4f",
   "18ba0cf2fbf9",
   "1956a91cf5cc",
   "1ac0b7199acd",
+  "1b0a401de4fe",
   "1cd1c38e158f",
   "1cf270ae77fb",
   "1e2cfc83d338",
   "1ebd75e77894",
   "1f3bf5eeb34b",
+  "1fc74ef21624",
   "21f55dbe2c64",
   "22c3bab5e89b",
   "22dc4abced87",
+  "22dfc584b307",
   "23a76b6f9745",
   "23acbfed7312",
   "23bfd88ad516",
   "264fabd547f0",
+  "2698bd909128",
   "283fc053fbfb",
   "287e5371b1ec",
   "29b52c89a520",
@@ -19583,15 +19645,19 @@
   "29eb14dc3093",
   "2a5dda590a14",
   "2a94575cb3a9",
+  "2b987e399198",
   "2be2bb7b15d7",
   "2db38318a783",
+  "2e1044e086b8",
   "2ea882995fa3",
   "2f993e5e0cec",
   "2fa575cd7ce7",
   "2fc0e1d20def",
   "303f47665fc3",
   "3219ec709a86",
+  "32ea6c8f8d98",
   "32ec9a0a14cc",
+  "33060b09c149",
   "330de1a7903a",
   "334a8c2f46db",
   "34636643f57b",
@@ -19606,6 +19672,8 @@
   "393085d883db",
   "3acaf83ed510",
   "3adca74f6e42",
+  "3b1b30b61147",
+  "3b60821f4f58",
   "3bd647bd3576",
   "3cc0bd17cbb2",
   "3d4fb7091168",
@@ -19616,19 +19684,26 @@
   "3f207653da7f",
   "41184939570a",
   "41daafabddfb",
+  "41e645b852c4",
   "41f034aa18e1",
   "4335c81c1a13",
+  "4432f535d837",
+  "4456e3541a7f",
   "45d5deb06071",
   "473c984564b2",
+  "47aa53249e45",
+  "47c337754101",
   "47c7b3fc9570",
   "48337d8d2249",
   "4951ba642f01",
   "49c789b5847f",
+  "4b157037228d",
   "4b777750a350",
   "4cd76614b5bd",
   "4cfabb4ad8fb",
   "4d07f5536337",
   "4da6b2f18736",
+  "4f5daab2538e",
   "500db328a184",
   "50de72d8ce68",
   "517946380d61",
@@ -19639,9 +19714,11 @@
   "575498599230",
   "5781bfa44d1a",
   "592cf29599f2",
+  "59e36daa2d47",
   "5c0635b7e56f",
   "5c9eddc095f2",
   "5dedb5e498e0",
+  "5ecd4f559cfc",
   "5edad4c1d47f",
   "5f50ab08899c",
   "5f61faa20b36",
@@ -19649,56 +19726,79 @@
   "618046dec53a",
   "6252d55ee984",
   "62637c0331e6",
+  "62862fcb1203",
   "64328ea9150d",
+  "65efbb8f5762",
   "66afbe796647",
+  "66eb8390fbec",
   "67d8eb317e24",
   "68e66ab24ed8",
+  "6a60bc4321aa",
   "6b80fcf2b59c",
   "6c6081b62e04",
   "6cb0b4f3ae86",
   "6cee40e63a3e",
+  "6d9819526667",
   "6db73c413ca7",
+  "6ddcaec736ba",
+  "6ea7f9f0c787",
   "72b6acfcaeba",
   "73c8e2a3f4d5",
   "7459c7da8de8",
+  "76feaad04625",
   "77330ba0c3c0",
   "79a1deee8028",
   "7a677220f678",
   "7b8b73cf790f",
   "7f04a89275d3",
+  "7ffa62d55a79",
   "805a1b0594ba",
   "8090f03be290",
   "80b81cfa95b7",
   "8134ae39b2bf",
   "8292c57f0d6d",
+  "82bef0095ff4",
   "8336a7bfe6d1",
+  "851a343da61d",
   "8658d315253c",
   "881b4d09628c",
   "88a7b6b73e82",
   "8a7d75bcfd3d",
   "8ac197f6cb47",
+  "8dad09d16c42",
   "8db7b013c06c",
   "8deb1cd96989",
   "8e262d480cd1",
   "8e91d4fcee69",
+  "8fbf11b6149d",
   "90620a65c45c",
   "927099441aa9",
+  "928bac5834c3",
   "92b186d5f166",
+  "9499bd654052",
+  "94a90e2cbb4c",
   "94facf3e61bb",
   "957f2f62c4d9",
+  "95a8b8cabbe1",
   "985afa904e6d",
   "993e00cfac03",
+  "994d7b0e5101",
   "999098114a8f",
   "9a25077f2e4c",
   "9c18aa536f63",
   "9fcca150d20c",
   "a0c6d5b67c3a",
+  "a0d32585e70a",
+  "a18c8732a57c",
   "a2355d7ac779",
   "a3599d4b6fb7",
+  "a48d9d59b2ad",
   "a5a893d6dc6d",
   "a5f4c0b509a9",
   "a6c685823a30",
   "a750ffa4abf6",
+  "a836293689e7",
+  "a8d3050c1b92",
   "a9302a58d122",
   "a96eb7d23683",
   "aa070052eef8",
@@ -19706,7 +19806,9 @@
   "aac261dbdb66",
   "acd98dda285c",
   "ad11e6c69374",
+  "ad2b6167c1a4",
   "af166abf7459",
+  "b0562de8ac49",
   "b093067557d6",
   "b0e7e246c206",
   "b13a0d116553",
@@ -19715,47 +19817,67 @@
   "b28e19c07856",
   "b2b2403a5505",
   "b2ec1de56b34",
+  "b423a6e4951a",
   "b5b9916a3cd1",
   "b5cafeb4d820",
   "b7cd39284686",
+  "b8b2ed3f751f",
   "b96bd61b9c1b",
   "b9fa7b514369",
   "ba5f17575e22",
+  "bae64e85d7e5",
   "bb86a9f455d1",
   "bc54640dfdea",
+  "bdcc88e8a3b5",
   "be88d4eafbe3",
+  "c065610d6d6a",
   "c1ec601a5d68",
+  "c1fcc8a08f15",
+  "c4f1de34f4e0",
   "c513ca282115",
   "c5474f2c3be6",
+  "c548b1d9cf57",
   "c591c16f6a38",
   "c72482f76d7d",
   "c72fe61180aa",
+  "c755f0bf4eca",
+  "ca1ba66f9bec",
+  "cb06826f26dc",
   "cbd2283fe80e",
+  "cdb24aca52af",
   "cdc0afc06937",
   "cf305baa46bd",
   "cf3ae52153be",
   "cf725627be5e",
   "d0be29cbca29",
+  "d3e8e687f23f",
   "d4112c760fec",
   "d44c17bf0506",
   "d452c1f4d567",
   "d5d0e92b983f",
   "d5d68e214af9",
   "d62b3a9d49d5",
+  "d633440ead71",
   "d67d4771bfcb",
   "d71e8af908d2",
   "d7ab0da1e148",
   "d7fa8351ede8",
   "d850afa052b4",
   "d95a161c19f2",
+  "d960d04c9017",
+  "d98391da082c",
+  "da3422caf32e",
   "da584e317fa9",
   "da798a5b05af",
   "dab0496848a3",
   "dad7e6634194",
   "dc351221e6df",
+  "dc8a110a53e5",
   "dce5a5d2ce26",
   "dd484a369c8b",
+  "ddd22d55aaa7",
   "de6290f2de2e",
+  "deca5fe491e8",
   "ded86a9be2c6",
   "e0d4ae88111e",
   "e1b753265d0f",
@@ -19769,13 +19891,17 @@
   "e5c81646b0cd",
   "e5ef20b9e1bd",
   "e651c7431371",
+  "e6d0dbd9ffb4",
+  "e75aa1b7ee9a",
   "e82c4bb3e352",
+  "e8439bf807ee",
   "e8931e944f9f",
   "e9b8aa5d5482",
   "ea781ff4d8ff",
   "ead7be6c8a8e",
   "eb09956de66a",
   "ebe965e3da16",
+  "ec43eed2d202",
   "ed02901695a0",
   "ed63ba436622",
   "f06541f0ab01",
@@ -19783,15 +19909,23 @@
   "f0cd81c319bf",
   "f110255ce840",
   "f1ed33755d66",
+  "f253b927b425",
+  "f3788be7c012",
   "f40e0f4c91b3",
+  "f5d050af7cbf",
   "f73bf24a4cef",
+  "f7ec69b4a57f",
   "f832077f59d3",
   "f901b5034712",
   "f97f92282cbb",
+  "f99f285923e0",
+  "f9aee9989b6a",
   "f9e605d2aa18",
   "fa0a111b53ee",
+  "fbc036ee1268",
   "fca70bb72a65",
   "fcbfaffa1c32",
+  "fdb2667aa5a9",
   "fdcfe932d12e"
  ],
  "covers": {

@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Night Prayer — Sunday, November 8, 2026</title>
+<style>
+  /* Three lights only, and black is the one the page opens in. The accent is
+     not a colour but a lift in the grey, so nothing on the page glows at an
+     eye that is meant to be closing. */
+  :root, :root[data-theme="black"] {
+    --ink: #cfcfcf;
+    --accent: #8e8e8e;
+    --paper: #000000;
+    --rule: #2a2a2a;
+    --muted: #767676;
+    color-scheme: dark;
+  }
+  :root[data-theme="grey"] {
+    --ink: #e4e4e4;
+    --accent: #a8a8a8;
+    --paper: #2b2b2b;
+    --rule: #484848;
+    --muted: #9b9b9b;
+    color-scheme: dark;
+  }
+  :root[data-theme="white"] {
+    --ink: #1c1c1c;
+    --accent: #5c5c5c;
+    --paper: #ffffff;
+    --rule: #d6d6d6;
+    --muted: #6e6e6e;
+    color-scheme: light;
+  }
+  body {
+    background: var(--paper);
+    color: var(--ink);
+    font-family: Georgia, "Times New Roman", serif;
+    line-height: 1.7;
+    margin: 0;
+    padding: 2rem 1rem 4rem;
+  }
+  main { max-width: 38rem; margin: 0 auto; }
+  header { text-align: center; margin-bottom: 2.5rem; }
+  header .cross { color: var(--accent); font-size: 1.6rem; }
+  h1 {
+    font-size: 1.7rem;
+    font-weight: normal;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    margin: 0.4rem 0 0.2rem;
+  }
+  header .date { font-style: italic; color: var(--muted); }
+  /* The nights are a series, and a page of a series should say which way is
+     back. Set small and quiet: it is furniture, not part of the office. */
+  header nav {
+    display: flex;
+    justify-content: center;
+    align-items: baseline;
+    gap: 1.4rem;
+    margin-top: 0.7rem;
+    font-size: 0.75rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+  }
+  header nav a { color: var(--muted); text-decoration: none; }
+  header nav a:hover { color: var(--ink); }
+  section { margin: 2.4rem 0; }
+  h2 {
+    font-size: 0.95rem;
+    letter-spacing: 0.18em;
+    text-transform: uppercase;
+    font-weight: normal;
+    color: var(--accent);
+    border-bottom: 1px solid var(--rule);
+    padding-bottom: 0.3rem;
+  }
+  h2 .numeral { display: inline-block; min-width: 2.6rem; }
+  p { margin: 0.8rem 0; }
+  .vr { margin: 0.8rem 0; }
+  .vr .v::before { content: "\2123. "; color: var(--accent); }
+  .vr .r::before { content: "\211F. "; color: var(--accent); }
+  .vr .r { margin-left: 1.4rem; }
+  .red { color: var(--accent); }
+  .rubric { color: var(--accent); font-style: italic; font-size: 0.85rem; }
+  .lang-row { margin: 0.7rem 0 0.2rem; }
+  .pill {
+    font-family: inherit;
+    font-size: 0.7rem;
+    letter-spacing: 0.08em;
+    background: none;
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.12rem 0.7rem;
+    margin: 0 0.35rem 0.3rem 0;
+    cursor: pointer;
+  }
+  .pill.active { border-color: var(--accent); color: var(--ink); }
+  blockquote {
+    margin: 1rem 0;
+    padding: 0.2rem 0 0.2rem 1.2rem;
+    border-left: 3px solid var(--rule);
+  }
+  /* Verse keeps its own lining: one line to a line, wrapping hangs, and a
+     line the edition sets further in is set further in here too. */
+  blockquote .line {
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }
+  blockquote .line.indent { padding-left: 3rem; }
+  .attribution {
+    text-align: right;
+    font-size: 0.9rem;
+    color: var(--muted);
+  }
+  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }
+  footer {
+    text-align: center;
+    margin-top: 3rem;
+    color: var(--accent);
+    font-size: 1.3rem;
+  }
+  .theme-toggle {
+    position: fixed;
+    top: 0.7rem;
+    right: 0.7rem;
+    display: flex;
+    gap: 0.1rem;
+    background: var(--paper);
+    border: 1px solid var(--rule);
+    border-radius: 1rem;
+    padding: 0.15rem;
+    z-index: 10;
+  }
+  .theme-toggle button {
+    font-family: inherit;
+    font-size: 0.62rem;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    line-height: 1.4;
+    background: none;
+    border: none;
+    border-radius: 1rem;
+    color: var(--muted);
+    padding: 0.2rem 0.55rem;
+    cursor: pointer;
+  }
+  .theme-toggle button.active { background: var(--accent); color: var(--paper); }
+</style>
+<script>
+  // Before the body paints, so the page never flashes white at a dark-adapted
+  // eye. Its own key, so choosing black here does not darken the morning.
+  (function () {
+    var t = localStorage.getItem("nightPrayerTheme");
+    document.documentElement.setAttribute("data-theme", t || "black");
+  })();
+</script>
+</head>
+<body>
+<div class="theme-toggle" role="group" aria-label="Theme">
+  <button type="button" data-theme-value="black">Black</button>
+  <button type="button" data-theme-value="grey">Grey</button>
+  <button type="button" data-theme-value="white">White</button>
+</div>
+<main>
+  <header>
+    <div class="cross">&#10013;</div>
+    <h1>Night Prayer</h1>
+    <div class="date">Sunday, November 8, 2026</div>
+    <nav>
+      <a href="2026-11-07.html" rel="prev">&larr; Last night</a>
+      <a href="2026-11-09.html" rel="next">Tomorrow &rarr;</a>
+    </nav>
+  </header>
+  <section data-section="sign-open">
+    <h2><span class="numeral">I.</span>Sign of the Cross</h2>
+  <div class="lang-row" data-lang-group="sign">
+    <button type="button" class="pill" data-lang="en">English</button>
+    <button type="button" class="pill" data-lang="la">Latin</button>
+    <button type="button" class="pill" data-lang="el">Greek</button>
+    <button type="button" class="pill" data-lang="he">Hebrew</button>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="en">
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="la" hidden>
+  <p><span class="red">✠</span> In nómine Patris, et Fílii, et Spíritus Sancti.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="el" hidden>
+  <p><span class="red">✠</span> Eis to onoma tou Patros kai tou Yiou kai tou Agiou Pnevmatos.</p>
+  <div class="vr"><div class="r">Amin.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="he" hidden>
+  <p><span class="red">✠</span> B’shem ha-Av v’ha-Ben v’Ruach ha-Kodesh.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <section data-section="jesus-prayer">
+    <h2><span class="numeral">II.</span>The Jesus Prayer</h2>
+  <div class="lang-row" data-lang-group="jesus">
+    <button type="button" class="pill" data-lang="en">English</button>
+    <button type="button" class="pill" data-lang="la">Latin</button>
+    <button type="button" class="pill" data-lang="el">Greek</button>
+    <button type="button" class="pill" data-lang="he">Hebrew</button>
+  </div>
+  <div class="lang" data-lang-group="jesus" data-lang="en">
+  <p class="rubric">Repeat as many times as necessary, or pluralize in group prayer.</p>
+  <p>Lord Jesus Christ, Son of the living God, have mercy on me, a sinner.</p>
+  </div>
+  <div class="lang" data-lang-group="jesus" data-lang="la" hidden>
+  <p class="rubric">Repete quoties opus est, vel numero plurali in oratione communi.</p>
+  <p>Dómine Iesu Christe, Fili Dei vivi, miserére mei peccatóris.</p>
+  </div>
+  <div class="lang" data-lang-group="jesus" data-lang="el" hidden>
+  <p class="rubric">Epanalave osakis chreiazetai, i en plithyntiko en koini prosefchi.</p>
+  <p>Kyrie Iisou Christe, Yie tou Theou tou zontos, eleison me ton amartolon.</p>
+  </div>
+  <div class="lang" data-lang-group="jesus" data-lang="he" hidden>
+  <p class="rubric">Chazor kama p’amim she-tzarich, o bi-lshon rabbim bi-tfila b’tzibur.</p>
+  <p>Adonai Yeshua HaMashiach, Ben-Elohim chayyim, rachem alai, ani ha-chote.</p>
+  </div>
+  </section>
+  <section data-section="hail-mary">
+    <h2><span class="numeral">III.</span>Hail Mary</h2>
+  <div class="lang-row" data-lang-group="hail-mary">
+    <button type="button" class="pill" data-lang="en">English</button>
+    <button type="button" class="pill" data-lang="la">Latin</button>
+    <button type="button" class="pill" data-lang="el">Greek</button>
+    <button type="button" class="pill" data-lang="he">Hebrew</button>
+  </div>
+  <div class="lang" data-lang-group="hail-mary" data-lang="en">
+  <div class="vr"><div class="v">Hail Mary, full of grace, the Lord is with thee; blessed art thou amongst women, and blessed is the fruit of thy womb, Jesus.</div><div class="r">Holy Mary, Mother of God, pray for us sinners, now and at the hour of our death. Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="hail-mary" data-lang="la" hidden>
+  <div class="vr"><div class="v">Ave María, grátia plena, Dóminus tecum. Benedícta tu in muliéribus, et benedíctus fructus ventris tui, Iesus.</div><div class="r">Sancta María, Mater Dei, ora pro nobis peccatóribus, nunc et in hora mortis nostrae. Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="hail-mary" data-lang="el" hidden>
+  <div class="vr"><div class="v">Chaire Maria, kecharitomeni, o Kyrios einai mazi sou. Evlogimeni esi metaxy ton gynaikon kai evlogimenos o karpos tis koilias sou, o Iisous.</div><div class="r">Agia Maria, Mitera tou Theou, Prosefchisou gia emas tous amartolous tora kai stin ora tou thanatou mas. Amin.</div></div>
+  </div>
+  <div class="lang" data-lang-group="hail-mary" data-lang="he" hidden>
+  <div class="vr"><div class="v">Shalom lach Miriam, bruchat ha chesed, Adonai imech. B’ruchah at ba-nashim, u-baruch pri bitnech, Yeshua.</div><div class="r">Miriam ha-Kdoshah, em Eloheinu, hitpaleliI be’adeinu ha-chote’im, atah u’vish’at moteinu. Amen.</div></div>
+  </div>
+  </section>
+  <section data-section="psalm">
+    <h2><span class="numeral">IV.</span>Psalm — Odes of Solomon 37:1–4</h2>
+  <blockquote data-reading="7732a3560ddc">
+    <p class="line">I stretched out my hands to my Lord: and to the Most High I raised my voice:</p>
+    <p class="line">And I spake with the lips of my heart; and He heard me, when my voice reached Him:</p>
+    <p class="line">His answer came to me, and gave me the fruits of my labours;</p>
+    <p class="line">And it gave me rest by the grace of the Lord. Hallelujah.</p>
+  </blockquote>
+  <p class="attribution">&mdash; Odes of Solomon 37:1–4<span class="source">The Odes of Solomon, tr. J. Rendel Harris, in The Forgotten Books of Eden (1926)</span></p>
+  <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
+  </section>
+  <section data-section="reading-wisdom">
+    <h2><span class="numeral">V.</span>First Reading — 1 Machabees 3:46–56</h2>
+  <p class="rubric">Judas Machabeus succeeds his father, and overthrows Apollonius and Seron. A great army is sent against him out of Syria. He prepares his people for battle by fasting and prayer.</p>
+  <blockquote data-reading="9959c6cbb6e8">
+    <p>And they assembled together, and came to Maspha, over against Jerusalem: for in Maspha was a place of prayer heretofore in Israel. And they fasted that day, and put on haircloth, and put ashes upon their heads: and they rent their garments: And they laid open the books of the law, in which the Gentiles searched for the likeness of their idols: And they brought the priestly ornaments, and the first fruits and tithes, and stirred up the Nazarites that had fulfilled their days: And they cried with a loud voice toward heaven, saying: What shall we do with these, and whither shall we carry them? For thy holies are trodden down, and are profaned, and thy priests are in mourning, and are brought low. And behold the nations are come together against us, to destroy us: thou knowest what they intend against us. How shall we be able to stand before their face, unless thou, O God, help us? Then they sounded with trumpets, and cried out with a loud voice. And after this, Judas appointed captains over the people, over thousands, and over hundreds, and over fifties, and over tens. And he said to them that were building houses, or had betrothed wives, or were planting vineyards, or were fearful, that they should return every man to his house, according to the law.</p>
+  </blockquote>
+  <p class="attribution">&mdash; 1 Machabees 3:46–56<span class="source">Douay–Rheims Bible, Challoner revision</span></p>
+  <div class="vr"><div class="r">Thanks be to God.</div></div>
+  </section>
+  <section data-section="reading-apocrypha">
+    <h2><span class="numeral">VI.</span>Second Reading — The Testament of Adam: The Hours of the Night (1 of 2)</h2>
+  <blockquote data-reading="a21abea17fbe">
+    <p>And at the first hour of the night the devils render thanks and praise to God Most High, and there is in them no evil and no harm for anyone until they have finished their service of homage. And at the second hour of the night the fish and every creature that is in the waters praise God, and the wild beasts and the whales. And at the third hour the fire praiseth Him— now it is in the lowest depth, and in that hour no one can address Him (?). And at the fourth hour the Süráfél (Seraphim) proclaim Him Holy. And at the fifth hour the waters which are above the heavens praise Him. Now long ago I sat and listened to the angels at this hour, and marvelled how they cried out; their cry was like the noise of a mighty wheel, and they cried out like the waves of the sea with the voice of praise to God. And at the sixth hour the clouds praised God in fear and trembling. And at the seventh hour the earth was hushed in silence and every creature that was upon it, and the waters slumbered. And if at this hour the priest taketh some water and mixeth holy oil with it, and he anointeth therewith the sick and those who cannot sleep at night because of ‘their pain, those who are sick will be healed, and those who are wakeful will fall asleep. At the eighth hour the earth maketh to grow grass</p>
+  </blockquote>
+  <p class="attribution">&mdash; The Testament of Adam: The Hours of the Night (1 of 2)<span class="source">The Testament of Adam, tr. E. A. Wallis Budge, in The Book of the Cave of Treasures (1927)</span></p>
+  </section>
+  <section data-section="mental-prayer">
+    <h2><span class="numeral">VII.</span>Greater Doxology</h2>
+  <div class="lang-row" data-lang-group="doxology">
+    <button type="button" class="pill" data-lang="en">English</button>
+    <button type="button" class="pill" data-lang="la">Latin</button>
+    <button type="button" class="pill" data-lang="el">Greek</button>
+    <button type="button" class="pill" data-lang="he">Hebrew</button>
+  </div>
+  <div class="lang" data-lang-group="doxology" data-lang="en">
+  <p>Glory be to God on high, and on earth peace to men of good will.</p>
+  <p>We praise Thee. We bless Thee. We adore Thee. We glorify Thee. We give Thee thanks for Thy great glory. O Lord God, heavenly King, God the Father almighty. O Lord Jesus Christ, the only begotten Son. O Lord God, Lamb of God, Son of the Father.</p>
+  <p>Who takest away the sins of the world, have mercy on us. Who takest away the sins of the world, receive our prayer. Who sittest at the right hand of the Father, have mercy on us. For Thou only art holy. Thou only art the Lord. Thou only art most high, O Jesus Christ. Together with the Holy Spirit <span class="red">✠</span> in the glory of God the Father.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">The ritual prayer is over. Final mental prayer may follow before the Sign of the Cross.</p>
+  </div>
+  <div class="lang" data-lang-group="doxology" data-lang="la" hidden>
+  <p>Glória in excélsis Deo. Et in terra pax homínibus bonæ voluntátis.</p>
+  <p>Laudámus te. Benedícimus te. Adorámus te. Glorificámus te. Grátias ágimus tibi propter magnam glóriam tuam. Dómine Deus, Rex cæléstis, Deus Pater omnípotens. Dómine Fili unigénite, Iesu Christe. Dómine Deus, Agnus Dei, Fílius Patris.</p>
+  <p>Qui tollis peccáta mundi, miserére nobis. Qui tollis peccáta mundi, súscipe deprecatiónem nostram. Qui sedes ad déxteram Patris, miserére nobis. Quóniam tu solus Sanctus. Tu solus Dóminus. Tu solus Altíssimus, Iesu Christe. Cum Sancto Spíritu <span class="red">✠</span> in glória Dei Patris.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Oratio statuta explícita est. Oratio mentalis sequi potest ante signum crucis.</p>
+  </div>
+  <div class="lang" data-lang-group="doxology" data-lang="el" hidden>
+  <p>Doxa en ypsistois Theo kai epi gis eirini en anthropois evdokia.</p>
+  <p>Ymnoumen se, evlogoumen se, proskynoumen se, doxologoumen se, efcharistoumen soi, dia tin megalin sou doxan. Kyrie Vasilef, epouranie Thee, Pater pantokrator, Kyrie Yie monogenes, Iisou Christe, kai Agion Pnevma. Kyrie o Theos, o amnos tou Theou, o Yios tou Patros, o airon tin amartian tou kosmou, eleison imas, o airon tas amartias tou kosmou.</p>
+  <p>Prosdexai tin deisin imon, o kathimenos en dexia tou Patros, kai eleison imas. Oti sy ei monos Agios, sy ei monos Kyrios, Iisous Christos, eis doxan Theou Patros.</p>
+  <div class="vr"><div class="r">Amin.</div></div>
+  <p class="rubric">I tetagmeni prosefchi etelesthi. Noera prosefchi dynatai akolouthisai pro tou simeiou tou stavrou.</p>
+  </div>
+  <div class="lang" data-lang-group="doxology" data-lang="he" hidden>
+  <p>Kavod ba-m’romim l’Elohim, u-va’aretz shalom b’anshei r’tzono.</p>
+  <p>M’hal’lim otcha, m’var’chim otcha, mishtachavim l’cha, m’fa’arim otcha, modim l’cha al k’vodcha ha-gadol. Adonai Elohim, Melech ha-shamayim, El Av kol-yachol. Adon Yeshua ha-Mashiach, ha-Ben ha-yachid. Adonai Elohim, Seh ha-Elohim, Ben ha-Av.</p>
+  <p>Ha-nose chata’ot ha-olam, rachem aleinu. Ha-nose chata’ot ha-olam, kabbel et t’filatenu. Ha-yoshev li-min ha-Av, rachem aleinu. Ki ata l’vadcha kadosh. Ata l’vadcha Adon. Ata l’vadcha elyon, Yeshua ha-Mashiach. Im Ruach ha-Kodesh <span class="red">✠</span> bi-chvod Elohim ha-Av.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  <p class="rubric">Ha-t’fila ha-k’vu’a tama. T’filat ha-lev y’chola lavo lifnei ot ha-tzlav.</p>
+  </div>
+  </section>
+  <section data-section="sign-close">
+    <h2><span class="numeral">VIII.</span>Sign of the Cross</h2>
+  <div class="lang-row" data-lang-group="sign">
+    <button type="button" class="pill" data-lang="en">English</button>
+    <button type="button" class="pill" data-lang="la">Latin</button>
+    <button type="button" class="pill" data-lang="el">Greek</button>
+    <button type="button" class="pill" data-lang="he">Hebrew</button>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="en">
+  <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="la" hidden>
+  <p><span class="red">✠</span> In nómine Patris, et Fílii, et Spíritus Sancti.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="el" hidden>
+  <p><span class="red">✠</span> Eis to onoma tou Patros kai tou Yiou kai tou Agiou Pnevmatos.</p>
+  <div class="vr"><div class="r">Amin.</div></div>
+  </div>
+  <div class="lang" data-lang-group="sign" data-lang="he" hidden>
+  <p><span class="red">✠</span> B’shem ha-Av v’ha-Ben v’Ruach ha-Kodesh.</p>
+  <div class="vr"><div class="r">Amen.</div></div>
+  </div>
+  </section>
+  <footer>&#10013;</footer>
+</main>
+<script>
+  function setTheme(name) {
+    document.documentElement.setAttribute("data-theme", name);
+    document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+      btn.classList.toggle("active", btn.dataset.themeValue === name);
+    });
+    localStorage.setItem("nightPrayerTheme", name);
+  }
+  document.querySelectorAll(".theme-toggle button").forEach(function (btn) {
+    btn.addEventListener("click", function () { setTheme(this.dataset.themeValue); });
+  });
+  setTheme(localStorage.getItem("nightPrayerTheme") || "black");
+
+  // Each prayer keeps its own language, so the Jesus Prayer can be prayed in
+  // Greek while the reading around it stays in English. The two Signs of the
+  // Cross share a group and so switch together.
+  function setLang(group, code) {
+    var chosen = null;
+    document.querySelectorAll('.lang[data-lang-group="' + group + '"]').forEach(function (el) {
+      var match = el.dataset.lang === code;
+      el.hidden = !match;
+      if (match) { chosen = code; }
+    });
+    // A language the page does not carry — a stored choice from a day when it
+    // did, or a hand-edited key — leaves nothing showing. Fall back.
+    if (!chosen) {
+      var first = document.querySelector('.lang[data-lang-group="' + group + '"]');
+      if (!first) { return; }
+      code = first.dataset.lang;
+      first.hidden = false;
+    }
+    document.querySelectorAll('.lang-row[data-lang-group="' + group + '"] .pill').forEach(function (b) {
+      b.classList.toggle("active", b.dataset.lang === code);
+    });
+    localStorage.setItem("nightPrayerLang:" + group, code);
+  }
+
+  document.querySelectorAll(".lang-row").forEach(function (row) {
+    var group = row.dataset.langGroup;
+    row.querySelectorAll(".pill").forEach(function (btn) {
+      btn.addEventListener("click", function () { setLang(group, this.dataset.lang); });
+    });
+    setLang(group, localStorage.getItem("nightPrayerLang:" + group) || "en");
+  });
+</script>
+</body>
+</html>
