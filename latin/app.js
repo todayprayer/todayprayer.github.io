@@ -1230,7 +1230,7 @@
     /** Random line from the chosen sections (server's parts only, if asked), never the same twice running. */
     function pickLine(filter) {
       let lines = M.LINES.filter(l => selected().includes(l.section) && filter(l));
-      const server = lines.filter(l => l.who === 'S');
+      const server = lines.filter(l => l.who !== 'P');
       if (settings.massServerOnly && server.length) lines = server;
       if (!lines.length) lines = M.LINES.filter(filter);
       let line = pick(lines);
@@ -1240,6 +1240,7 @@
     }
 
     const who = line => h('span', { class: 'who ' + line.who, title: M.WHO[line.who] }, M.WHO_SHORT[line.who]);
+    const speaker = line => line.who === 'A' ? 'all' : 'the ' + M.WHO[line.who].toLowerCase();
     const sectionOf = line => M.SECTIONS.find(s => s.id === line.section);
 
     function renderChips() {
@@ -1319,7 +1320,9 @@
 
       function context() {
         const rows = M.contextFor(target.index).map(i => M.LINES[i]);
-        return h('div', { class: 'context' }, rows.map((l, i) => h('div', { class: 'row' + (i < rows.length - 1 ? ' dim' : '') }, who(l), la(l.la))));
+        const cue = (rows[0] || target).cue;
+        return h('div', { class: 'context' }, cue ? h('div', { class: 'cue' }, cue) : null,
+          rows.map((l, i) => h('div', { class: 'row' + (i < rows.length - 1 ? ' dim' : '') }, who(l), la(l.la))));
       }
 
       /** timedOut: the countdown ran out — whatever is typed so far is checked. */
@@ -1345,8 +1348,9 @@
           h('div', { class: 'eyebrow' }, sec.title),
           kind === 'next' ? context() : h('div', { class: 'question', style: 'font-size:22px' }, target.en),
           h('div', { class: 'target-row' }, who(target), kind === 'next'
-            ? (target.cont ? `The ${M.WHO[target.who].toLowerCase()} continues…` : `Then the ${M.WHO[target.who].toLowerCase()} says…`)
-            : `Said by the ${M.WHO[target.who].toLowerCase()}`),
+            ? (target.cont ? (target.who === 'A' ? 'All continue…' : `The ${M.WHO[target.who].toLowerCase()} continues…`)
+              : `Then ${speaker(target)} ${target.who === 'A' ? 'say' : 'says'}…`)
+            : `Said by ${speaker(target)}`),
           timer.el,
           h('textarea', {
             class: 'mass-input', rows: 2, spellcheck: 'false', autocapitalize: 'off', disabled: !!result, placeholder: 'Type the Latin…',
@@ -1378,7 +1382,7 @@
       const el = h('div', { class: 'mass-text' });
       function render() {
         const hide = settings.massCover;
-        const covered = l => hide === 'all' || hide === l.who;
+        const covered = l => hide === 'all' || hide === l.who || (hide === 'S' && l.who === 'A');
         el.classList.toggle('no-en', !settings.massShowEn);
         fill(el, 
           h('div', { class: 'controls' },
@@ -1395,6 +1399,7 @@
             h('h3', null, sec.title),
             h('div', { class: 'sec-sub' }, sec.subtitle, sec.note ? ' — ' + sec.note : ''),
             sec.lines.map(l => h('div', { class: 'mline' + (l.cont ? ' cont' : '') },
+              l.cue ? h('div', { class: 'cue' }, l.cue) : null,
               l.cont ? h('span') : who(l),
               h('div', { class: 'la' + (covered(l) ? ' veil' : ''), title: covered(l) ? 'Click to reveal' : null,
                 onclick: e => e.currentTarget.classList.remove('veil') }, l.la),

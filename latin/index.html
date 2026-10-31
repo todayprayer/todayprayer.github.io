@@ -259,6 +259,7 @@ table.grid tr:last-child td { border-bottom: 0; }
   font: 600 11.5px/1 var(--sans); letter-spacing: .02em; background: var(--surface-2); color: var(--muted);
 }
 .who.S { background: var(--accent-soft); color: var(--accent); }
+.who.A { background: transparent; color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent-soft); }
 .mass-text .sec { margin-top: 28px; }
 .mass-text .sec:first-of-type { margin-top: 6px; }
 .mass-text h3 { font: 500 21px/1.3 var(--serif); margin: 0; }
@@ -268,6 +269,8 @@ table.grid tr:last-child td { border-bottom: 0; }
 .mline .who { margin-top: 4px; }
 .mline .la { font-size: 19px; line-height: 1.4; }
 .mline .en { color: var(--muted); font-size: 14.5px; padding-top: 2px; }
+.mline .cue { grid-column: 1 / -1; }
+.cue { font-style: italic; font-size: 13.5px; color: var(--muted); }
 .mass-text.no-en .mline { grid-template-columns: 30px 1fr; }
 .mass-text.no-en .mline .en { display: none; }
 .veil { filter: blur(6px); cursor: pointer; user-select: none; transition: filter .2s; }
@@ -462,7 +465,7 @@ body.no-tabs .drawer:not(.open) .handles { display: none; }
   <section id="view-mass" hidden>
     <div class="view-head">
       <h1>The Mass</h1>
-      <p>Prayers at the foot of the altar, from the 1962 Ordo Missae. P. = priest, S. = server.</p>
+      <p>The server’s parts at Low Mass, with the priest’s lines that prompt them, and the prayers after Low Mass, from the 1962 Ordo Missae. P. = priest, S. = server, All = everyone together.</p>
     </div>
     <div class="game-tabs" role="tablist" id="mass-tabs"></div>
     <div class="section-chips" id="mass-sections"></div>
