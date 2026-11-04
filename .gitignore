@@ -51,3 +51,6 @@
 !latin/engine.js
 !latin/mass.js
 !latin/app.js
+!latin/serve.html
+!latin/serve/
+!latin/serve/*.js
