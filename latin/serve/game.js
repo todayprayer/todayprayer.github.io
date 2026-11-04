@@ -35,7 +35,7 @@
     servers: 2, role: 'A1', respond: 'choose', mode: 'coach', speed: 1.25, quality: 'auto', weather: 'auto', camera: 'follow',
     communion: true, confiteor: true, gloria: true, creed: true, sermon: 'random', railCloth: 'none',
     bellMinorElevation: true, bellDomineNonSum: true, sacristyVersicle: 'procedamus',
-    english: true, sound: true, labels: true, reminders: true,
+    english: true, sound: true, labels: true, reminders: true, syllables: 4,
   };
   const params = new URLSearchParams(location.search);
   let opts = Object.assign({}, OPTS, store.get('opts', {}));
@@ -44,7 +44,7 @@
 
   // A full Mass at 1× runs about five minutes. Walking and kneeling keep their natural speed; what is
   // compressed is the reading — the priest's texts and the responses (SAY_SCALE) — and, a little, the gestures (PACE).
-  const SYLLABLES_PER_SECOND = 4, PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
+  const PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
 
   // ─── renderer, camera, world ───────────────────────────────────────────────
   const canvas = $('#stage');
@@ -306,17 +306,17 @@
         return;
       }
       a.moved += Math.hypot(dx, dy);
-      if (a.part === 'back' || a.part === 'head') this.swing(a, x, y, dx);
+      if (a.part === 'back' || a.part === 'head') this.swing(a, dx, dy);
       if ((a.part === 'R' || a.part === 'L') && Props.slot.bells === a.part && !Explore.active && Props.holder('bells') === director.player) this.shake(a, x, y);
     },
     /** Sideways, and you turn with it: on your feet or on your knees, bowed or not. */
-    swing(a, x, y, dx) {
+    swing(a, dx, dy) {
       const k = this.scale(), f = a.f;
       if (a.part === 'head' && Player.cur && Player.cur.verb === 'kiss') return;
-      if (!a.swinging) {
-        if (Math.abs(x - a.x0) < 12 * k || Math.abs(x - a.x0) < Math.abs(y - a.y0) * 0.6) return;
-        a.swinging = true; dx = x - a.x0;
-      }
+      a.across = Math.max(0, (a.across || 0) + Math.abs(dx) - Math.abs(dy) * 1.2);
+      if (!a.swinging && a.across < 20 * k) return;
+      a.swinging = a.across >= 4 * k;
+      if (!a.swinging) return;
       if (f.posture !== 'stand' && f.posture !== 'kneel') return;
       if (f.turn) { const t = f.turn; f.turn = null; t.resolve(t.signed); }
       const by = -dx * 0.0065 / k;      // to the right is clockwise, as the arrows are
@@ -402,19 +402,26 @@
       if (this.tip) this.tip.hidden = true;
       for (const z of this.pool) z.visible = false;
       if (UI.paused || (!Explore.active && (!director || director.failed))) return;
+      // when a bow is due, any honest move that way is the bow that is due, however deep it went
+      const moved = (this.y - a.y0) / k, level = l => l === 3 ? 'deep' : l === 2 ? 'med' : 'head';
+      if (part === 'back' || part === 'head') {
+        if (part === 'head' && a.lips && c && c.verb === 'kiss') return Player.act('kiss');
+        if (c && c.verb === 'bow' && moved > 12) { f.bowLevel = 0; return Player.act('bow', c.args[0]); }
+        if (c && c.verb === 'up' && moved < -12 && f.bowLevel) return Player.act('bow', level(f.bowLevel));
+        if (c && c.verb === 'nod' && moved > 12) return Player.act('nod');
+      }
       if (part === 'back') {
+        if (Math.abs(moved) < 25) return;      // a wobble on the way round
         const was = f.bowLevel, now = a.pitch == null ? was : a.pitch < 0.2 ? 0 : a.pitch < 0.68 ? 2 : 3;
         if (now === was) return;
-        if (now === 0) return Player.act('bow', was === 3 ? 'deep' : was === 2 ? 'med' : 'head');      // straighten
+        if (now === 0) return Player.act('bow', level(was));      // straighten
         if (was) f.bowLevel = 0;
-        return Player.act('bow', now === 3 ? 'deep' : 'med');
+        return Player.act('bow', level(now));
       }
       if (part === 'head') {
-        if (a.lips && c && c.verb === 'kiss') return Player.act('kiss');
-        const dy = this.y - a.y0;
         if (a.swinging) return;      // you were turning, not bowing
-        if (f.bowLevel === 1 && dy < -15 * k) return Player.act('bow', 'head');      // up again
-        if (dy > 25 * k) return c && c.verb === 'bow' && c.args[0] === 'head' ? Player.act('bow', 'head') : Player.act('nod');
+        if (f.bowLevel === 1 && moved < -15) return Player.act('bow', 'head');      // up again
+        if (moved > 25) return Player.act('nod');
         return;
       }
       if (a.done) return;
@@ -426,7 +433,7 @@
         if (Explore.active) return;
         if (c && USE_FIT.has(c.verb) && this.fits(c, a.zone)) return this.perform(c);
         // on your way to the spot, or waiting there: if this is what you came to do, you are there
-        const nx = (!c || (c.verb === 'go' && !/^w_/.test(c.args[0]))) ? Player.next() : null;
+        const nx = !c || c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' ? Player.nextAction() : null;
         if (nx && USE_FIT.has(nx.verb) && this.fits(nx, a.zone)) return Player.skipTo(cur => this.perform(cur));
         if (c && USE_FIT.has(c.verb) && this.zones(f).some(z => { const p = this.screen(z.at); return p && z.kind !== 'self' && this.fits(c, z) && Math.hypot(p[0] - this.x, p[1] - this.y) < 14 * k; })) return this.perform(c);
         window.__serve.lastMiss = { cmd: c && c.cmd, zone: a.zone.id };
@@ -436,6 +443,7 @@
       }
       // out into the air, for what is simply held out
       if (c && far && (c.verb === 'hold' || c.verb === 'offer' || c.verb === 'offerwater')) return this.perform(c);
+      if (c && far && (c.verb === 'turn' || c.verb === 'faceto')) { const nx = Player.nextAction(); if (nx && /^(hold|offer|offerwater)$/.test(nx.verb)) return Player.skipTo(cur => this.perform(cur)); }
     },
     /** Each frame: the handles, the arm following the pointer, and what it is over. */
     update() {
@@ -780,7 +788,7 @@
     constructor(kind, o) {
       this.kind = kind;                     // 'demo' | 'watch' | 'play'
       this.o = Object.assign({}, o, { seed: o.seed || (Date.now() % 9973) + 1 });
-      this.beats = C.build(this.o);
+      this.beats = C.build(Object.assign({}, this.o, { wholePrayer: kind === 'play' && this.o.respond === 'type' }));
       this.player = kind === 'play' ? (this.o.servers === 2 ? this.o.role : 'A1') : null;
       this.stopped = false;
       this.timers = [];
@@ -998,15 +1006,14 @@
       const both = isServer && this.o.servers === 2 && (beat.tracks.A1 || []).includes('say ' + ref) && (beat.tracks.A2 || []).includes('say ' + ref);
       if (both && role === 'A2') return this.step(this.until(() => this.answered[ref]));
       const who = role === 'P' ? (t.who === 'A' ? 'All' : 'P.') : both ? 'A1 · A2' : this.o.servers === 2 ? role : 'S.';
-      UI.caption(who, t, role);
+      if (this.kind !== 'play' || role === 'P') UI.caption(who, t, role);      // serving, the top of the screen is for the priest alone
       const dur = (t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE;
       // a line you have to answer: you hear it out, and meanwhile you can get your answer ready
       const mine = (beat.tracks[role] || []), lastSay = mine.filter(c => c.startsWith('say ')).pop() === 'say ' + ref;
       const answer = role !== this.player && lastSay && !window.__serve.autoplay ? this.nextSay() : null;
       if (answer) {
-        // a bare “Amen” is over as soon as it is said: you come straight in
-        const hold = t.la.length <= 8 ? 1 : Math.max(2.5, Math.min(10, 1.6 + t.la.length * 0.03));
-        this.ready = { ref: answer, result: Player.ready(this, answer, answer === 'confiteor-m.0' ? 'You begin the Confiteor' : 'Your response') };
+        const hold = Math.max(2.5, Math.min(10, 1.6 + t.la.length * 0.03));
+        this.ready = { ref: answer, result: Player.ready(this, answer, /^confiteor-m\.0/.test(answer) ? 'You begin the Confiteor' : 'Your response') };
         await this.step(this.sleep(hold * this.o.speed));      // seconds as you feel them, whatever the speed of the Mass
         if (isServer) this.answered[ref] = true;
         return;
@@ -1167,7 +1174,9 @@
         if (!KEY_VERBS.has(verb)) { await d.exec(d.player, c, beat); continue; }
         if (verb === 'say') { await this.respond(d, args[0], beat); continue; }
         // a bow that is already held only needs re-aiming
-        if (verb === 'bow' && FIG[d.player].bowLevel === (args[0] === 'head' ? 1 : args[0] === 'deep' ? 3 : 2)) {
+        // and you are already bowing: that is the bow wanted
+        if (verb === 'bow' && (FIG[d.player].bowLevel === (args[0] === 'head' ? 1 : args[0] === 'deep' ? 3 : 2) || (args[0] !== 'head' && FIG[d.player].bowLevel >= 2))) {
+          FIG[d.player].bowLevel = args[0] === 'head' ? 1 : args[0] === 'deep' ? 3 : 2;
           FIG[d.player].bowTarget = args[1] && FIG[args[1]] ? FIG[args[1]].headWorld() : null; continue;
         }
         if (verb === 'go') this.lastGo = args[0];
@@ -1188,6 +1197,7 @@
       UI.remind(this.cur, beat);
       this.cur.together = this.nextTogether; this.nextTogether = null;
       if (this.then && this.then.cmd === cmd) { const run = this.then.run; this.then = null; setTimeout(() => { if (this.cur && this.cur.cmd === cmd) run(this.cur); }, 0); }
+      else if (this.then && (verb === 'go' || verb === 'turn' || verb === 'faceto')) { const cur = this.cur; setTimeout(() => { if (this.cur === cur) this.doneEnough(); }, 0); }
       if (verb === 'go') { const s = spot(args[0]); goRing.position.set(s[0], C.heightAt(s[0], s[1]) + 0.01, s[1]); }
       if (this.cur) this.cur.next = verb === 'go' && /^w_/.test(args[0]) ? this.nextPoint : null;
       const p = new Promise(resolve => { this.resolve = resolve; });
@@ -1217,11 +1227,27 @@
       }
       return null;
     },
-    /** Walking there and doing it: near enough, you may do it, and that is the walk over. */
+    /** The next real thing to do, past any walking and turning still to be done; and where that walking was going. */
+    nextAction() {
+      if (!this.list) return null;
+      let to = this.cur && this.cur.verb === 'go' ? this.cur.args[0] : null;
+      for (let j = this.i + 1; j < this.list.length; j++) {
+        const p = C.parse(this.list[j]);
+        if (/^(sync|wait|face|signal|waitsig|pace|turn|faceto)$/.test(p.verb)) continue;
+        if (p.verb === 'go' || p.verb === 'via') { to = p.args[0]; continue; }
+        return Object.assign(p, { cmd: this.list[j], to });
+      }
+      return null;
+    },
+    /** Getting on with it: whatever walking and turning lay between here and there, you have done enough of. */
     skipTo(run) {
-      const nx = this.next();
-      this.then = { cmd: nx.cmd, run };
-      if (this.cur) this.done();
+      this.then = { cmd: this.nextAction().cmd, run };
+      if (this.cur) this.doneEnough();
+    },
+    doneEnough() {
+      const c = this.cur, f = FIG[this.d.player];
+      this.done();
+      if (c.verb === 'turn' || c.verb === 'faceto') this.lastFace = f.heading;      // facing the way you turned to is facing the right way
     },
     /** How long, in real seconds, the Mass gives you for this before it has gone on without you. */
     allow(d, verb, args) {
@@ -1249,6 +1275,12 @@
     checkFacing(d, f, c, dt) {
       if (this.lastFace == null || (c && (c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' || USE_FIT.has(c.verb)))) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
       if (this.autoing || f.walk || f.turn || f.manualWalk) return;      // busy with something, or on the way round
+      { const nx = this.next(); if (nx && nx.verb === 'faceto') { this.faceT = 0; return; } }      // already turning to where you are about to be facing
+      for (const o of Object.values(FIG)) {      // face to face with someone is never the wrong way
+        if (o === f || !o.root.visible) continue;
+        const tx = o.x - f.x, tz = o.z - f.z;
+        if (Math.hypot(tx, tz) < 1.3 && Math.abs(wrap(Math.atan2(tx, tz) - f.heading)) < FACE_OFF) { this.faceT = 0; return; }
+      }
       if (this.lastGo && Math.hypot(f.x - spot(this.lastGo)[0], f.z - spot(this.lastGo)[1]) > 2.2) return;      // being out of place has its own reckoning
       if (Math.abs(wrap(f.heading - this.lastFace)) < FACE_OFF) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
       this.faceT += dt;
@@ -1391,10 +1423,10 @@
       if (Explore.active) return UI.paused ? undefined : Explore.act(type, arg);
       const d = this.d, f = d && FIG[d.player], c = this.cur;
       if (!d || d.kind !== 'play' || this.autoing || UI.paused) return;
-      // not quite on the circle, and getting on with what you came to do
-      if (c && c.verb === 'go' && !/^w_/.test(c.args[0])) {
-        const nx = this.next(), s = spot(c.args[0]);
-        if (nx && (nx.verb === type || (type === 'gen' && nx.verb === 'genhold')) && Math.hypot(f.x - s[0], f.z - s[1]) < 1.9) return this.skipTo(() => this.act(type, arg));
+      // not quite there, and getting on with what you came to do
+      if (c && (c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto')) {
+        const nx = this.nextAction(), s = nx && nx.to && spot(nx.to);
+        if (nx && (nx.verb === type || (type === 'gen' && nx.verb === 'genhold')) && (!s || Math.hypot(f.x - s[0], f.z - s[1]) < 1.9)) return this.skipTo(() => this.act(type, arg));
       }
       const expect = c ? c.verb : null;
       const wrong = (msg) => {
@@ -1466,7 +1498,7 @@
           Gest.kiss(f);
           if (expect !== 'kiss') return wrong('Nothing to kiss now.');
           const what = c.args[0];
-          if (what === 'hand' && Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > 1.6) return UI.toast('Get close to the priest first.');
+          if (what === 'hand' && Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > REACH) return UI.toast('Get close to the priest first.');
           if (what !== 'hand' && what !== 'cruets' && Props.holder(what) !== d.player) return UI.toast('You are not holding ' + (PROP_TEXT[what] || what) + '.');
           return this.done();
         }
@@ -1480,7 +1512,7 @@
         }
         case 'vest': {          // V: pinch the alb, lift or drop the chasuble
           if (expect === 'pinch') { this.d.exec(d.player, 'pinch'); return this.done(); }
-          if (expect === 'lift') { if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > 1.4) return UI.toast('Go up beside the priest first.'); this.d.exec(d.player, 'lift'); return this.done(); }
+          if (expect === 'lift') { if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > REACH) return UI.toast('Go up beside the priest first.'); this.d.exec(d.player, 'lift'); return this.done(); }
           if (expect === 'drop') { f.lift = null; return this.done(); }
           if (f.lift) { f.lift = null; return wrong('You let go of the chasuble too soon.'); }
           return wrong('There is no vestment to hold now.');
@@ -1488,14 +1520,14 @@
         case 'pour': {
           if (expect !== 'pour') return wrong('Nothing to pour now.');
           if (Props.holder(c.args[0]) !== d.player) return UI.toast('Pick up ' + (PROP_TEXT[c.args[0]] || c.args[0]) + ' first.');
-          if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > 1.6) return UI.toast('Go closer to the priest.');
+          if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > REACH) return UI.toast('Go closer to the priest.');
           this.runAuto();
           return;
         }
         case 'hand': {     // H: hold out your hand to receive what the priest gives
           if (expect === 'take' && Props.holder(c.args[0]) === 'P') {
             if (!(Props.out.P && Props.out.P.has(c.args[0]))) return UI.toast('Wait until the priest holds it out to you.');
-            if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > 1.6) return UI.toast('Go closer to the priest.');
+            if (Math.hypot(f.x - FIG.P.x, f.z - FIG.P.z) > REACH) return UI.toast('Go closer to the priest.');
             this.runAuto();
             return;
           }
@@ -1569,33 +1601,57 @@
     },
 
     /** The answer offered while the priest is still speaking. */
+    /** Typing a whole prayer: what your body has to do comes due as you reach the words for it. */
+    cueUp(d, beat, t) {
+      const a = UI.asking;
+      if (!beat.cues || !a || !a.input) return;
+      const words = Mass.words(t.la).map(w => soundOf(w.raw));
+      const cues = beat.cues.map(({ at, cmd }) => {
+        const w = at.split(' ').map(soundOf), i = words.findIndex((_, k) => w.every((x, m) => words[k + m] === x));
+        return { cmd, n: words.slice(0, Math.max(0, i)).join('').length };
+      });
+      let next = 0;
+      a.onType = n => {
+        while (next < cues.length && n >= cues[next].n) {
+          const { cmd } = cues[next++];
+          if (this.cur && this.cur.isCue) this.miss();
+          for (const r of ['A1', 'A2']) if (r !== d.player && beat.tracks[r]) d.exec(r, cmd, beat).catch(e => { if (!(e instanceof Stopped)) throw e; });
+          this.expect(d, cmd, beat);
+          this.cur.isCue = true;
+        }
+      };
+      a.onType(a.progress);
+    },
+    /** A second and a half to choose or to start; going on with your own prayer, a little longer to find the next part. */
+    timeFor(d, ref) { return /^confiteor-m\.0/.test(ref) || (d.o.respond !== 'type' && /^confiteor-m\.[1-7]$/.test(ref)) ? 3 : 1.5; },
     ready(d, ref, title) {
       const t = C.lineText(ref, Mass);
-      return UI.ask(t, ref, d.o.respond, 1.5, true, title);
+      return UI.ask(t, ref, d.o.respond, this.timeFor(d, ref), true, title);
     },
     /** Spoken responses: choose from four, or type. */
     async respond(d, ref, beat) {
       const t = C.lineText(ref, Mass);
       d.results.total++;
-      const limit = 1.5;     // a second and a half, once he has finished, to choose or to start typing
       const got = d.ready && d.ready.ref === ref ? d.ready.result : null;
       d.ready = null;
       UI.heard();      // he has finished: what you had ready is said now, and if nothing, your time starts
-      const own = /^confiteor-m\.[0-7]$/.test(ref);      // going on with your own prayer: nobody has said anything to you
-      const result = await (got || UI.ask(t, ref, d.o.respond, limit, false, own ? 'You say' : 'Your response'));
+      const own = /^confiteor-m\.[0-7](-7)?$/.test(ref);      // going on with your own prayer: nobody has said anything to you
+      const speaking = got || UI.ask(t, ref, d.o.respond, this.timeFor(d, ref), false, own ? 'You say' : 'Your response');
+      this.cueUp(d, beat, t);
+      const result = await speaking;
+      if (this.cur && this.cur.isCue) this.miss();      // the line is over, and that moment with it
       d.check();
       if (result.ok) d.results.ok++;
       else if (result.stopped) d.mistake('You stopped speaking partway through', t.la, beat);
       else if (own) d.mistake(result.given == null ? 'You lost your place in the prayer' : 'Wrong words: “' + result.given + '”', t.la, beat);
       else d.mistake(result.given == null ? 'No response given in time' : 'Wrong response: “' + result.given + '”', t.la, beat);
-      const who = d.o.servers === 2 ? (beat.tracks.A1 && beat.tracks.A2 && beat.tracks.A1.includes('say ' + ref) && beat.tracks.A2.includes('say ' + ref) ? 'A1 · A2' : d.player) : 'S.';
-      UI.caption(who, t, d.player);
+      $('#caption').hidden = true;      // he has been answered
       // words take time to say, and while you say them you can look to the next
       if ((beat.tracks[d.player] || []).filter(c => c.startsWith('say ')).pop() === 'say ' + ref) {
         const next = d.nextSay();
         if (next) d.ready = { ref: next, result: this.ready(d, next, /^confiteor-m\.[0-7]$/.test(next) ? 'You say next' : 'Your response') };
       }
-      if (own && d.o.respond !== 'type') await d.step(d.sleep((result.ok ? Math.max(1, t.la.length * 0.065) : 1) * d.o.speed));      // typed, it has already taken as long as it took
+      if (own && d.o.respond !== 'type') await d.step(d.sleep((result.ok ? Math.max(1.4, t.la.length * 0.065) : 1) * d.o.speed));      // typed, it has already taken as long as it took
       else await d.step(d.sleep((t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE * 0.6));
       d.answered[ref] = true;
     },
@@ -1636,12 +1692,12 @@
         if (turned && c && c.verb === 'turn') c.turned = (c.turned || 0) + turned;
       }
       // a turn wanted, made with ← → and come round to the right way: was it the right way round?
-      if (c && c.verb === 'turn' && c.turned && !this.autoing && Math.abs(wrap(f.heading - headingFor(d.player, c.args[1]))) < 0.3) {
+      if (c && c.verb === 'turn' && c.turned && !this.autoing && Math.abs(wrap(f.heading - headingFor(d.player, c.args[1]))) < 0.8) {
         if ((c.turned < 0) !== (c.args[0] === 'cw')) { c.mistakes++; d.mistake('You turned the wrong way round', 'Turn ' + (c.args[0] === 'cw' ? 'clockwise (→)' : 'counter-clockwise (←)') + '.', this.beat); }
         this.done();
         return;
       }
-      if (c && c.verb === 'faceto' && !this.autoing && !UI.paused && Math.abs(wrap(f.heading - headingFor(d.player, c.args[0]))) < 0.4) { this.done(); return; }
+      if (c && c.verb === 'faceto' && !this.autoing && !UI.paused && Math.abs(wrap(f.heading - headingFor(d.player, c.args[0]))) < 0.8) { this.done(); return; }
       const going = Input.walk();
       if (going && !this.autoing && f.posture === 'stand' && !UI.paused) {
         {
@@ -2083,7 +2139,7 @@
           const fb = h('div', { class: 'fb' }), okSoFar = h('span', { class: 'typed-ok' }), rest = h('span', { class: 'typed-rest' });
           fill(fb, okSoFar, rest);
           // each letter is worth its share of the time the line takes to say, at four syllables a second
-          const perLetter = syllables(t.la) / SYLLABLES_PER_SECOND / Math.max(1, expected.join('').length);
+          const perLetter = syllables(t.la) / (opts.syllables || 4) / Math.max(1, expected.join('').length);
           const a = { limit, left: limit, perLetter, hearing: !!hearing, chosen: null, progress: 0, input, text: t.la, near: new Set(), muddled: 0, offLine: false,
             // going wrong and going quiet are different things, and you should be told which
             expire: () => a.offLine ? finish(false, input.value.trim()) : finish(false, null, a.progress > 0) };
@@ -2099,7 +2155,7 @@
             a.near = f.near; a.muddled = f.muddled; a.offLine = f.lost;
             input.classList.toggle('off-line', f.lost);
             okSoFar.textContent = said.map(w => w.raw).join(' ').slice(0, Math.round(f.n / Math.max(1, f.total) * t.la.length));
-            if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; }      // only getting further along the line keeps you going
+            if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; if (a.onType) a.onType(f.n); }      // only getting further along the line keeps you going
             if (f.done) { if (a.hearing) a.chosen = 0; else a.pick(); }
           });
           input.addEventListener('keydown', e => {
@@ -2291,6 +2347,7 @@
     ['Servers', 'servers', [[1, 'One server'], [2, 'Two servers']]],
     ['Responses', 'respond', [['choose', 'Choose from four'], ['type', 'Type the Latin']]],
     ['Help (the Mass never waits for you, either way)', 'mode', [['coach', 'Circles on the floor and warnings'], ['strict', 'None']]],
+    ['Typing: syllables you must keep up per second', 'syllables', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], () => opts.respond === 'type'],
     ['Reminders at the top: which button, and why', 'reminders', [[true, 'On'], [false, 'Off']]],
     ['Camera while serving', 'camera', [['follow', 'Behind you'], ['fixed', 'Fixed above the gate']]],
     ['Sermon from the lectern', 'sermon', [['off', 'Never'], ['random', 'Sometimes'], ['always', 'Always']]],

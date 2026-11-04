@@ -241,6 +241,7 @@
         else { add('A1', spec.S); add('A1', spec.A1); }
       }
       if (spec.C) for (let i = 1; i <= 4; i++) add('C' + i, typeof spec.C === 'function' ? spec.C(i) : spec.C);
+      if (spec.cues) b.cues = spec.cues;
       if (Object.keys(b.tracks).length) beats.push(b);
       return b;
     }
@@ -318,14 +319,20 @@
     B({ P: 'bow deep; say confiteor-s.0-7; strike 3', cite: 'R III, 7' });
     B({ S: 'bow deep; faceto P; say confiteor-s.8', note: 'Bow down further and face towards the priest.', cite: two ? 'SV p. 10' : 'SV p. 30: here he is to your RIGHT' });
     B({ P: 'say confiteor-s.9; up', S: 'faceto altar', note: 'At his “Amen”, face back to the altar, still bowed.', cite: 'SV p. 10' });
-    B({ S: 'say confiteor-m.0' });
-    B({ S: 'say confiteor-m.1' });
-    B({ S: 'faceto P; say confiteor-m.2; faceto altar', note: 'Shift to face the priest at “et tibi, Pater”, then back.', cite: 'SV p. 10' });
-    B({ S: 'say confiteor-m.3' });
-    B({ S: 'say confiteor-m.4; strike 3' });
-    B({ S: 'say confiteor-m.5' });
-    B({ S: 'say confiteor-m.6' });
-    B({ S: 'faceto P; say confiteor-m.7; faceto altar', note: '…and again at “et te, Pater”.' });
+    if (o.wholePrayer) {
+      // the movements come due as you reach the words
+      B({ S: 'say confiteor-m.0-7', note: 'Face the priest at “et tibi, Pater” and “et te, Pater”; strike your breast at “mea culpa”.', cite: 'SV p. 10',
+          cues: [{ at: 'et tibi', cmd: 'faceto P' }, { at: 'nimis', cmd: 'faceto altar' }, { at: 'mea culpa', cmd: 'strike 3' }, { at: 'et te', cmd: 'faceto P' }, { at: 'pro me', cmd: 'faceto altar' }] });
+    } else {
+      B({ S: 'say confiteor-m.0' });
+      B({ S: 'say confiteor-m.1' });
+      B({ S: 'faceto P; say confiteor-m.2; faceto altar', note: 'Shift to face the priest at “et tibi, Pater”, then back.', cite: 'SV p. 10' });
+      B({ S: 'say confiteor-m.3' });
+      B({ S: 'say confiteor-m.4; strike 3' });
+      B({ S: 'say confiteor-m.5' });
+      B({ S: 'say confiteor-m.6' });
+      B({ S: 'faceto P; say confiteor-m.7; faceto altar', note: '…and again at “et te, Pater”.' });
+    }
     B({ P: 'say confiteor-m.8' });
     B({ S: 'say confiteor-m.9; up', note: 'Amen — return to the kneeling position.', cite: 'SV p. 11' });
     B({ P: 'cross; say confiteor-m.10', S: 'cross' });
@@ -572,7 +579,8 @@
         cite: two ? 'SV p. 18' : 'SV p. 37' });
     if (o.confiteor) {
       B({ S: 'bow deep', note: 'A profound bow; say the Confiteor quietly once he has drunk from the chalice.', cite: 'SV p. 18' });
-      for (let i = 0; i < 8; i++) B({ S: `say confiteor-m.${i}${i === 4 ? '; strike 3' : ''}` });
+      if (o.wholePrayer) B({ S: 'say confiteor-m.0-7', cues: [{ at: 'mea culpa', cmd: 'strike 3' }] });
+      else for (let i = 0; i < 8; i++) B({ S: `say confiteor-m.${i}${i === 4 ? '; strike 3' : ''}` });
       B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people; say confiteor-m.8', note: 'Do NOT move until he gives the Misereatur.', cite: 'SV p. 19' });
       B({ S: 'say confiteor-m.9' });
       B({ P: 'g blessPeople; say confiteor-m.10', S: 'up; cross', note: 'Rise from the bow, still kneeling.', cite: 'SV p. 19' });
