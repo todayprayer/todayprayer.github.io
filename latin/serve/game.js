@@ -44,7 +44,7 @@
 
   // A full Mass at 1× runs about five minutes. Walking and kneeling keep their natural speed; what is
   // compressed is the reading — the priest's texts and the responses (SAY_SCALE) — and, a little, the gestures (PACE).
-  const PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
+  const SYLLABLES_PER_SECOND = 4, PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
 
   // ─── renderer, camera, world ───────────────────────────────────────────────
   const canvas = $('#stage');
@@ -521,6 +521,7 @@
     if (before.some(c => /^(go|via|wait|pace|waitsig) /.test(c))) return null;
     return before.join(';') + '>' + list[i];
   }
+  const BODY_VERBS = new Set(['kneel', 'stand', 'sit', 'gen', 'genhold', 'rise', 'bow', 'up', 'nod', 'small', 'strike', 'turn', 'faceto']);
   const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold']);
 
   // ─── sound: small synthesized bells ────────────────────────────────────────
@@ -1194,6 +1195,18 @@
       return p;
     },
 
+    /** Alt, in typing mode: your hands are on the keyboard, so your body moves when you remember to tell it to. */
+    moveBody() {
+      const d = this.d, c = this.cur, f = d && d.player && FIG[d.player];
+      if (!f || d.kind !== 'play' || d.failed || UI.paused || this.autoing || !UI.typing()) return;      // only while there is typing to be done
+      if (c && !BODY_VERBS.has(c.verb)) return UI.toast(c.verb === 'go' ? 'You walk there yourself.' : c.verb === 'cross' ? 'Space makes the sign of the cross.' : 'That one is done by hand.');
+      if (!c) return d.mistake('Nothing for your body to do now', 'Keep still until your cue.', this.beat);
+      // kneeling or genuflecting, it faces you the right way first
+      if (/^(kneel|gen|genhold)$/.test(c.verb)) { const want = c.verb === 'kneel' ? this.lastFace : Math.PI; if (want != null) f.turnTo(want); }
+      d.exec(d.player, c.cmd, c.beat).catch(e => { if (!(e instanceof Stopped)) throw e; });      // it takes the time it takes; you have done your part, as with any key
+      this.done();
+    },
+
     /** The next thing you have to do yourself, past whatever simply happens on the way. */
     next() {
       if (!this.list) return null;
@@ -1695,7 +1708,7 @@
       if (UI.asking && UI.asking.limit && !UI.asking.done && !UI.asking.hearing && !UI.paused) {
         UI.asking.left -= dt;
         const bar = document.querySelector('#respond .time-left');
-        if (bar) bar.style.width = Math.max(0, 100 * UI.asking.left / UI.asking.limit).toFixed(1) + '%';
+        if (bar) bar.style.width = Math.max(0, Math.min(100, 100 * UI.asking.left / UI.asking.limit)).toFixed(1) + '%';
         if (UI.asking.left <= 0) UI.asking.expire();
       }
     },
@@ -1942,6 +1955,16 @@
       if (up && !up.stood && performance.now() - up.t > 200) up.stood = this.rise() || 'walking';
     },
   };
+  let altAlone = false;
+  window.addEventListener('keydown', e => {
+    if (e.key === 'Alt') { altAlone = !e.repeat || altAlone; e.preventDefault(); } else altAlone = false;
+  }, true);
+  window.addEventListener('keyup', e => {
+    if (e.key !== 'Alt') return;
+    e.preventDefault();
+    if (altAlone) { altAlone = false; audio(); Player.moveBody(); }
+  });
+  window.addEventListener('blur', () => { altAlone = false; });
   window.addEventListener('keydown', e => {
     const box = UI.asking && UI.asking.input;
     if (box && document.activeElement !== box && e.key.length === 1 && /\p{L}/u.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) { box.focus(); return; }
@@ -2020,12 +2043,14 @@
       el.hidden = false;
       el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh');
     },
+    /** Is there a line waiting to be typed, or being typed, right now? */
+    typing() { return !!(this.asking && this.asking.input); },
     /** One line: the button, what it is for, and if the moment has a short reason, that. */
     remind(c, beat) {
       const el = $('#remind'), on = !!c && opts.reminders && !window.__serve.autoplay && !!director && director.kind === 'play';
       el.hidden = !on; document.body.classList.toggle('reminding', on);
       if (!on) return;
-      const [text, button] = describe(c.cmd);
+      const [text, hint] = describe(c.cmd), button = this.typing() && BODY_VERBS.has(c.verb) ? 'Alt' : hint;
       let why = beat && beat.note ? beat.note.replace(/^[….\s]+/, '').split(/(?<=[.!?…])\s/)[0].replace(/[….\s]+$/, '') : '';
       why = why.length > 0 && why.length <= 70 && why.toLowerCase() !== text.toLowerCase() ? why[0].toUpperCase() + why.slice(1) + '.' : '';
       fill(el, h('b', { class: 'remind-btn' }, button), h('span', null, text + (text.endsWith('.') ? '' : '.')), why ? h('span', { class: 'remind-why' }, why) : null);
@@ -2048,33 +2073,44 @@
       const el = $('#respond');
       el.hidden = false;
       return new Promise(resolve => {
-        const finish = (ok, given, stopped) => { this.asking = null; el.hidden = true; resolve({ ok, given, stopped: !!stopped }); };
+        const finish = (ok, given, stopped) => { this.asking = null; el.hidden = true; if (mode === 'type') this.remind(Player.cur, Player.beat); resolve({ ok, given, stopped: !!stopped }); };
         const timer = h('div', { class: 'time' }, h('div', { class: 'time-left' }));
         const expire = () => finish(false, null);
         if (mode === 'type') {
           // like speaking: you have as long to begin as anyone choosing, and after that every letter keeps you going. Stop, and you have stopped.
-          const line = Mass.words(t.la).map(w => w.key).join(' ');
+          const said = Mass.words(t.la), expected = said.map(w => soundOf(w.raw));
           const input = h('textarea', { rows: 2, placeholder: 'Start typing…', spellcheck: 'false', autocapitalize: 'off', 'aria-label': 'What you say' });
-          const fb = h('div', { class: 'fb' }), said = h('span', { class: 'typed-ok' }), rest = h('span', { class: 'typed-rest' });
-          fill(fb, said, rest);
-          const a = { limit, left: limit, hearing: !!hearing, chosen: null, progress: 0, input, text: t.la, expire: () => finish(false, null, a.progress > 0) };
-          a.pick = () => { if (a.done) return; a.done = true; finish(true, input.value); };
+          const fb = h('div', { class: 'fb' }), okSoFar = h('span', { class: 'typed-ok' }), rest = h('span', { class: 'typed-rest' });
+          fill(fb, okSoFar, rest);
+          // each letter is worth its share of the time the line takes to say, at four syllables a second
+          const perLetter = syllables(t.la) / SYLLABLES_PER_SECOND / Math.max(1, expected.join('').length);
+          const a = { limit, left: limit, perLetter, hearing: !!hearing, chosen: null, progress: 0, input, text: t.la, near: new Set(), muddled: 0, offLine: false,
+            // going wrong and going quiet are different things, and you should be told which
+            expire: () => a.offLine ? finish(false, input.value.trim()) : finish(false, null, a.progress > 0) };
+          a.pick = () => {
+            if (a.done) return;
+            a.done = true;
+            if (a.muddled) this.toast('Near enough. The line is: ' + t.la);
+            else if (a.near.size) this.toast('Near enough. It is “' + [...a.near].map(i => said[i].raw.replace(/[^\p{L}]/gu, '')).join('”, “') + '”.');
+            finish(true, input.value);
+          };
           input.addEventListener('input', () => {
-            const v = input.value, tail = /\s$/.test(v) ? ' ' : '', typed = Mass.words(v).map(w => w.key).join(' ') + tail;
-            let n = 0;
-            while (n < typed.length && n < line.length && typed[n] === line[n]) n++;
-            input.classList.toggle('off-line', n < typed.length && !(n === line.length && typed.trim() === line));
-            said.textContent = line.slice(0, n);
-            if (n > a.progress) { a.progress = n; if (!a.hearing) a.left = a.limit; }      // only words that are right keep you going
-            if (n >= line.length) { if (a.hearing) a.chosen = 0; else a.pick(); }
+            const f = followLine(expected, input.value);
+            a.near = f.near; a.muddled = f.muddled; a.offLine = f.lost;
+            input.classList.toggle('off-line', f.lost);
+            okSoFar.textContent = said.map(w => w.raw).join(' ').slice(0, Math.round(f.n / Math.max(1, f.total) * t.la.length));
+            if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; }      // only getting further along the line keeps you going
+            if (f.done) { if (a.hearing) a.chosen = 0; else a.pick(); }
           });
           input.addEventListener('keydown', e => {
             if (e.key === 'Enter') e.preventDefault();
+            if (e.key === ' ' && Player.cur && Player.cur.verb === 'cross') { e.preventDefault(); e.stopPropagation(); audio(); Player.act('cross'); return; }
             if (!e.key.startsWith('Arrow') && e.key !== 'Control' && e.key !== 'Escape') e.stopPropagation();      // you can still turn and walk while you speak
           });
           const hint = h('button', { class: 'btn', tabindex: -1, onmousedown: e => e.preventDefault(), onclick: () => { rest.textContent = '   ' + Mass.initials(t.la); } }, 'First letters');
           fill(el, timer, h('div', { class: 'ask-title' }, title), opts.english ? h('div', { class: 'ask-en' }, t.en) : null, input, fb, h('div', { class: 'ask-row' }, hint));
           this.asking = a;
+          this.remind(Player.cur, Player.beat);
           if (!hearing) setTimeout(() => input.focus(), 30);
           return;
         }
@@ -2138,6 +2174,53 @@
   };
 
   /** Four Latin choices for a response: the right one, and three plausible others. */
+  /** Syllables of a Latin text: its vowels and diphthongs, leaving out the u of qu and of ngu before a vowel. */
+  function syllables(text) {
+    const plain = text.normalize('NFD').replace(/[\u0300-\u036f]/g, '').toLowerCase().replace(/æ/g, 'ae').replace(/œ/g, 'oe').replace(/qu/g, 'q').replace(/ngu(?=[aeio])/g, 'ng');
+    return (plain.match(/ae|oe|au|[aeiouy]/g) || []).length;
+  }
+
+  // Following what is typed as a listener follows speech: Latin is spelled many ways, and nobody hears a dropped letter.
+  const soundOf = raw => Mass.normWord(raw).replace(/ae|oe/g, 'e').replace(/y/g, 'i').replace(/ph/g, 'f').replace(/h/g, '').replace(/k/g, 'c').replace(/t(?=i[aeiou])/g, 'c').replace(/(.)\1/g, '$1');
+  const letGo = len => len <= 1 ? 0 : len <= 4 ? 1 : len <= 8 ? 2 : 3;      // letters a word of this length can be out by
+  /** Differences between a and b; if prefix, against whichever beginning of b is nearest (a is still being typed). */
+  function apart(a, b, prefix) {
+    let row = Array.from({ length: b.length + 1 }, (_, j) => j);
+    for (let i = 1; i <= a.length; i++) {
+      const next = [i];
+      for (let j = 1; j <= b.length; j++) next[j] = Math.min(row[j] + 1, next[j - 1] + 1, row[j - 1] + (a[i - 1] === b[j - 1] ? 0 : 1));
+      row = next;
+    }
+    return prefix ? Math.min(...row) : row[b.length];
+  }
+  /** How far through a line someone has got: how many letters of it, whether they have finished, and whether they have lost it. */
+  function followLine(expected, typed) {
+    const parts = typed.trim().split(/\s+/).filter(p => soundOf(p)), open = !/\s$/.test(typed);
+    const room = Math.floor(expected.length / 4);      // words of a long line that can be missed or muddled
+    let i = 0, partial = 0, muddled = 0, lost = false;
+    const near = new Set();
+    parts.forEach((p, k) => {
+      if (i >= expected.length) return;
+      const key = soundOf(p), last = open && k === parts.length - 1;
+      for (let j = i; j < Math.min(expected.length, i + 1 + (room ? 2 : 0)); j++) {
+        const w = expected[j], whole = apart(key, w), fits = last ? apart(key, w, true) <= letGo(w.length) && key.length <= w.length + letGo(w.length) : whole <= letGo(w.length);
+        if (!fits) continue;
+        muddled += j - i;
+        const endsLine = last && j === expected.length - 1 && whole <= letGo(w.length) && key.length >= w.length - 1;
+        if (!last || endsLine) { if (whole) near.add(j); i = j + 1; partial = 0; } else { i = j; partial = Math.min(key.length, w.length); }
+        return;
+      }
+      if (last) { lost = true; return; }
+      muddled++;
+      // a word in place of another: if what comes after carries on from the next one, that is one mistake and not two
+      const after = parts[k + 1] && soundOf(parts[k + 1]), then = expected[i + 1];
+      if (i + 1 < expected.length && (!after || apart(after, then, true) <= letGo(then.length))) i++;
+    });
+    if (muddled > room) lost = true;
+    const total = expected.join('').length, n = expected.slice(0, i).join('').length + partial;
+    return { n, total, done: i >= expected.length && !lost, lost, near, muddled };
+  }
+
   function distractors(t, ref) {
     const pool = Mass.LINES.filter(l => (l.who === 'S' || l.who === 'A') && l.la !== t.la);
     const sec = /^([\w-]+)\./.exec(ref);
@@ -2154,7 +2237,7 @@
   // ─── starting and stopping ─────────────────────────────────────────────────
   let director = null;
   window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, autoplay: params.has('autoplay'),
-    Cam, Grab, Fix, FX, headingFor, Explore, Plan, Nav, camera, renderer, scene, collide, walkFree: (x, z) => Plan.free(x, z, 0.18, blocked), SKY, CARS, OUT3D, SITE3D,
+    Cam, Grab, Fix, FX, headingFor, syllables, followLine, soundOf, Explore, Plan, Nav, camera, renderer, scene, collide, walkFree: (x, z) => Plan.free(x, z, 0.18, blocked), SKY, CARS, OUT3D, SITE3D,
     start: (kind, o) => { Object.assign(opts, o || {}); kind === 'play' ? beginPlay() : kind === 'explore' ? Explore.start() : startWatch(); } };
 
   function resetWorld(o) {
@@ -2194,7 +2277,7 @@
   function startDemo() { begin('demo', Object.assign({}, opts, { servers: 2, speed: 1.25, communion: true, sermon: 'random' })); UI.show('title'); }
   function toTitle() { startDemo(); }
   function startWatch() { begin('watch', Object.assign({}, opts)); UI.show('hud'); }
-  function beginPlay() { audio(); begin('play', Object.assign({}, opts)); UI.show('hud'); }
+  function beginPlay() { audio(); begin('play', Object.assign({}, opts)); document.body.classList.toggle('typing', opts.respond === 'type'); UI.show('hud'); }
   /** Coming to serve: with two servers, you have to say which you are. */
   function startPlay() {
     audio();
@@ -2251,7 +2334,7 @@
     const did = (...a) => () => Player.act(...a);
     const A = [
       ['Genu\u00adflect', did('gen'), 'gen', 1],
-      ['Kneel', did('kneel'), 'kneel', 1], ['Stand', standOrSit, 'legs', 1], ['Sign of the cross', did('cross'), 'cross', 1],
+      ['Kneel', did('kneel'), 'kneel', 1], ['Stand', standOrSit, 'legs', 1], ['Sign of the cross', did('cross'), 'cross', 1], ['Move my body', () => Player.moveBody(), 'body', 1],
     ];
     for (const [label, tap, name, touchOnly] of A) {
       const b = h('button', { tabindex: -1, 'data-act': name, class: touchOnly ? 'touch-only' : '' }, label);
