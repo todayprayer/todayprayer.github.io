@@ -98,6 +98,7 @@
     'cred': [3.3, -1.4, A], 'cred1': [3.08, -1.4, A], 'cred2': [3.55, -1.4, A],
     'sed': [2.4, 2.65, E],
     'stoolE': [4.62, -1.62, G], 'stoolG': [-4.62, -1.62, E],
+    'K.E': [4.62, -1.1, G], 'K.G': [-4.62, -1.1, E], 'comKE': [0.98, 0.22, A], 'comKG': [-0.98, 0.22, A],      // someone in choir: a place on the bench, and on the top step for Communion
     'gateE': [0.6, 5.4, N], 'gateG': [-0.6, 5.4, N], 'midRail': [0, 5.4, A],
     'clothE': [2.3, 5.42, N], 'clothG': [-2.3, 5.42, N],
 
@@ -229,10 +230,12 @@
 
     const cmds = s => (Array.isArray(s) ? s : String(s).split(';')).map(x => x.trim()).filter(Boolean);
     /** Add a beat. spec: { P, A1, A2, S (both servers), C (communicants), one (one-server A1), cite, note } */
+    let thenK = null;       // what someone in choir does next, alongside whatever comes next
     function B(spec) {
       const b = { part, cite: spec.cite || '', note: spec.note || '', tracks: {} };
       const add = (role, s) => { if (s != null) b.tracks[role] = (b.tracks[role] || []).concat(cmds(s)); };
       add('P', spec.P);
+      if (o.choir) { add('K', spec.K); if (thenK) { add('K', thenK); thenK = null; } }
       if (two) {
         add('A1', spec.S); add('A2', spec.S);
         add('A1', spec.A1); add('A2', spec.A2);
@@ -582,25 +585,27 @@
                   : 'Stand as he rises: ' + (epiCloth ? 'flip the Epistle-side cloth, ' : '') + 'fetch the paten, put the bells back, genuflect, go up and kneel on the top step.',
         cite: two ? 'SV p. 18' : 'SV p. 37' });
     if (o.confiteor) {
-      B({ S: 'bow deep', note: 'A profound bow; say the Confiteor quietly once he has drunk from the chalice.', cite: 'SV p. 18' });
-      if (o.wholePrayer) B({ S: 'say confiteor-m.0-7', cues: [{ at: 'mea culpa', cmd: 'strike 3' }] });
-      else for (let i = 0; i < 8; i++) B({ S: `say confiteor-m.${i}${i === 4 ? '; strike 3' : ''}` });
+      B({ S: 'bow deep', K: 'stand; kneel; bow deep', note: 'A profound bow; say the Confiteor quietly once he has drunk from the chalice.', cite: 'SV p. 18' });
+      if (o.wholePrayer) B({ S: 'say confiteor-m.0-7', K: 'say confiteor-m.0-7', cues: [{ at: 'mea culpa', cmd: 'strike 3' }] });
+      else for (let i = 0; i < 8; i++) { const c = `say confiteor-m.${i}${i === 4 ? '; strike 3' : ''}`; B({ S: c, K: c }); }
       B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people; say confiteor-m.8', note: 'Do NOT move until he gives the Misereatur.', cite: 'SV p. 19' });
-      B({ S: 'say confiteor-m.9' });
-      B({ P: 'g blessPeople; say confiteor-m.10', S: 'up; cross', note: 'Rise from the bow, still kneeling.', cite: 'SV p. 19' });
-      B({ S: 'say confiteor-m.11' });
+      B({ S: 'say confiteor-m.9', K: 'say confiteor-m.9' });
+      B({ P: 'g blessPeople; say confiteor-m.10', S: 'up; cross', K: 'up; cross', note: 'Rise from the bow, still kneeling.', cite: 'SV p. 19' });
+      B({ S: 'say confiteor-m.11', K: 'say confiteor-m.11' });
     } else {
       B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people' });
     }
     B({ P: 'g showHost; say T.ecce' });
-    for (let i = 0; i < 3; i++) B({ P: 'say T.dnsdC', S: 'strike 1', note: i ? '' : 'Strike your breast at each “Domine, non sum dignus”.', cite: i ? '' : 'SV p. 22' });
+    for (let i = 0; i < 3; i++) B({ P: 'say T.dnsdC', S: 'strike 1', K: 'strike 1', note: i ? '' : 'Strike your breast at each “Domine, non sum dignus”.', cite: i ? '' : 'SV p. 22' });
+    const goUp = o.choir ? `stand; go comK${o.choir}; kneel` : null;
     if (two) {
-      B({ P: 'g giveHost A1; say T.corpus', A1: 'receive', note: 'A1 receives first, holding the paten by its handle under his chin.', cite: 'SV p. 22' });
+      B({ P: 'g giveHost A1; say T.corpus', A1: 'receive', K: goUp, note: 'A1 receives first, holding the paten by its handle under his chin.', cite: 'SV p. 22' });
       B({ A1: 'offer paten', A2: 'take paten', note: 'A1 passes the paten to his left, to A2.', cite: 'SV p. 22' });
       B({ P: 'g giveHost A2; say T.corpus', A2: 'receive' });
     } else {
-      B({ P: 'g giveHost A1; say T.corpus', one: 'receive', note: 'Hold the paten by its handle, closely under your chin.', cite: '' });
+      B({ P: 'g giveHost A1; say T.corpus', one: 'receive', K: goUp, note: 'Hold the paten by its handle, closely under your chin.', cite: '' });
     }
+    if (o.choir) { B({ P: 'g giveHost K; say T.corpus', K: 'receive' }); thenK = `stand; go K.${o.choir}; sit`; }
     if (o.communion) {
       const holder = two ? 'A2' : 'A1';
       B({ P: 'go P.r1; face people', [two ? 'A2' : 'one']: 'stand; go pr1; face people',

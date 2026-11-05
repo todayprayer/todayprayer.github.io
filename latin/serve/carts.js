@@ -7,7 +7,7 @@
   const THREE = root.THREE, Plan = root.Plan;
   const wrap = a => { while (a > Math.PI) a -= 2 * Math.PI; while (a < -Math.PI) a += 2 * Math.PI; return a; };
   const LEN = 2.5, WIDE = 1.22, WHEELBASE = 1.66, TRACK = 0.98, WHEEL = 0.215;
-  const TOP = 7.5, BACK = 3, ACCEL = 2.6, BRAKE = 6, COAST = 1.5, STEER = 0.56, STEER_RATE = 1.9;
+  const TOP = 17, BACK = 5, ACCEL = 4.8, BRAKE = 10, COAST = 1.8, STEER = 0.56, STEER_RATE = 1.9;
   const SEAT = [0.27, -0.2], SEAT_Y = 0.16;    // the driver's place, and how much higher than an ordinary chair
 
   function profile(points) { const s = new THREE.Shape(); points.forEach(([z, y], i) => (i ? s.lineTo(z, y) : s.moveTo(z, y))); s.closePath(); return s; }

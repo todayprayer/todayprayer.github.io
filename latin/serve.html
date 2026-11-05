@@ -29,7 +29,7 @@ kbd { font: 600 12px/1 var(--sans); padding: 3px 6px; border-radius: 5px; border
 
 /* title */
 #title { position: fixed; inset: 0; display: grid; place-items: center; padding: 16px; background: radial-gradient(ellipse at center, rgba(12,8,5,.15), rgba(12,8,5,.6)); }
-.title-card { width: min(440px, 100%); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px 26px 22px; text-align: center; backdrop-filter: blur(6px); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
+.title-card { width: min(440px, 100%); max-height: calc(100vh - 32px); overflow-y: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 28px 26px 22px; text-align: center; backdrop-filter: blur(6px); box-shadow: 0 20px 60px rgba(0,0,0,.45); }
 .title-card h1 { font: 500 38px/1.1 var(--serif); margin: 0 0 6px; letter-spacing: .01em; }
 .title-card .sub { color: var(--muted); font-size: 14px; margin: 0 0 22px; }
 .title-card .stack { display: grid; gap: 10px; }
@@ -150,7 +150,7 @@ body.touch[data-mode="play"] #respond { bottom: 180px; }
 #explore-bar .osm { font-size: 11px; color: #f4ecdc; background: rgba(20,14,9,.55); padding: 2px 7px; border-radius: 6px; }
 #explore-bar .osm a { color: inherit; }
 body.touch #explore-bar { left: 172px; bottom: 8px; }
-body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: none; }
+body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-score .score { display: none; }
 @media (max-width: 640px) {
   .choices { grid-template-columns: 1fr; }
   .cap-la { font-size: 18px; }
@@ -191,7 +191,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
     </div>
     <p class="rotate-tip">Turn your phone sideways for a wider view of the sanctuary.</p>
     <p class="foot"><a href="index.html">← Latin Instructor</a></p>
-    <p class="foot">Streets, buildings, heights, names and addresses of Northridge © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. Aerial: USDA NAIP, May 2022 (public domain). Textures: Poly Haven (CC0). Houses beyond the church are generated from their real outlines.</p>
+    <p class="foot">Streets, buildings, heights, names and addresses of Northridge © <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors. Aerial: USDA NAIP, May 2022 (public domain). Roof, tree and hedge heights: USGS 3DEP lidar (public domain). Footsteps: Kenney, RPG Audio (CC0). Textures: Poly Haven (CC0). Houses beyond the church are generated from their real outlines.</p>
   </div>
 </section>
 
@@ -207,9 +207,10 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
   <div id="note" hidden></div>
   <div id="explore-bar" hidden>
     <button class="btn primary" id="btn-serve-here" hidden>Serve Mass from here</button>
+    <button class="btn primary" id="btn-choir" hidden>Sit in choir (Enter)</button>
     <button class="btn primary" id="btn-cart" hidden>Get in the golf cart (Enter)</button>
     <div id="explore-tip">↑ ↓ walk · ← → turn · Shift runs · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather</div>
-    <div class="osm">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · aerial USDA NAIP · textures Poly Haven</div>
+    <div class="osm">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · aerial USDA NAIP · laser heights USGS 3DEP · textures Poly Haven · footsteps Kenney</div>
   </div>
   <div id="remind" hidden></div>
   <div id="grab-tip" hidden></div>
@@ -266,7 +267,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
       <kbd>Space</kbd><span>Make the sign of the cross.</span>
       <kbd>1–4</kbd><span>Choose your spoken response. While the priest is speaking you can get it ready, and change your mind; it is said when he finishes. If you have none ready by then, you have a second and a half. If you chose to type your responses, type them like speaking: you have that same time to begin, and after that each right letter adds its share of the time the line takes to say, at four syllables a second unless you change that in the options. The Confiteor is typed whole, and your turns and strikes come due as you reach those words. Fall behind that pace for long, or stop, and you run out. It is followed as speech is heard: accents, capitals, punctuation and spelling do not matter (<i>caeli</i> or <i>coeli</i>, <i>Jesu</i> or <i>Iesu</i>), a few letters out in a word is let go, and in a longer line so is a missed or stray word. It ends by itself when you reach the end of the line. The box turns red only if you have lost the line.</span>
       <kbd>Alt</kbd><span>Only while a line is waiting to be typed: your hands are busy, so Alt makes the movement that is due now: a bow, a turn, a strike of the breast, kneeling, standing, a genuflection. You still have to remember it at the right moment, and pressing it with nothing due is a slip. The sign of the cross is always Space; walking and handling things stay yours.</span>
-      <kbd>Drag</kbd><span>Anywhere but your own body: look around, without changing the way you walk.</span>
+      <kbd>Drag</kbd><span>Anywhere but your own body: look all around you, and up at the sky, without changing the way you walk.</span>
       <kbd>R</kbd><span>Camera back behind you (or double-click).</span>
       <kbd>W</kbd><span>Change the weather: clear, cloudy, overcast, rain.</span>
       <kbd>Esc</kbd><span>Pause</span>
@@ -278,6 +279,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
       <kbd>Your back</kbd><span>Drag it down to bow: a little for a moderate bow, far for a profound one. Drag it back up to straighten. Sideways, it turns you: that is how you face the priest while you are bowed.</span>
     </div>
     <p>While you hold a hand, circles mark what you can reach. They do not tell you which is wanted.</p>
+    <p><b>Walking around</b> is only for fun: nothing is scored, and a Mass you start from there can never fail. <b>Watching from the choir</b>, a choice when you go to serve, you sit on the bench beside the altar (or, walking around, go to a bench, sit there, and start the Mass). All that is asked of you is the second Confiteor with the servers, going up to receive, and going back; only there can you slip, and the Mass goes on unless you knock someone over. <b>As the priest</b> (experimental, the other choice when you go to serve), you walk, turn, bow, genuflect, make the signs and say the audible prayers; his hands at the altar and his silent prayers happen by themselves.</p>
     <p>Reminders at the top say which button comes next, and why. Turn them off with the button under the keys, or in the options.</p>
     <p>On a phone or tablet the same moves are buttons on screen. The Mass runs in real time: the priest and the other server never wait, so it is your job to keep up. A moment you miss is a slip, facing the wrong way is a slip (nobody turns you: use <kbd>←</kbd> <kbd>→</kbd>), and a response not given in time goes unsaid. Ten slips are allowed, a major slip counting as three; one more ends the Mass. Miss something essential (keeping with the priest in procession, what he needs brought to him, the bell at the Consecration) or walk out, and the Mass ends for you and you choose to start again. You keep your place: leaving it is a major slip, staying away ends the Mass, and so does walking up to the altar unbidden. In procession those behind you wait for you to go ahead. Everyone is solid: walking square into someone or standing in their way is a major slip, and knocking the priest (while he carries something, on the steps, by pushing, or a second time) ends the Mass. It is up to you to know what comes next: the top right shows the keys and the buttons, the warnings at the bottom right tell you what you missed, and the summary at the end explains each slip. Circles on the floor show where to go, unless you turn them off in the options.</p>
   </div>
@@ -285,10 +287,13 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
 
 <div class="panel" id="which" hidden>
   <div class="card" style="width:min(480px,100%)">
-    <h2>Which server are you?</h2>
+    <h2>How will you take part?</h2>
     <div class="stack-row" style="justify-content:stretch;flex-direction:column">
       <button class="btn primary" data-role="A1">A1, the first server<br><small>On the Epistle side. You ring the bells and move the missal.</small></button>
       <button class="btn primary" data-role="A2">A2, the second server<br><small>You lead the procession, on the Gospel side, and hold the paten at Communion.</small></button>
+      <button class="btn primary" id="btn-serve-one">The server<br><small>You serve this Mass alone. To serve with someone, choose two servers in the options.</small></button>
+      <button class="btn" id="btn-as-priest">The priest (experimental)<br><small>You walk, bow, genuflect, make the signs and say the audible prayers. His hands at the altar and his silent prayers happen by themselves.</small></button>
+      <button class="btn" id="btn-as-choir">Watch only, from the choir<br><small>Sit on the bench beside the altar. You say the second Confiteor with the servers, go up to receive, and come back.</small></button>
       <button class="link" id="btn-which-back" style="align-self:center">Back</button>
     </div>
   </div>
@@ -312,6 +317,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
       <button class="btn primary" id="btn-resume">Resume</button>
       <button class="btn" id="btn-pause-options">Options</button>
       <button class="btn" id="btn-restart">Start again</button>
+      <button class="btn" id="btn-walk-on" hidden>Go back to walking around</button>
       <button class="btn" id="btn-quit">Back to the title</button>
     </div>
   </div>
@@ -335,7 +341,11 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track { display: no
 <script src="serve/northridge.js"></script>
 <script src="serve/carts.js"></script>
 <script src="serve/traffic.js"></script>
+<script src="serve/bus-data.js"></script>
+<script src="serve/transit.js"></script>
 <script src="serve/weather.js"></script>
+<script src="serve/steps-data.js"></script>
+<script src="serve/ambient.js"></script>
 <script src="serve/game.js"></script>
 </body>
 </html>

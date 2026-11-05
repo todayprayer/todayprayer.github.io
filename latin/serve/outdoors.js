@@ -97,7 +97,7 @@
       for (let gx = Math.floor(Math.min(...xs) / CELL); gx <= Math.floor(Math.max(...xs) / CELL); gx++) for (let gz = Math.floor(Math.min(...zs) / CELL); gz <= Math.floor(Math.max(...zs) / CELL); gz++) {
         const k = gx + ',' + gz; if (!solids.has(k)) solids.set(k, []); solids.get(k).push(pts);
       }
-      if (bd.isMoved) return;
+      if (root.WideData && root.WideData.tile) return;      // drawn with the rest of the town
       const { ang, rects } = wings(pts, L >= 2 ? 3 : 1);
       if (!rects.length) return;
       const wallC = WALL[n % WALL.length], roofC = bd.c == null ? 0x6a625a : bd.c, trimC = n % 3 === 0 ? 0x5a4632 : 0xe8e4da;
@@ -523,7 +523,7 @@
   /** Every tree as instances, redrawn in detail only near the camera. */
   function buildTrees(group, W, inHouse) {
     const list = [];
-    const put = (x, z, h, sp, tint) => list.push({ x, z, h, sp, tint });
+    const put = (x, z, h, sp, tint, wide) => list.push({ x, z, h, sp, tint, wide });
     const r = rng(2024);
     const GREEN = [0x234a1c, 0x2c5522, 0x1c4018, 0x365c24, 0x264a1c];
     // on the church's grounds, by hand from the 2025 views
@@ -534,7 +534,8 @@
     for (const [E, N] of [[92, 30], [92, 8], [40, 86], [24, 80]]) { const [x, z] = Plan.world(E, N); put(x, z, 9, 'palm', 0x2c5522); }
     // the rest, where the aerial shows crowns
     const share = Q.trees;
-    for (const t of Data.trees) {
+    const laser = root.WideData && root.WideData.trees && root.WideData.trees[0] && root.WideData.trees[0].length >= 5;
+    for (const t of laser ? [] : Data.trees) {
       if (r() > share) continue;
       const [x, z, h, kind] = t;
       if (inHouse(x, z)) continue;
@@ -542,10 +543,13 @@
       const sp = kind === 1 || u < 0.16 ? 'pine' : u < 0.22 ? 'palm' : u < 0.27 ? 'cypress' : u < 0.62 ? 'oak' : 'maple';
       put(x, z, sp === 'palm' ? 7 + r() * 5 : sp === 'cypress' ? 6 + r() * 5 : sp === 'pine' ? Math.max(11, h * 1.15) : h, sp, sp === 'pine' || sp === 'cypress' ? 0x16361f : GREEN[Math.floor(r() * GREEN.length)]);
     }
-    for (const t of (root.WideData && root.WideData.trees) || []) {
+    // every other tree where the laser found it: its true height and spread, its colour from the photograph, its kind guessed from its shape
+    if (laser) for (const [x, z, h, cr, col] of root.WideData.trees) {
       if (r() > share) continue;
-      const u = r(), [x, z, h] = t, sp = u < 0.1 ? 'pine' : u < 0.17 ? 'palm' : u < 0.22 ? 'cypress' : u < 0.62 ? 'oak' : 'maple';
-      put(x, z, sp === 'palm' ? 7 + r() * 5 : sp === 'cypress' ? 6 + r() * 5 : sp === 'pine' ? Math.max(11, h * 1.15) : h, sp, sp === 'pine' || sp === 'cypress' ? 0x16361f : GREEN[Math.floor(r() * GREEN.length)]);
+      const ratio = cr / Math.max(1, h), red = (col >> 16) & 255, gr = (col >> 8) & 255, bl = col & 255, dark = red + gr + bl < 190;
+      const sp = h > 9 && cr < 2.6 ? 'palm' : h > 7 && cr < 1.8 ? 'cypress' : dark && ratio < 0.3 ? 'pine' : ratio > 0.42 ? 'oak' : 'maple';
+      const tint = (Math.round(red * 0.42) << 16) | (Math.round(Math.min(255, gr * 0.74)) << 8) | Math.round(bl * 0.38);
+      put(x, z, h, sp, tint, Math.max(0.55, Math.min(1.7, cr / (h * 0.36))));
     }
     const tex = { broad: texBroad(), needle: texNeedle(), frond: texFrond() };
     const bark = Tex.mat('bark', { rough: 1, normal: 1 });
@@ -579,13 +583,13 @@
         let n = 0, f = 0, w = 0;
         for (const t of set.items) {
           const d = Math.hypot(t.x - x, t.z - z);
-          if (d > far) continue;
+          if (d > far || (d > 650 && (Math.round(t.x * 3) & 1))) continue;      // far off, half of them will do
           dummy.position.set(t.x, 0, t.z); dummy.rotation.set(0, (t.x * 13.7 + t.z * 7.1) % 6.283, 0);
-          const wide = 0.86 + ((t.x * 3.1 + t.z) % 1 + 1) % 1 * 0.3;
+          const wide = t.wide || 0.86 + ((t.x * 3.1 + t.z) % 1 + 1) % 1 * 0.3;
           dummy.scale.set(t.h * wide, t.h, t.h * wide); dummy.updateMatrix();
           color.setHex(t.tint);
           if (d < 110) { set.nearL.setMatrixAt(n, dummy.matrix); set.nearL.setColorAt(n, color); n++; } else { set.farL.setMatrixAt(f, dummy.matrix); set.farL.setColorAt(f, color); f++; }
-          if (d < 240) set.wood.setMatrixAt(w++, dummy.matrix);
+          if (d < 240) { if (t.wide) { dummy.scale.set(t.h * 0.62, t.h, t.h * 0.62); dummy.updateMatrix(); } set.wood.setMatrixAt(w++, dummy.matrix); }
         }
         set.nearL.count = n; set.farL.count = f; set.wood.count = w;
         set.nearL.instanceMatrix.needsUpdate = set.farL.instanceMatrix.needsUpdate = set.wood.instanceMatrix.needsUpdate = true;

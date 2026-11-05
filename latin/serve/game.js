@@ -74,6 +74,11 @@
   let walkerOut = null;         // whoever is out and about, for the traffic to mind
   const CARS = Traffic.build(scene, () => walkerOut, OUT3D.inHouse, CART);
   const SKY = Weather.build(scene, World, world.lights, { windowMat: SITE3D.windowMat, wetMats: [...SITE3D.wetMats, ...(OUT3D.wetMats || []), ...WIDE.wetMats] });
+  // a little sky for the paint and glass of every vehicle to reflect
+  const TRANSIT_DEPS = () => ({ cars: CARS.cars, focus: () => { const f = walkerOut; return f ? [f.x, f.z] : [0, 20]; }, ahead: CARS.ahead, amb: AMB, nearestRoad: WIDE.nearestRoad });
+  { const pm = new THREE.PMREMGenerator(renderer), sc = new THREE.Scene(), sph = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 12), new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 v; void main() { v = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'varying vec3 v; void main() { float h = normalize(v).y; vec3 sky = mix(vec3(0.82, 0.88, 0.95), vec3(0.28, 0.48, 0.82), pow(max(h, 0.0), 0.5)), ground = mix(vec3(0.34, 0.33, 0.3), vec3(0.14, 0.14, 0.13), min(1.0, -h * 2.0)); gl_FragColor = vec4(h > 0.0 ? sky : ground, 1.0); }' })); sc.add(sph); Traffic.setEnv(pm.fromScene(sc, 0.02).texture); pm.dispose(); }
+  const AMB = Ambient.build(scene, { audio: () => audio(), camera, figures: () => Object.values(FIG), sky: SKY, statue: OUT3D.statue, parent: OUT3D.group });
+  const TRANSIT = Transit.build(CARS.group, TRANSIT_DEPS());
 
   function resize() {
     const w = window.innerWidth, ht = window.innerHeight;
@@ -90,7 +95,7 @@
   // At the altar it is fixed, as if held above the gate. Everywhere else it follows on an arm behind the walker,
   // shortened whenever a wall would come between them.
   const Cam = {
-    massFov: 60, walkFov: 60, fixed: true, yaw: 0, view: 0, offset: 0, armBase: 3.2, armRoom: 3.2, snap: true,
+    massFov: 60, walkFov: 60, fixed: true, yaw: 0, view: 0, offset: 0, pitch: 0, armBase: 3.2, armRoom: 3.2, snap: true,
     goal: V(...CAM.pos), look: V(...CAM.look), lookNow: V(...CAM.look),
     /** How far back from you the camera can go before it meets anything taller than it looks over. */
     clearBehind(f, ax, az, arm) {
@@ -107,6 +112,11 @@
       this.fixed = !always && (!f || this.atAltar(f.x, f.z));
       if (this.fixed) {
         this.goal.set(...CAM.pos); this.look.set(...CAM.look);
+        if (this.offset || this.pitch) {      // dragged: it turns where it stands
+          const dx = this.look.x - this.goal.x, dy = this.look.y - this.goal.y, dz = this.look.z - this.goal.z, flat = Math.hypot(dx, dz), r = Math.hypot(flat, dy);
+          const yw = Math.atan2(dx, dz) + this.offset, a = Math.max(-1.5, Math.min(1.5, Math.atan2(dy, flat) + this.pitch));
+          this.look.set(this.goal.x + Math.sin(yw) * Math.cos(a) * r, this.goal.y + Math.sin(a) * r, this.goal.z + Math.cos(yw) * Math.cos(a) * r);
+        }
       } else {
         // behind you and rigid, turning exactly as you turn; dragging swings it away from there until R brings it back
         const out = Plan.regionAt(f.x, f.z);
@@ -125,7 +135,7 @@
           }
           this.yaw = this.snap ? this.view : this.yaw + wrap(this.view - this.yaw) * Math.min(1, dt * 1.5);
         }
-        const ax = Math.sin(this.yaw), az = Math.cos(this.yaw), clear = this.clearBehind(f, ax, az, arm);
+        const swung = always ? this.yaw : wrap(this.yaw + this.offset), ax = Math.sin(swung), az = Math.cos(swung), clear = this.clearBehind(f, ax, az, arm);
         this.armBase = this.snap ? arm : this.armBase + (arm - this.armBase) * Math.min(1, dt * 3);
         // never through a wall: with one close behind you it comes in at once, and goes out again gently once there is room
         this.armRoom = this.snap || clear < this.armRoom ? clear : this.armRoom + (clear - this.armRoom) * Math.min(1, dt * 5);
@@ -133,10 +143,25 @@
         const d = Math.min(this.armBase, this.armRoom), k = Math.min(1, d / 2.2), high = room ? 2.25 : 2.3 + (arm - 3.2) * 0.25 + (CART.driving ? 0.45 : 0), ahead = (1 - k) * 0.6;
         this.goal.set(f.x + ax * d, f.y + 1.95 + (high - 1.95) * k, f.z + az * d);
         this.look.set(f.x - ax * ahead, f.y + 1.0 + 0.1 * k, f.z - az * ahead);
+        // seated or kneeling, with a wall close behind you: over your shoulder, looking out across the room rather than down at your own knees
+        if ((f.posture === 'sit' || f.posture === 'kneel') && !CART.driving && d < 1.6) {
+          const back = Math.min(d, 0.42);
+          this.goal.set(f.x + ax * back, f.y + 1.38, f.z + az * back);
+          this.look.set(f.x - ax * 6, f.y + 0.95, f.z - az * 6);
+        }
+        // dragged up or down: it swings round your head, low to look up at the sky, high to look down on you
+        if (this.pitch) {
+          const hx = this.look.x - this.goal.x, hy = this.look.y - this.goal.y, hz = this.look.z - this.goal.z;
+          const a = Math.max(-1.45, Math.min(1.45, Math.atan2(hy, Math.hypot(hx, hz)) + this.pitch)), ca = Math.cos(a), sa = Math.sin(a), w = Math.min(1, Math.abs(this.pitch) / 0.3);
+          const head = f.y + 1.45, r = Math.max(d, 0.6), gy = Math.max(f.y + 0.3, Math.min(room ? 2.4 : head + r, head - sa * r));
+          const gx = f.x + ax * r * ca, gz = f.z + az * r * ca;
+          this.goal.set(this.goal.x + (gx - this.goal.x) * w, this.goal.y + (gy - this.goal.y) * w, this.goal.z + (gz - this.goal.z) * w);
+          this.look.set(this.look.x + (gx - ax * ca * 6 - this.look.x) * w, this.look.y + (gy + sa * 6 - this.look.y) * w, this.look.z + (gz - az * ca * 6 - this.look.z) * w);
+        }
       }
       const s = this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? 2.6 : 9));
       camera.position.lerp(this.goal, s);
-      this.lookNow.lerp(this.look, this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? 2.6 : 11)));
+      this.lookNow.lerp(this.look, this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? (this.offset || this.pitch ? 18 : 2.6) : 11)));
       camera.lookAt(this.lookNow);
       let near = this.near0 || (this.near0 = camera.near);
       if (!this.fixed && always) {
@@ -167,6 +192,7 @@
     C2: new Figure('lay', { name: 'C2', coat: 0x4a2226, trousers: 0x1c1c22, hair: 0x120c08, hairStyle: 'long', skin: 0xcfa283 }),
     C3: new Figure('lay', { name: 'C3', coat: 0x2c3a24, trousers: 0x201c18, hair: 0x4a433c, skin: 0xc4977a }),
     C4: new Figure('lay', { name: 'C4', coat: 0x3a3028, trousers: 0x14161c, hair: 0x6a4a28, hairStyle: 'long', skin: 0x8a6044 }),
+    K: new Figure('server', { name: 'In choir', hair: 0x2c2018, hairStyle: 'side', skin: 0xcfa283 }),
   };
   for (const f of Object.values(FIG)) scene.add(f.root);
   Figure.bodies = Object.values(FIG);
@@ -602,8 +628,9 @@
   function audio() {
     if (!opts.sound) return null;
     try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { return null; }
-    return actx;
+    return inDemo() ? null : actx;      // the Mass behind the title plays in silence
   }
+  const inDemo = () => !!director && director.kind === 'demo';
   function chime(kind) {
     const a = audio(); if (!a) return;
     const t0 = a.currentTime, big = kind === 'sacristy', len = big ? 2.8 : 1.0;
@@ -746,7 +773,7 @@
     abl1: 'the top step, half way across', cruWait1: 'the foot of the steps at the Epistle corner', cruWait2: 'the foot of the steps at the Epistle corner',
     cruWaitS: 'the foot of the steps at the Epistle corner', cruA1: 'the second step at the Epistle corner', cruA2: 'the second step at the Epistle corner',
     cruS: 'the second step at the Epistle corner', cruA3: 'the second step, outside A1', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
-    sed: 'the sedilia (the priest’s chair)', stoolE: 'your stool', stoolG: 'your stool',
+    sed: 'the sedilia (the priest’s chair)', stoolE: 'your stool', stoolG: 'your stool', 'K.E': 'your place on the choir bench', 'K.G': 'your place on the choir bench', comKE: 'the top step, beside the servers', comKG: 'the top step, beside the servers',
     gateE: 'the Epistle-side gate', gateG: 'the Gospel-side gate', midRail: 'the middle, by the gates',
     clothE: 'the rail cloth on the Epistle side', clothG: 'the rail cloth on the Gospel side',
     cornerG: 'round the Gospel end of the altar', floorG: 'the Gospel end of the altar', cornerE: 'round the Epistle end',
@@ -817,6 +844,7 @@
     'dip', 'offerwater', 'touch', 'tug', 'fold', 'say']);
   const USE_AS = { take: 'take', put: 'put', give: 'give', offer: 'give', hold: 'give', light: 'candle', snuff: 'candle', open: 'gate', close: 'gate', flip: 'gate', unflip: 'gate',
     dip: 'touch', offerwater: 'touch', touch: 'touch', fold: 'fold', sit: 'sit' };      // which button each of these things is done with
+  const PRIEST_HANDS = new Set(['take', 'put', 'give', 'offer', 'hold', 'offerwater', 'touch', 'dip', 'pour', 'open', 'close', 'flip', 'unflip', 'kiss', 'light', 'snuff', 'tug', 'fold', 'pinch', 'lift', 'drop', 'ring', 'sit']);      // as the priest: what happens by itself
   const SPACE_VERBS = new Set(['take', 'put', 'give', 'offer', 'hold', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold', 'sit']);
 
   // ─── target positions and headings ────────────────────────────────────────
@@ -854,7 +882,7 @@
       this.kind = kind;                     // 'demo' | 'watch' | 'play'
       this.o = Object.assign({}, o, { seed: o.seed || (Date.now() % 9973) + 1 });
       this.beats = C.build(Object.assign({}, this.o, { wholePrayer: kind === 'play' && this.o.respond === 'type' }));
-      this.player = kind === 'play' ? (this.o.servers === 2 ? this.o.role : 'A1') : null;
+      this.player = kind === 'play' ? (this.o.priest ? 'P' : this.o.choir ? 'K' : this.o.servers === 2 ? this.o.role : 'A1') : null;
       this.stopped = false;
       this.timers = [];
       this.time = 0;
@@ -866,7 +894,7 @@
     stop() { this.stopped = true; for (const t of this.timers) t.resolve(); this.timers = []; }
     /** Something essential went undone: the Mass cannot go on with you, and it is yours to start again. */
     fail(reason, expected, cite) {
-      if (this.failed || this.kind !== 'play') return;
+      if (this.failed || this.kind !== 'play' || this.o.casual) return;
       this.failed = true;
       this.results.failure = { part: this.beats[this.index] ? this.beats[this.index].part : '', reason, expected };
       UI.failed(this, reason, expected, cite);
@@ -927,7 +955,7 @@
 
     /** People do not reach across a room: go near enough to whoever you are dealing with, and turn to them. */
     async approach(role, other, reach) {
-      if (role === this.player) return;       // you do your own walking
+      if (role === this.player && role !== 'P') return;       // you do your own walking; the priest's hands are the game's
       const f = FIG[role], o = FIG[other];
       if (!o || !o.root.visible || f.posture !== 'stand') return;
       const d = Math.hypot(o.x - f.x, o.z - f.z);
@@ -962,7 +990,7 @@
         case 'turn': return this.step(f.turnTo(headingFor(role, args[1]), args[0]));
         case 'pace': {
           // walking behind the player: not until they have cleared this point. The other server does this only behind you.
-          if (!this.player || role === this.player || (role === 'A1' && this.player !== 'A2')) return;
+          if (!this.player || role === this.player || (role === 'A1' && this.player !== 'A2') || this.player === 'P' || this.player === 'K') return;
           const n = +args[0];
           if (Player.stage !== Infinity) f.keepBehind = FIG[this.player];      // nobody waits on someone whose part is over
           await this.step(this.until(() => Player.stage >= n));
@@ -1075,7 +1103,7 @@
       const both = isServer && this.o.servers === 2 && (beat.tracks.A1 || []).includes('say ' + ref) && (beat.tracks.A2 || []).includes('say ' + ref);
       if (both && role === 'A2') return this.step(this.until(() => this.answered[ref]));
       const who = role === 'P' ? (t.who === 'A' ? 'All' : 'P.') : both ? 'A1 · A2' : this.o.servers === 2 ? role : 'S.';
-      if (this.kind !== 'play' || role === 'P') UI.caption(who, t, role);      // serving, the top of the screen is for the priest alone
+      if (this.kind !== 'play' || role === 'P' || this.player === 'P' || this.player === 'K') UI.caption(who, t, role);      // serving, the top of the screen is for the priest alone
       const dur = (t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE;
       // a line you have to answer: you hear it out, and meanwhile you can get your answer ready
       const mine = (beat.tracks[role] || []), lastSay = mine.filter(c => c.startsWith('say ')).pop() === 'say ' + ref;
@@ -1096,10 +1124,13 @@
       const list = this.player && this.beats[this.index + 1] && this.beats[this.index + 1].tracks[this.player];
       if (!list) return null;
       const i = list.findIndex(c => c.startsWith('say '));
+      if (i >= 0 && this.player === 'P' && C.lineText(list[i].slice(4), Mass).silent) return null;      // what he says under his breath is simply said
       return i >= 0 && i <= 2 && !list.slice(0, i).some(c => /^(go|via|take|put|give) /.test(c)) ? list[i].slice(4) : null;
     }
 
     mistake(text, expected, beat, major) {
+      if (this.o.casual) return;      // only for fun
+      if (this.o.choir && !(this.beats[this.index] && this.beats[this.index].tracks.K)) return;      // nothing is asked of you in choir but the Confiteor and Communion
       this.results.mistakes.push({ part: beat ? beat.part : '', text, expected: expected || '', note: beat ? beat.note : '', cite: beat ? beat.cite : '', major: !!major });
       this.results.slips = (this.results.slips || 0) + (major ? 3 : 1);      // a major slip counts for three
       UI.mistake(text, expected, major);
@@ -1239,8 +1270,10 @@
           continue;
         }
         this.nextPoint = null;
+        if (d.player === 'P' && (PRIEST_HANDS.has(verb) || verb === 'face' || verb === 'wait')) { if (verb === 'face') this.lastFace = headingFor('P', args[0]); await this.auto(d, c, beat); continue; }
         if (verb === 'via' || verb === 'face' || verb === 'wait') { if (verb === 'face') this.lastFace = headingFor(d.player, args[0]); continue; }
         if (!KEY_VERBS.has(verb)) { await d.exec(d.player, c, beat); continue; }
+        if (verb === 'say' && d.player === 'P' && C.lineText(args[0], Mass).silent) { await d.exec('P', c, beat); continue; }
         if (verb === 'say') { await this.respond(d, args[0], beat); continue; }
         // a bow that is already held only needs re-aiming
         // and you are already bowing: that is the bow wanted
@@ -1251,6 +1284,7 @@
         if (verb === 'go') this.lastGo = args[0];
         this.nextTogether = togetherKey(list, i);
         await this.expect(d, c, beat);
+        if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, c.replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
         if (verb === 'go') { this.lastFace = spot(args[0])[2]; }
       }
       this.cur = null; this.list = null; if (this.then && !this.then.far) this.then = null; UI.remind(null);
@@ -1276,6 +1310,12 @@
       const p = new Promise(resolve => { this.resolve = resolve; });
       if (window.__serve.autoplay) setTimeout(() => this.runAuto(), 0);     // tests: a perfect server
       return p;
+    },
+
+    /** Something done for you, while you wait for it. */
+    async auto(d, c, beat) {
+      this.autoing = true;
+      try { await d.exec(d.player, c, beat); } finally { this.autoing = false; }
     },
 
     /** Alt, in typing mode: your hands are on the keyboard, so your body moves when you remember to tell it to. */
@@ -1408,10 +1448,10 @@
         o.bumps = this.t - (o.bumpAt == null ? -99 : o.bumpAt) < 30 ? (o.bumps || 0) + 1 : 1;
         o.bumpAt = this.t;
         o.stumble(false); chime('sacristy');
-        d.mistake('You bumped into ' + name, 'Nobody walks through anybody: go round.', this.beat, true);
+        if (!d.o.choir) d.mistake('You bumped into ' + name, 'Nobody walks through anybody: go round.', this.beat, true);
       }
       o.bumpAt = this.t;
-      if (d.o.failing === false) return false;
+      if (d.o.failing === false && !d.o.choir) return false;
       const carried = Props.held(role).filter(p => /^(chalice|ciborium|paten|wine|water|bowl|pitcher|missal|bells)$/.test(p) && !(p === 'biretta'));
       let why = null;
       if (isP) {
@@ -1502,6 +1542,20 @@
       if (Explore.active) return UI.paused ? undefined : Explore.act(type, arg);
       const d = this.d, f = d && FIG[d.player], c = this.cur;
       if (!d || d.kind !== 'play' || this.autoing || UI.paused) return;
+      // in choir, with nothing asked of you, your body is your own
+      if (d.o.choir && !c) {
+        switch (type) {
+          case 'kneel': if (f.posture === 'stand' && !f.walk) f.kneel(); return;
+          case 'stand': case 'rise': if (f.posture !== 'stand') f.stand(); return;
+          case 'sit': { if (f.posture !== 'stand') return; const n = seatNear(f); if (n) { const s = spot(n); f.x = s[0]; f.z = s[1]; f.heading = s[2]; } f.sit(); return; }
+          case 'gen': if (f.posture === 'stand') f.genuflect(); return;
+          case 'cross': Gest.cross(f); return;
+          case 'strike': Gest.strike(f); return;
+          case 'nod': f.nod(); return;
+          case 'bow': f.bow(f.bowLevel ? 0 : arg === 'deep' ? 3 : 2); return;
+          default: return;
+        }
+      }
       // not quite there, and getting on with what you came to do
       if (c && (c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto')) {
         const nx = this.nextAction(), s = nx && nx.to && spot(nx.to);
@@ -1708,7 +1762,7 @@
       a.onType(a.progress);
     },
     /** A second and a half to choose or to start; going on with your own prayer, a little longer to find the next part. */
-    timeFor(d, ref) { return /^confiteor-m\.0/.test(ref) || (d.o.respond !== 'type' && /^confiteor-m\.[1-7]$/.test(ref)) ? 3 : 1.5; },
+    timeFor(d, ref) { if (d.player === 'P') return 5; return /^confiteor-m\.0/.test(ref) || (d.o.respond !== 'type' && /^confiteor-m\.[1-7]$/.test(ref)) ? 3 : 1.5; },
     ready(d, ref, title) {
       const t = C.lineText(ref, Mass);
       return UI.ask(t, ref, d.o.respond, this.timeFor(d, ref), true, title);
@@ -1720,7 +1774,7 @@
       const got = d.ready && d.ready.ref === ref ? d.ready.result : null;
       d.ready = null;
       UI.heard();      // he has finished: what you had ready is said now, and if nothing, your time starts
-      const own = /^confiteor-m\.[0-7](-7)?$/.test(ref);      // going on with your own prayer: nobody has said anything to you
+      const own = d.player === 'P' || /^confiteor-m\.[0-7](-7)?$/.test(ref);      // going on with your own prayer: nobody has said anything to you
       const speaking = got || UI.ask(t, ref, d.o.respond, this.timeFor(d, ref), false, own ? 'You say' : 'Your response');
       this.cueUp(d, beat, t);
       const result = await speaking;
@@ -1736,7 +1790,7 @@
         const next = d.nextSay();
         if (next) d.ready = { ref: next, result: this.ready(d, next, /^confiteor-m\.[0-7]$/.test(next) ? 'You say next' : 'Your response') };
       }
-      if (own && d.o.respond !== 'type') await d.step(d.sleep((result.ok ? Math.max(1.4, t.la.length * 0.065) : 1) * d.o.speed));      // typed, it has already taken as long as it took
+      if (own && d.player !== 'P' && d.o.respond !== 'type') await d.step(d.sleep((result.ok ? Math.max(1.4, t.la.length * 0.065) : 1) * d.o.speed));      // typed, it has already taken as long as it took
       else await d.step(d.sleep((t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE * 0.6));
       d.answered[ref] = true;
     },
@@ -1772,7 +1826,9 @@
         this.away = allowed ? 0 : (this.away || 0) + dt;
         if (this.away > 2.5) { this.away = 0; return d.fail('You left ' + (before ? 'the church' : 'the sanctuary') + ' during the Mass.', 'Stay with the priest and in your place.'); }
       }
-      if (!this.autoing && !UI.paused) {
+      // as the priest you are led by the Mass: you move when it is yours to move, and otherwise stay at the altar
+      const mayMove = d.player !== 'P' || (c && /^(go|turn|faceto)$/.test(c.verb));
+      if (!this.autoing && !UI.paused && mayMove) {
         const turned = Input.turn(f, dt);
         if (turned && c && c.verb === 'turn') c.turned = (c.turned || 0) + turned;
       }
@@ -1785,7 +1841,7 @@
       if (c && !this.autoing && ((c.verb === 'up' && !f.bowLevel) || (c.verb === 'stand' && f.posture === 'stand') || (c.verb === 'kneel' && f.posture === 'kneel'))) { this.unbowed = null; this.unknelt = false; this.done(); return; }
       if (c && c.verb === 'faceto' && !this.autoing && !UI.paused && Math.abs(wrap(f.heading - headingFor(d.player, c.args[0]))) < 0.8) { this.done(); return; }
       const going = Input.walk();
-      if (going && !this.autoing && f.posture === 'stand' && !UI.paused) {
+      if (going && !this.autoing && f.posture === 'stand' && !UI.paused && mayMove) {
         {
           const sp = WALK * d.o.speed * dt * (going < 0 ? BACK : 1);      // the same pace as everyone else in this Mass
           const wx = Math.sin(f.heading) * going, wz = Math.cos(f.heading) * going;
@@ -1809,8 +1865,9 @@
         }
       }
       if (f.walkingManual > 0) { f.walkingManual -= dt; f.manualWalk = true; } else f.manualWalk = false;
-      if (!this.autoing && !UI.paused && !window.__serve.autoplay && this.checkPlace(d, f, c, dt)) return;
-      if (!UI.paused && !window.__serve.autoplay) { this.checkFacing(d, f, c, dt); if (d.failed) return; }
+      const atLiberty = d.o.casual || d.o.choir || d.o.priest;
+      if (!atLiberty && !this.autoing && !UI.paused && !window.__serve.autoplay && this.checkPlace(d, f, c, dt)) return;
+      if (!atLiberty && !UI.paused && !window.__serve.autoplay) { this.checkFacing(d, f, c, dt); if (d.failed) return; }
       // the moment for his alb is while he is on the steps: once he is at the top it has gone
       if (c && c.verb === 'pinch' && !this.autoing && !UI.paused && FIG.P.y >= C.heightAt(spot('P.mid')[0], spot('P.mid')[1]) - 0.03) { this.miss(); return; }
       if (c && c.verb === 'go' && !this.autoing) {
@@ -1922,8 +1979,8 @@
 
   // ─── walking around the church and grounds ─────────────────────────────────
   const Explore = {
-    active: false, region: '', runHeld: false,
-    start() {
+    active: false, region: '', runHeld: false, seat: null,
+    start(at) {
       if (director) director.stop();
       director = null; Player.d = null; Player.cur = null;
       UI.paused = false; $('#pause').hidden = true; $('#failed').hidden = true;
@@ -1935,8 +1992,10 @@
       this.wide(true);
       const f = FIG.A1, [x, z] = Plan.world(8, 15);
       f.place(x, z, Math.PI); f.y = 0;
-      camera.position.set(x, 3, z + 4.6);
-      Cam.fixed = false; Cam.offset = 0; Cam.snap = true;
+      if (at) f.place(at[0], at[1], at[2]);
+      this.seat = null;
+      camera.position.set(f.x, 3, f.z + 4.6);
+      Cam.fixed = false; Cam.offset = Cam.pitch = 0; Cam.snap = true;
       youRing.visible = false; goRing.visible = false; goArrow.visible = false;
       for (const id of ['#caption', '#note', '#respond', '#remind']) $(id).hidden = true;
       $('#explore-bar').hidden = false;
@@ -1945,7 +2004,28 @@
       this.region = '';
       this.setRegion();
     },
-    stop() { this.leaveCart(true); this.wide(false); this.active = false; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    stop() { this.leaveCart(true); this.wide(false); this.active = false; this.seat = null; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    /** The choir bench you are beside. */
+    benchSide(f) { for (const k of ['E', 'G']) { const s = spot('K.' + k); if (Math.hypot(f.x - s[0], f.z - s[1]) < 1.5) return k; } return null; },
+    sitInChoir(k) {
+      const f = FIG.A1, s = spot('K.' + k);
+      f.walk = null; f.turn = null; f.manualWalk = false; f.walkingManual = 0; f.x = s[0]; f.z = s[1]; f.heading = s[2]; f.sit();
+      this.seat = k; Cam.offset = Cam.pitch = 0;
+    },
+    /** Enter, or the button: sit down in choir, and once there, begin. Says whether it did anything. */
+    choirKey() {
+      const f = FIG.A1; if (CART.driving) return false;
+      if (this.seat && f.posture === 'sit') { startChoir(this.seat, [f.x, f.z, f.heading]); return true; }
+      const k = f.posture === 'stand' && this.benchSide(f);
+      if (k) { this.sitInChoir(k); return true; }
+      return false;
+    },
+    choirButton() {
+      const b = $('#btn-choir'), f = FIG.A1, seated = this.seat && f.posture === 'sit', near = seated || (!CART.driving && f.posture === 'stand' && !!this.benchSide(f));
+      if (near === b.hidden) b.hidden = !near;
+      const text = seated ? 'Start the Mass (Enter)' : 'Sit in choir (Enter)';
+      if (b.textContent !== text) b.textContent = text;
+    },
     /** Outdoors on foot or on wheels you can see across the whole town; at Mass there is no need. */
     wide(on) {
       const reach = on ? WIDE.fogFar : 620;
@@ -1987,7 +2067,7 @@
       if (force || near !== !b.hidden) b.hidden = !near;
       const text = driving ? 'Get out of the golf cart (Enter)' : 'Get in the golf cart (Enter)';
       if (b.textContent !== text) b.textContent = text;
-      const tip = driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather';
+      const tip = driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · the choir benches beside the altar start a Mass · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather';
       if ($('#explore-tip').textContent !== tip) $('#explore-tip').textContent = tip;
     },
     /** A cart's motor: a low electric hum that rises with the speed. */
@@ -2023,9 +2103,9 @@
     update(dt) {
       if (!this.active || UI.paused) return;
       const f = FIG.A1;
-      this.cartButton();
+      this.cartButton(); this.choirButton();
       if (CART.driving) {
-        const c = CART.driving, d = Input.down, open = (x, z) => Plan.free(x, z, 0.02, blocked) && !/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered walk/i.test(Plan.regionAt(x, z));
+        const c = CART.driving, d = Input.down, open = (x, z) => Plan.free(x, z, 0.02, blocked) && !WIDE.trunkAt(x, z, 0.02) && !/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered walk/i.test(Plan.regionAt(x, z));
         const hit = CART.drive(c, Math.min(dt, 0.05), { gas: !!d.ArrowUp, brake: !!d.ArrowDown, way: (d.ArrowLeft ? 1 : 0) - (d.ArrowRight ? 1 : 0) }, open);
         if (hit) this.bump(hit);
         this.motor(c.speed);
@@ -2053,7 +2133,7 @@
       if (CART.driving) return;           // both hands on the wheel
       switch (type) {
         case 'kneel': if (f.posture === 'stand') f.kneel(); return;
-        case 'stand': case 'rise': if (f.posture !== 'stand') f.stand(); return;
+        case 'stand': case 'rise': if (f.posture !== 'stand') f.stand(); this.seat = null; return;
         case 'gen': if (f.posture === 'stand') f.genuflect(); return;
         case 'genhold': if (f.posture === 'stand') f.genHold(); return;
         case 'nod': f.nod(); return;
@@ -2061,7 +2141,7 @@
         case 'cross': Gest.cross(f); return;
         case 'small': Gest.small(f); return;
         case 'strike': Gest.strike(f); return;
-        case 'sit': if (f.posture === 'stand') f.sit(); return;
+        case 'sit': if (f.posture === 'stand') { const k = this.benchSide(f); if (k) this.sitInChoir(k); else f.sit(); } return;
       }
     },
   };
@@ -2202,11 +2282,11 @@
     }
     if (e.target.closest && e.target.closest('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
     if (e.key === 'Escape') { UI.togglePause(); e.preventDefault(); return; }
-    if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); Explore.toggleCart(); e.preventDefault(); return; }
+    if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); if (!Explore.choirKey()) Explore.toggleCart(); e.preventDefault(); return; }
     if (e.key === 'Shift' && !e.repeat && !Explore.active) { audio(); Player.act('kneel'); return; }
     if (e.key === 'Control' && !e.repeat) { audio(); standOrSit(); e.preventDefault(); return; }
     if (e.key === ' ') { if (!e.repeat) { audio(); Player.act('cross'); } e.preventDefault(); return; }
-    if ((e.key === 'r' || e.key === 'R') && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { Cam.offset = 0; e.preventDefault(); return; }
+    if ((e.key === 'r' || e.key === 'R') && !e.repeat && !e.ctrlKey && !e.metaKey && !e.altKey) { Cam.offset = Cam.pitch = 0; e.preventDefault(); return; }
     if (UI.asking && !UI.asking.input && /^[1-4]$/.test(e.key)) { UI.pick(+e.key - 1); e.preventDefault(); return; }
     if (e.key.startsWith('Arrow')) { Input.key(e.key, true); e.preventDefault(); return; }
   });
@@ -2219,19 +2299,20 @@
     if (f.posture !== 'stand') return Player.act('stand');
     if (canSit(f)) Player.act('sit');
   }
-  const canSit = f => (Player.cur && Player.cur.verb === 'sit') || ['stoolE', 'stoolG'].some(n => { const at = spot(n); return Math.hypot(f.x - at[0], f.z - at[1]) < 1.3; });
+  const seatNear = f => ['K.E', 'K.G', 'stoolE', 'stoolG'].find(n => { const at = spot(n); return Math.hypot(f.x - at[0], f.z - at[1]) < 1.3; });
+  const canSit = f => (Player.cur && Player.cur.verb === 'sit') || !!seatNear(f);
   // drag to look around; R or a double click brings the camera back behind you
   { let drag = null;
-    canvas.addEventListener('dblclick', () => { Cam.offset = 0; });
+    canvas.addEventListener('dblclick', () => { Cam.offset = Cam.pitch = 0; });
     const capture = id => { try { canvas.setPointerCapture(id); } catch (err) { /* a test's made-up pointer */ } };
     canvas.addEventListener('pointerdown', e => {
       audio();
       if (Grab.down(e.clientX, e.clientY)) return capture(e.pointerId);      // your own body first
-      if (!Cam.fixed) { drag = e.clientX; capture(e.pointerId); }
+      drag = [e.clientX, e.clientY]; capture(e.pointerId);
     });
     canvas.addEventListener('pointermove', e => {
       Grab.move(e.clientX, e.clientY);
-      if (drag != null) { Cam.offset -= (e.clientX - drag) * 0.006; drag = e.clientX; }
+      if (drag) { Cam.offset = wrap(Cam.offset - (e.clientX - drag[0]) * 0.006); Cam.pitch = Math.max(-1.2, Math.min(1.7, Cam.pitch - (e.clientY - drag[1]) * 0.005)); drag = [e.clientX, e.clientY]; }
     });
     const end = () => { drag = null; Grab.up(); };
     canvas.addEventListener('pointerup', end); canvas.addEventListener('pointercancel', end);
@@ -2282,7 +2363,7 @@
       fill(el, h('b', { class: 'remind-btn' }, button), h('span', null, text + (text.endsWith('.') ? '' : '.')), why ? h('span', { class: 'remind-why' }, why) : null);
     },
     mistake(text, expected, major) {
-      $('#mistakes').textContent = (director.results.slips || 0) + ' / ' + SLIP_LIMIT;
+      $('#mistakes').textContent = (director.results.slips || 0) + (director.o.failing === false ? '' : ' / ' + SLIP_LIMIT);
       if (major) { this.toast('Major slip: ' + text, 'bad major'); return; }
       if (director.o.mode === 'strict') return;
       this.toast(text + (expected ? ' — ' + expected : ''), 'bad');
@@ -2374,6 +2455,7 @@
       if (!Explore.active && (!director || director.kind === 'demo' || director.failed)) return;
       this.paused = !this.paused;
       $('#pause').hidden = !this.paused;
+      $('#btn-walk-on').hidden = !(director && director.o.fromExplore && director.player);
     },
     failed(d, reason, expected, cite) {
       this.asking = null; $('#respond').hidden = true; this.remind(null); goRing.visible = false; goArrow.visible = false;
@@ -2386,6 +2468,11 @@
       window.__serve.finished = (window.__serve.finished || []).concat([{ kind: d.kind, o: d.o, time: d.time, results: d.results, log: d.log, beats: d.beats.length }]);
       if (d.kind === 'demo') { setTimeout(() => startDemo(), 1500); return; }
       if (d.kind === 'watch') { this.toast('The Mass has ended. Ite, missa est.'); setTimeout(() => toTitle(), 2500); return; }
+      if (d.o.fromExplore) {      // you came here walking around: on you go
+        const f = FIG[d.player], at = [f.x, f.z, f.heading];
+        this.toast('The Mass has ended. Ite, missa est.'); setTimeout(() => { if (director === d) Explore.start(at); }, 2500); return;
+      }
+      $('#btn-again').textContent = d.o.choir ? 'Sit in choir again' : d.o.priest ? 'Say Mass again' : 'Serve again';
       const r = d.results;
       const majors = r.mistakes.filter(m => m.major).length;
       const pct = r.total ? Math.max(0, Math.round(100 * (r.ok - majors * 3) / r.total)) : 0;     // a major slip costs three
@@ -2448,7 +2535,8 @@
   }
 
   function distractors(t, ref) {
-    const pool = Mass.LINES.filter(l => (l.who === 'S' || l.who === 'A') && l.la !== t.la);
+    const priest = director && director.player === 'P';
+    const pool = (priest ? [...Mass.LINES.filter(l => l.who === 'P'), ...Object.values(C.T).filter(l => l.who === 'P' && !l.silent)] : Mass.LINES.filter(l => l.who === 'S' || l.who === 'A')).filter(l => l.la !== t.la && !l.la.startsWith('('));
     const sec = /^([\w-]+)\./.exec(ref);
     const same = sec ? pool.filter(l => l.section === sec[1]) : [];
     const pickN = (arr, n) => { const a = arr.slice(); const out = []; while (a.length && out.length < n) out.push(a.splice(Math.floor(Math.random() * a.length), 1)[0]); return out; };
@@ -2462,13 +2550,13 @@
 
   // ─── starting and stopping ─────────────────────────────────────────────────
   let director = null;
-  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, WIDE, CART, autoplay: params.has('autoplay'),
+  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, WIDE, CART, AMB, TRANSIT, autoplay: params.has('autoplay'),
     Cam, Grab, Fix, FX, headingFor, syllables, followLine, soundOf, Explore, Plan, Nav, camera, renderer, scene, collide, walkFree: (x, z) => Plan.free(x, z, 0.18, blocked), SKY, CARS, OUT3D, SITE3D,
-    start: (kind, o) => { Object.assign(opts, o || {}); kind === 'play' ? beginPlay() : kind === 'explore' ? Explore.start() : startWatch(); } };
+    start: (kind, o) => { Object.assign(opts, o || {}); playAs = {}; kind === 'play' ? beginPlay() : kind === 'explore' ? Explore.start() : kind === 'priest' ? startPriest() : kind === 'choir' ? startChoir((o && o.side) || 'E') : kind === 'casual' ? (playAs = { casual: true, failing: false, fromExplore: true }, beginPlay()) : startWatch(); } };
 
   function resetWorld(o) {
     Props.reset(); Fix.reset();
-    const start = { P: 'sacP', A1: 'sacA1', A2: 'sacA2', C1: 'C1.out', C2: 'C2.out', C3: 'C3.out', C4: 'C4.out' };
+    const start = { P: 'sacP', A1: 'sacA1', A2: 'sacA2', C1: 'C1.out', C2: 'C2.out', C3: 'C3.out', C4: 'C4.out', K: 'K.' + (o.choir || 'E') };
     for (const [r, f] of Object.entries(FIG)) {
       for (const g of f.gestures) g.resolve();
       f.gestures = []; f.walk = null; f.turn = null; f.legAnim = null; f.lift = null; f.out = false; f.base = null;
@@ -2478,21 +2566,24 @@
       Props.syncHands(r);
     }
     FIG.A2.root.visible = o.servers === 2;
+    FIG.K.root.visible = !!o.choir;
     for (const r of ['C1', 'C2', 'C3', 'C4']) FIG[r].root.visible = !!o.communion;
   }
 
   function begin(kind, o) {
     if (Explore.active) Explore.stop();
     Explore.region = '';
-    Cam.snap = true; Cam.offset = 0; camera.position.set(-10.8, 2.2, 5.5); Cam.lookNow.set(-10.8, 1.2, 7);
+    Cam.snap = true; Cam.offset = Cam.pitch = 0; camera.position.set(-10.8, 2.2, 5.5); Cam.lookNow.set(-10.8, 1.2, 7);
     if (director) director.stop();
     UI.paused = false; $('#pause').hidden = true; $('#failed').hidden = true; Player.away = 0;
     resetWorld(o);
     director = new Director(kind, o);
     if (director.player) FIG[director.player].isPlayer = true;
-    $('#mistakes').textContent = '0 / ' + SLIP_LIMIT;
+    if (o.choir) FIG.K.sit();
+    $('#mistakes').textContent = o.failing === false ? '0' : '0 / ' + SLIP_LIMIT;
+    document.body.classList.toggle('no-score', !!o.casual);
     $('#caption').hidden = true; $('#note').hidden = true; $('#respond').hidden = true; UI.remind(null); UI.asking = null;
-    youRing.visible = kind === 'play';
+    youRing.visible = kind === 'play' && !o.choir;
     Grab.reset();
     Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false;
     Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
@@ -2503,11 +2594,17 @@
   function startDemo() { begin('demo', Object.assign({}, opts, { servers: 2, speed: 1.25, communion: true, sermon: 'random' })); UI.show('title'); }
   function toTitle() { startDemo(); }
   function startWatch() { begin('watch', Object.assign({}, opts)); UI.show('hud'); }
-  function beginPlay() { audio(); begin('play', Object.assign({}, opts)); document.body.classList.toggle('typing', opts.respond === 'type'); UI.show('hud'); }
+  /** Who you are at this Mass, beyond your options: {} to serve; or in choir, or the priest, or only for fun. */
+  let playAs = {};
+  function startChoir(side, from) { playAs = { choir: side, failing: false, confiteor: true, fromExplore: !!from }; beginPlay(); }
+  function startPriest(from, casual) { playAs = { priest: true, failing: false, casual: !!casual, fromExplore: !!from }; beginPlay(); }
+  function beginPlay() { audio(); begin('play', Object.assign({}, opts, playAs)); document.body.classList.toggle('typing', opts.respond === 'type'); UI.show('hud'); }
   /** Coming to serve: with two servers, you have to say which you are. */
   function startPlay() {
     audio();
-    if (opts.servers !== 2) return beginPlay();
+    const two = opts.servers === 2;
+    for (const b of $$('[data-role]')) b.hidden = !two;
+    $('#btn-serve-one').hidden = two;
     $('#failed').hidden = true;
     $('#which').hidden = false;
   }
@@ -2631,17 +2728,22 @@
     Cam.update(real, focus, Explore.active || (!!me && opts.camera !== 'fixed'));
     updateActs(real);
     Grab.update();
-    const viewFrom = Plan.regionAt(camera.position.x, camera.position.z);
-    const seeOut = !Cam.fixed && viewFrom !== 'The sanctuary';
+    const standing = Plan.regionAt(focus.x, focus.z);
+    const seeOut = !Cam.fixed && standing !== 'The sanctuary';
     Sun.update(focus, seeOut && !SKY.indoors);
     OUT3D.group.visible = seeOut; CARS.group.visible = seeOut; SITE3D.outGroup.visible = seeOut;
     if (seeOut) {
-      CARS.update(real); OUT3D.update(camera, performance.now() / 1000, Explore.active); WIDE.update(camera, Explore.active, performance.now() / 1000); CART.update(real);
+      CARS.update(real); OUT3D.update(camera, performance.now() / 1000, Explore.active); WIDE.update(camera, Explore.active, performance.now() / 1000, { night: SKY.night }); CART.update(real);
       // the hands stay on the wheel
       if (CART.driving) { const g = CART.grips(CART.driving), f = FIG.A1; f.pose.R = g.R; f.pose.L = g.L; }
     }
-    SKY.indoors = Cam.fixed || /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium/i.test(viewFrom);
-    SKY.update(real, camera, { audio, sound: opts.sound });
+    // what you see and hear goes by where you are, not by where the camera has swung to; the arcade is open to the air
+    SKY.indoors = SKY.heardIndoors = !!Cam.fixed || (/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium/i.test(standing) && !/arcade/i.test(standing));
+    const sounding = opts.sound && !inDemo();
+    SKY.update(real, camera, { audio, sound: sounding });
+    Traffic.setNight(SKY.night);
+    TRANSIT.update(real, { explore: Explore.active, night: SKY.night });
+    AMB.update(real, { cars: CARS.cars, sound: sounding, seeOut, explore: Explore.active, me: me || (Explore.active ? FIG.A1 : null), indoorsAt: (x, z) => /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered/i.test(Plan.regionAt(x, z)) });
     if (director && director.player) {
       const f = FIG[director.player];
       youRing.position.set(f.x, f.y + 0.012, f.z);
@@ -2679,18 +2781,22 @@
       const t = performance.now();
       if (t - this.last > 400) {     // the sun's shadows are slow to change: no need for every frame
         this.last = t;
-        k.position.set(f.x + 35, 70, f.z + 60); k.target.position.set(f.x, 0, f.z); k.target.updateMatrixWorld();
+        const L = SKY.lightDir; k.position.set(f.x + L.x * 100, Math.max(12, L.y * 100), f.z + L.z * 100); k.target.position.set(f.x, 0, f.z); k.target.updateMatrixWorld();
         renderer.shadowMap.needsUpdate = true;
       }
     },
   };
 
   // ─── wiring the screens ────────────────────────────────────────────────────
-  $('#btn-play').addEventListener('click', startPlay);
+  $('#btn-play').addEventListener('click', () => { playAs = {}; startPlay(); });
+  $('#btn-serve-one').addEventListener('click', () => { $('#which').hidden = true; beginPlay(); });
+  $('#btn-as-priest').addEventListener('click', () => { $('#which').hidden = true; startPriest(playAs.fromExplore, playAs.casual); });
+  $('#btn-as-choir').addEventListener('click', () => { $('#which').hidden = true; startChoir('E', playAs.fromExplore); });
+  $('#btn-choir').addEventListener('click', e => { audio(); Explore.choirKey(); e.currentTarget.blur(); });
   $('#btn-watch').addEventListener('click', startWatch);
   $('#btn-explore').addEventListener('click', () => { audio(); Explore.start(); });
   $('#btn-cart').addEventListener('click', e => { audio(); Explore.toggleCart(); e.currentTarget.blur(); });
-  $('#btn-serve-here').addEventListener('click', startPlay);
+  $('#btn-serve-here').addEventListener('click', () => { playAs = { casual: true, failing: false, fromExplore: true }; startPlay(); });      // you came to walk around: this one is only for fun
   $('#btn-options').addEventListener('click', () => { renderOptions(); $('#options').hidden = false; });
   $('#btn-controls').addEventListener('click', () => { $('#controls').hidden = false; });
   for (const b of $$('[data-close]')) b.addEventListener('click', () => { b.closest('.panel').hidden = true; });
@@ -2698,7 +2804,8 @@
   $('#btn-resume').addEventListener('click', () => UI.togglePause());
   $('#btn-restart').addEventListener('click', () => { if (Explore.active) return Explore.start(); const k = director.kind; k === 'play' ? beginPlay() : startWatch(); });
   $('#btn-quit').addEventListener('click', toTitle);
-  $('#btn-again').addEventListener('click', startPlay);
+  $('#btn-walk-on').addEventListener('click', () => { const f = FIG[director.player]; Explore.start([f.x, f.z, f.heading]); });
+  $('#btn-again').addEventListener('click', () => { if (playAs.choir || playAs.priest) beginPlay(); else startPlay(); });
   $('#btn-fail-restart').addEventListener('click', beginPlay);      // the same Mass again: you are still who you were
   for (const b of $$('[data-role]')) b.addEventListener('click', () => { setOpt('role', b.dataset.role); $('#which').hidden = true; beginPlay(); });
   $('#btn-which-back').addEventListener('click', () => { $('#which').hidden = true; });

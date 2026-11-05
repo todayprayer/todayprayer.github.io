@@ -76,24 +76,32 @@
     const glass = loft(k.cabin);
     // dark trim: sills, bumpers, grille, door seams, wheel arches, plate
     const trim = [
-      box(w * 0.6, 0.11, 0.06, 0, k.belt * 0.45, halfL - 0.03), box(w * 0.6, 0.11, 0.06, 0, k.belt * 0.45, -halfL + 0.03),
-      box(w * 0.42, 0.11, 0.04, 0, k.belt * 0.62, halfL - 0.02),
+      box(w * 0.52, 0.055, 0.05, 0, k.belt * 0.4, halfL - 0.05), box(w * 0.5, 0.05, 0.05, 0, k.belt * 0.4, -halfL + 0.05),
+      box(w * 0.36, 0.1, 0.04, 0, k.belt * 0.66, halfL - 0.035),
     ];
     for (const s of [-1, 1]) {
       trim.push(box(0.03, 0.07, k.len * 0.62, s * (w / 2 - 0.01), 0.28, -0.05));
       for (const z of [k.roof[1] + 0.16, (k.roof[0] + k.roof[1]) / 2, k.roof[0] + 0.05]) trim.push(box(0.012, k.belt - 0.34, 0.012, s * (w / 2 + 0.002), (k.belt + 0.34) / 2, z));
       for (const z of [(k.roof[0] + k.roof[1]) / 2 - 0.45, k.roof[1] - 0.05]) trim.push(box(0.03, 0.025, 0.14, s * (w / 2 + 0.01), k.belt - 0.14, z));
     }
-    const plate = [box(0.3, 0.13, 0.02, 0, k.belt * 0.6, -halfL + 0.03), box(0.3, 0.1, 0.02, 0, k.belt * 0.45, halfL + 0.01)];
+    const plate = [box(0.31, 0.155, 0.02, 0, k.belt * 0.6, -halfL + 0.03), box(0.31, 0.155, 0.02, 0, k.belt * 0.45, halfL + 0.01)];
+    // brightwork along the side windows and a black skirt under the doors
+    for (const s of [-1, 1]) { trim.push(box(0.018, 0.022, k.roof[1] - k.roof[0] + 0.9, s * (w / 2 + 0.003), k.belt + 0.02, (k.roof[0] + k.roof[1]) / 2)); }
     const head = [], tail = [];
     for (const s of [-1, 1]) {
-      head.push(box(0.3, 0.1, 0.09, s * (w / 2 - 0.36), k.belt - 0.26, halfL - 0.22));
-      tail.push(box(0.3, 0.13, 0.08, s * (w / 2 - 0.34), k.belt - 0.2, -halfL + 0.1));
+      // lamps with some shape: long, curved round the corner of the body
+      head.push(new THREE.SphereGeometry(1, 16, 10).scale(0.22, 0.062, 0.14).rotateY(s * 0.42).translate(s * (w / 2 - 0.3), k.belt - 0.22, halfL - 0.24));
+      tail.push(new THREE.SphereGeometry(1, 16, 10).scale(0.24, 0.075, 0.09).rotateY(-s * 0.38).translate(s * (w / 2 - 0.3), k.belt - 0.16, -halfL + 0.14));
     }
     if (name === 'pickup') {   // the open bed
       trim.push(box(1.56, 0.04, 1.3, 0, 1.17, -1.95));
     }
-    return (shared[name] = { paint: merge(paint), glass, trim: merge(trim), plate: merge(plate), head: merge(head), tail: merge(tail) });
+    // the arches the wheels sit in
+    const well = [];
+    for (const zw of k.wheelbase) for (const s of [-1, 1]) { const c = new THREE.RingGeometry(k.wr * 0.9, k.wr * 1.17, 26, 1, -0.25, Math.PI + 0.5).rotateY(s > 0 ? Math.PI / 2 : -Math.PI / 2); c.rotateX(0); c.translate(s * (w / 2 + 0.012), k.wr, zw); well.push(c); }
+    // a centre stop lamp high in the back glass
+    tail.push(box(0.4, 0.03, 0.03, 0, k.cabin[Math.min(1, k.cabin.length - 1)].y1 - 0.04, k.cabin[1].z - 0.02));
+    return (shared[name] = { paint: merge(paint), glass, trim: merge(trim), plate: merge(plate), head: merge(head), tail: merge(tail), well: merge(well) });
   }
   const wheelGeo = {};
   function wheelGeometry(r) {
@@ -112,17 +120,38 @@
     tail: new THREE.MeshStandardMaterial({ color: 0x8e1414, emissive: 0x3a0606, roughness: 0.25 }),
     tire: new THREE.MeshStandardMaterial({ color: 0x101012, roughness: 0.95 }),
     hub: new THREE.MeshStandardMaterial({ color: 0xb4b8bc, roughness: 0.28, metalness: 0.85 }),
+    chrome: new THREE.MeshStandardMaterial({ color: 0xcfd2d6, roughness: 0.14, metalness: 0.95 }),
+    well: new THREE.MeshStandardMaterial({ color: 0x050506, roughness: 1 }),
   };
+  // a California plate: white, dark blue figures, the state's name in red above them
+  { const c = document.createElement('canvas'); c.width = 256; c.height = 128; const g = c.getContext('2d'); g.fillStyle = '#f4f4f0'; g.fillRect(0, 0, 256, 128); g.fillStyle = '#b4232a'; g.font = 'italic 700 26px Georgia, serif'; g.textAlign = 'center'; g.fillText('California', 128, 30); g.fillStyle = '#10235a'; g.font = '700 58px Arial, sans-serif'; g.fillText('8NRG462', 128, 96, 236); const t = new THREE.CanvasTexture(c); t.encoding = THREE.sRGBEncoding; MATS.plate.map = t; }
+  const ENV = { tex: null, paints: [] };
+  function setEnv(tex) {
+    ENV.tex = tex;
+    for (const m of [MATS.glass, MATS.hub, MATS.head, MATS.chrome, ...ENV.paints]) { m.envMap = tex; m.needsUpdate = true; }
+    MATS.glass.envMapIntensity = 1.4; MATS.chrome.envMapIntensity = 1.2;
+  }
+  /** Dusk comes on: the lamps light, the reflections dim. */
+  function setNight(n) {
+    const lit = Math.max(0, Math.min(1, (n - 0.2) / 0.4));
+    MATS.head.emissiveIntensity = 1 + lit * 3.5; MATS.tail.emissiveIntensity = 1 + lit * 3;
+    const e = 1 - n * 0.75; for (const m of ENV.paints) m.envMapIntensity = e; MATS.glass.envMapIntensity = 1.4 * e; MATS.hub.envMapIntensity = e; MATS.chrome.envMapIntensity = 1.2 * e;
+    for (const s of Sprites.all) s.material.opacity = lit;
+  }
+  const Sprites = { all: [], tex: null, mk(color) { if (!this.tex) { const c = document.createElement('canvas'); c.width = c.height = 64; const g = c.getContext('2d'), r = g.createRadialGradient(32, 32, 0, 32, 32, 32); r.addColorStop(0, 'rgba(255,255,255,1)'); r.addColorStop(0.25, 'rgba(255,255,255,.5)'); r.addColorStop(1, 'rgba(255,255,255,0)'); g.fillStyle = r; g.fillRect(0, 0, 64, 64); this.tex = new THREE.CanvasTexture(c); } const s = new THREE.Sprite(new THREE.SpriteMaterial({ map: this.tex, color, blending: THREE.AdditiveBlending, transparent: true, opacity: 0, depthWrite: false })); this.all.push(s); return s; } };
   const PAINT = [0xc8cacc, 0x08090b, 0x3a3d40, 0x8a8c8e, 0x420a0a, 0x0a1426, 0xd6d6d4, 0x131519, 0x6a6458, 0x151f17, 0xbcbcbe, 0x26282a];
 
   function makeCar(kind, paintHex) {
     const k = KINDS[kind], G = kindGeometry(kind), g = new THREE.Group();
-    const paint = new THREE.MeshStandardMaterial({ color: paintHex, roughness: 0.22, metalness: 0.5 });
-    for (const [geo, m] of [[G.paint, paint], [G.glass, MATS.glass], [G.trim, MATS.trim], [G.plate, MATS.plate], [G.head, MATS.head], [G.tail, MATS.tail]]) g.add(new THREE.Mesh(geo, m));
+    const paint = new THREE.MeshStandardMaterial({ color: paintHex, roughness: 0.2, metalness: 0.55, envMap: ENV.tex, envMapIntensity: 1 });
+    ENV.paints.push(paint);
+    // the lamps throw a little light at night
+    { const half = k.len / 2; for (const s of [-1, 1]) { const f = Sprites.mk(0xfff4d8); f.position.set(s * 0.58, k.belt - 0.26, half + 0.1); f.scale.setScalar(1.25); g.add(f); const b = Sprites.mk(0xff2a1a); b.position.set(s * 0.6, k.belt - 0.2, -half - 0.05); b.scale.setScalar(0.7); g.add(b); } }
+    for (const [geo, m] of [[G.paint, paint], [G.glass, MATS.glass], [G.trim, MATS.trim], [G.plate, MATS.plate], [G.head, MATS.head], [G.tail, MATS.tail], [G.well, MATS.well]]) g.add(new THREE.Mesh(geo, m));
     const wg = wheelGeometry(k.wr), w = k.body[Math.floor(k.body.length / 2)].w;
     const wheels = [], front = [];
     for (const [z, isFront] of [[k.wheelbase[0], true], [k.wheelbase[1], false]]) for (const s of [-1, 1]) {
-      const pivot = new THREE.Group(); pivot.position.set(s * (w / 2 - 0.15), k.wr, z); g.add(pivot);
+      const pivot = new THREE.Group(); pivot.position.set(s * (w / 2 - 0.085), k.wr, z); g.add(pivot);
       const spin = new THREE.Group(); pivot.add(spin);
       spin.add(new THREE.Mesh(wg.tire, MATS.tire), new THREE.Mesh(wg.hub, MATS.hub));
       wheels.push(spin); if (isFront) front.push(pivot);
@@ -215,7 +244,7 @@
     const r = rng(1962);
     const parking = bays();
     const cars = [];
-    const KIND_LIST = ['sedan', 'sedan', 'suv', 'suv', 'van', 'pickup', 'sedan', 'suv'];
+    const KIND_LIST = ['sedan', 'suv', 'sedan', 'pickup', 'suv', 'sedan', 'van', 'suv', 'sedan', 'pickup'];
 
     const near = (x, z) => { let b = graph[0], d = 1e9; for (const n of graph) { const q = Math.hypot(n.x - x, n.z - z); if (q < d) { d = q; b = n; } } return b; };
 
@@ -242,7 +271,7 @@
       bay.used = true; c.bay = bay; c.mode = 'parked'; c.until = instantly ? 20 + r() * 240 : 40 + r() * 180;
       c.x = bay.x; c.z = bay.z; c.h = bay.heading; c.speed = 0;
     }
-    const count = Q.cars;
+    const count = Math.round(Q.cars * 1.3);
     for (let i = 0; i < count; i++) {
       const c = makeCar(KIND_LIST[i % KIND_LIST.length], PAINT[Math.floor(r() * PAINT.length)]);
       Object.assign(c, { x: 0, z: 0, h: 0, speed: 0, top: 8 + r() * 3.5, roll: 0, steer: 0, path: null });
@@ -374,7 +403,7 @@
     }
 
     return {
-      group, cars,
+      group, cars, ahead,
       /** Is this spot taken by a car, parked or moving? */
       solidAt(x, z, rad) {
         for (const c of cars) {
@@ -386,7 +415,7 @@
       update(dt) {
         const d = Math.min(dt, 0.05);
         for (const c of cars) {
-          step(c, d);
+          if (c.mode !== 'route') step(c, d);
           c.group.position.set(c.x, -0.02, c.z);
           c.group.rotation.y = c.h;
           c.roll += c.speed * d / c.wr;
@@ -397,5 +426,5 @@
     };
   }
 
-  root.Traffic = { build, KINDS, makeCar, cartBays };
+  root.Traffic = { build, KINDS, makeCar, cartBays, setEnv, setNight };
 })(typeof self !== 'undefined' ? self : this);
