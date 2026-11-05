@@ -49,7 +49,7 @@
     return h;
   }
 
-  const xE = [2.15, 1.95], xG = [-2.15, 1.95];
+  const xE = [2.25, 0.97], xG = [-2.25, 0.97];      // extended formation: on the first step, near behind the columns
   const commX = LAYOUT.communicants;
 
   /** Named places to stand: [x, z, heading]. Priest's places start with "P.". */
@@ -126,7 +126,7 @@
     'altar.veilG': [-0.42, 1.45, -1.0, 0], 'altar.burseG': [-0.72, 1.45, -1.1, 0],
     'altar.paten': [0.38, 1.45, -0.78, 0], 'gradine.sc': [1.1, 1.62, -1.6, 0],
     'sed.chair': [3.0, 0.5, 2.25, -PI / 2], 'tab': [0, 1.55, -1.55, 0],
-    'font': [-9.15, 1.05, 3.27, 0], 'sbell': [-9.15, 1.75, 4.63, 0],
+    'font': [-9.15, 1.05, 4.63, 0], 'sbell': [-9.7, 1.75, 4.62, 0],      // both on the right of the door as you face it, clear of its swing
   };
 
   /** Each prop's starting place, as set up before Mass (SV pp. 1–3). */
@@ -157,7 +157,7 @@
     gospel1: { who: 'P', la: 'In illo témpore: Loquénte Jesu ad turbas, ecce princeps unus accéssit…', en: 'At that time: As Jesus was speaking to the multitudes… (Matt 9:18–26)', dur: 2.6 },
     gospel2: { who: 'P', la: '…Et éxiit fama hæc in univérsam terram illam.', en: '…And the fame hereof went abroad into all that country.', dur: 2.4 },
     evangelica: { who: 'P', la: 'Per evangélica dicta deleántur nostra delícta.', en: 'By the words of the Gospel may our sins be blotted out.', silent: true, dur: 1.4 },
-    maniple: { who: 'P', la: '(lays his maniple over the Missal — he will preach)', en: 'The cue: get the biretta.', silent: true, dur: 1.4 },
+    maniple: { who: 'P', la: '(lays his maniple over the Missal — he will preach)', en: '', silent: true, dur: 1.4 },
     sermon: { who: 'P', la: '(the sermon)', en: '', silent: true, dur: 2.0 },
     credo1: { who: 'P', la: 'Credo in unum Deum, Patrem omnipoténtem…', en: 'I believe in one God… (servers keep kneeling)', dur: 2.6 },
     credo2: { who: 'P', la: 'Et incarnátus est de Spíritu Sancto ex María Vírgine: Et homo factus est.', en: 'And was incarnate by the Holy Ghost of the Virgin Mary: and was made man.', dur: 2.6 },
@@ -201,7 +201,7 @@
     postcomm: { who: 'P', la: 'Quǽsumus, omnípotens Deus: ut, quos divína tríbuis participatióne gaudére…', en: 'The Postcommunion.', dur: 2.0 },
     placeat: { who: 'P', la: 'Pláceat tibi, sancta Trínitas, obséquium servitútis meæ…', en: 'May the homage of my service be pleasing to Thee… (bowed, silently)', silent: true, dur: 2.0 },
     prologue: { who: 'P', la: 'In princípio erat Verbum, et Verbum erat apud Deum, et Deus erat Verbum…', en: 'In the beginning was the Word… (John 1:1–14)', dur: 3.2 },
-    sermonNone: { who: 'P', la: '(no sermon today: the maniple stays on his arm)', en: 'Kneel at once in extended formation.', silent: true, dur: 0.8 },
+    sermonNone: { who: 'P', la: '(no sermon today: the maniple stays on his arm)', en: '', silent: true, dur: 0.8 },
   };
 
   // ─── Building the Mass ─────────────────────────────────────────────────────
@@ -212,7 +212,7 @@
     railCloth: 'none',         // 'none' (set before Mass) | 'agnus' | 'dnsd' | 'blood'
     bellMinorElevation: true,  // SV p. 17; not in the 1962 rubrics
     bellDomineNonSum: true,    // SV p. 17; OC 360 §24 says no longer
-    sacristyVersicle: 'procedamus',   // or 'adjutorium' (Fr. O'Reilly)
+    sacristyVersicle: 'procedamus',   // or 'adjutorium'
     seed: 1,
   };
 
@@ -242,6 +242,7 @@
       }
       if (spec.C) for (let i = 1; i <= 4; i++) add('C' + i, typeof spec.C === 'function' ? spec.C(i) : spec.C);
       if (spec.cues) b.cues = spec.cues;
+      if (spec.noteA1 || spec.noteA2) b.notes = { A1: spec.noteA1, A2: spec.noteA2 };
       if (Object.keys(b.tracks).length) beats.push(b);
       return b;
     }
@@ -256,7 +257,7 @@
     // ── Before Mass: the sacristy and the procession ─────────────────────────
     part = 'Leaving the sacristy';
     B({ P: 'go sacP; face people', A1: 'go sacA1; face people', A2: 'go sacA2; face people', one: 'go sacA1; face people' });
-    if (o.sacristyVersicle === 'adjutorium') vr('T.adjSac', 'T.quiFecit', { s: { cite: 'SV p. 6 (Fr. O’Reilly)' } });
+    if (o.sacristyVersicle === 'adjutorium') vr('T.adjSac', 'T.quiFecit', { s: { cite: 'SV p. 6' } });
     else vr('T.procedamus', 'T.inNomine', { s: { cite: 'SV p. 6' } });
     B({ P: 'nod', S: 'nod', note: 'Bow to the cross in the sacristy.', cite: 'SV p. 6' });
 
@@ -289,14 +290,14 @@
       B({ P: 'offer biretta', one: 'kiss hand; take biretta', cite: 'SV p. 26: kiss the hand before receiving the biretta' });
     }
     B({ P: 'go P.step; gen', S: 'genhold', note: 'Genuflect in time with the priest — and stay down.', cite: 'SV pp. 6, 27' });
-    B({ P: 'wait 1; go P.mid slow', S: 'pinch', note: 'Pinch the side of his alb as he goes up, so he does not trip.', cite: 'SV pp. 6, 27; Kodet quiz p. 42' });
+    B({ P: 'wait 1.2; go P.mid slow', S: 'pinch', note: 'Pinch the side of his alb as he goes up, so he does not trip.', cite: 'SV pp. 6, 27' });
     B({ S: 'rise', note: 'Rise once he reaches the top step.' });
 
     part = 'Closing the gates';
     if (two) {
       B({ P: 'g placeChalice; go P.epi; g openBook; say T.setup; go P.mid; nod',
-          A1: 'go sed; put biretta sed.chair; go gateE; sync gates; close gateE; go cfR; face altar',
-          A2: 'turn cw people; go gateG; sync gates; close gateG; go cfL2; face altar',
+          A1: 'go sed; put biretta sed.chair; signal chairDone; go gateE; sync gates; close gateE; go cfR; face altar',
+          A2: 'waitsig chairDone; turn cw people; go gateG; sync gates; close gateG; go cfL2; face altar',
           cite: 'SV pp. 6–7: A1 takes the biretta to the chair, then both close the gates together' });
     } else {
       B({ P: 'g placeChalice; go P.epi; g openBook; say T.setup; go P.mid; nod',
@@ -337,12 +338,12 @@
     B({ S: 'say confiteor-m.9; up', note: 'Amen — return to the kneeling position.', cite: 'SV p. 11' });
     B({ P: 'cross; say confiteor-m.10', S: 'cross' });
     B({ S: 'say confiteor-m.11' });
-    B({ P: 'bow med; say versicles.0', S: 'bow med', note: 'Bow your head with him for the last versicles.', cite: 'SV p. 11 (change 2025-12-20); Kodet quiz p. 42' });
+    B({ P: 'bow med; say versicles.0', S: 'bow med', note: 'Bow your head with him for the last versicles.', cite: 'SV p. 11 (change 2025-12-20)' });
     B({ S: 'say versicles.1' }); vr('versicles.2', 'versicles.3'); vr('versicles.4', 'versicles.5');
     vr('versicles.6', 'versicles.7');
     B({ P: 'up; g extendJoin', S: 'up', note: 'As he extends and joins his hands, return to kneeling upright.', cite: 'SV p. 12' });
     B({ P: 'say versicles.8' });
-    B({ P: 'wait 1; go P.mid slow; say ascent.0-1', S: 'pinch', note: 'Pinch his alb again as he goes up the steps.', cite: 'SV p. 12' });
+    B({ P: 'wait 1.2; go P.mid slow; say ascent.0-1', S: 'pinch', note: 'Pinch his alb again as he goes up the steps.', cite: 'SV p. 12' });
     B({ P: 'bow med; say ascent.2-3; g kissAltar; up',
         A1: two ? 'stand; turn ccw people; go xE; kneel' : 'stand; go xG; kneel',
         A2: 'stand; turn cw people; go xG; kneel',
@@ -403,6 +404,8 @@
           A1: 'go sed; take biretta; kiss biretta; go cfR; face altar',
           A2: 'go cfL2; face altar',
           note: 'He folds his maniple over the Missal: he will preach. Get the biretta and meet him at the foot of the altar.',
+          noteA1: 'He folds his maniple: he will preach. Get the biretta and meet him at the foot of the altar.',
+          noteA2: 'He folds his maniple: he will preach. Go to the foot of the altar, on the Gospel side.',
           cite: two ? 'SV p. 14' : 'SV p. 34' });
       B({ P: 'go P.mid; go P.step; face altar' });
       B({ P: 'gen; go P.foot back', S: 'gen', note: 'Genuflect with the priest.' });
@@ -412,7 +415,7 @@
       B({ S: 'stand', A1: 'go cfR; face altar', A2: 'go cfL; face altar', note: 'Stand and close formation.' });
       B({ P: 'offer biretta', A1: 'kiss hand; take biretta; kiss biretta', cite: 'SV p. 34' });
       B({ P: 'go P.step; gen', S: 'genhold', note: 'Genuflect with him — and stay down while he ascends.' });
-      B({ P: 'wait 1; go P.mid slow; go P.gos; g unManiple; go P.mid', S: 'pinch' });
+      B({ P: 'wait 1.2; go P.mid slow; go P.gos; g unManiple; go P.mid', S: 'pinch' });
       B({ S: 'rise', A1: 'go sed; put biretta sed.chair; go xE; kneel', A2: 'go xG; kneel', one: 'rise; go sed; put biretta sed.chair; go xE; kneel',
           note: 'Back to extended formation, and kneel.' });
     } else {
@@ -515,7 +518,8 @@
     B({ P: 'g crossesOblata; say T.quam; signal handsOff',
         A1: two ? 'waitsig handsOff; stand; go midR; go elR; kneel' : 'waitsig handsOff; stand; go elR; kneel',
         A2: 'waitsig handsOff; stand; go midL; go elL; kneel',
-        note: 'When he takes his hands from the altar, go up (do NOT genuflect) and kneel beside him; bring the bells.', cite: two ? 'SV p. 16' : 'SV p. 36' });
+        note: 'When he takes his hands from the altar, go up (do NOT genuflect) and kneel beside him; bring the bells.',
+        noteA2: 'When he takes his hands from the altar, go up (do NOT genuflect) and kneel beside him.', cite: two ? 'SV p. 16' : 'SV p. 36' });
     part = 'Consecration';
     for (const [words, lift, lower] of [['T.quiPridie', 'elevateHost', 'lowerHost'], ['T.simili', 'elevateChalice', 'lowerChalice']]) {
       B({ P: `bow med; say ${words}`, S: 'nod', note: 'A slight head bow as he bends over the altar.', cite: 'SV p. 17' });
@@ -591,11 +595,11 @@
     B({ P: 'g showHost; say T.ecce' });
     for (let i = 0; i < 3; i++) B({ P: 'say T.dnsdC', S: 'strike 1', note: i ? '' : 'Strike your breast at each “Domine, non sum dignus”.', cite: i ? '' : 'SV p. 22' });
     if (two) {
-      B({ P: 'g giveHost A1; say T.corpus', A1: 'receive', note: 'A1 receives first, holding the paten by its handle under his chin.', cite: 'SV p. 22; Kodet quiz p. 43' });
+      B({ P: 'g giveHost A1; say T.corpus', A1: 'receive', note: 'A1 receives first, holding the paten by its handle under his chin.', cite: 'SV p. 22' });
       B({ A1: 'offer paten', A2: 'take paten', note: 'A1 passes the paten to his left, to A2.', cite: 'SV p. 22' });
       B({ P: 'g giveHost A2; say T.corpus', A2: 'receive' });
     } else {
-      B({ P: 'g giveHost A1; say T.corpus', one: 'receive', note: 'Hold the paten by its handle, closely under your chin.', cite: 'Kodet quiz p. 43' });
+      B({ P: 'g giveHost A1; say T.corpus', one: 'receive', note: 'Hold the paten by its handle, closely under your chin.', cite: '' });
     }
     if (o.communion) {
       const holder = two ? 'A2' : 'A1';
@@ -609,9 +613,9 @@
         const n = i + 1;
         if (n > 1) B({ P: `go P.r${n}; face people`, [two ? 'A2' : 'one']: `go pr${n}; face people`, A1: two ? `go cr${n}; face people` : undefined,
                        note: n === 3 ? 'Crossing the middle aisle: cover the rim of the paten with your left hand.' : '', cite: n === 3 ? 'SV p. 22' : '' });
-        B({ P: `g giveHost C${n}; say T.corpus`, ['C' + n]: 'receive', note: n === 1 ? 'Paten held at arm’s length, chin to chin.' : '', cite: n === 1 ? 'Kodet quiz p. 43' : '' });
+        B({ P: `g giveHost C${n}; say T.corpus`, ['C' + n]: 'receive', note: n === 1 ? 'Paten held at arm’s length, chin to chin.' : '', cite: '' });
       });
-      B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten', note: 'Hand the paten back, held still just below his elbow.', cite: 'Kodet quiz p. 43' });
+      B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten', note: 'Hand the paten back, held still just below his elbow.', cite: '' });
       B({ P: 'go P.mid; signal priestUp; face altar; g putPaten; say T.reposition; g closeTabernacle; signal tabClosed',
           A1: two ? 'go mid; gen; go xE; kneel' : 'waitsig priestUp; go mid; gen; go xE; kneel',
           A2: 'go xG; kneel',
@@ -620,7 +624,7 @@
                     : 'Let the priest go up first. Then back to your place opposite the book: you crossed the middle, so genuflect.',
           cite: 'SV pp. 22–23, 38' });
     } else {
-      B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten; turn ccw altar; g putPaten', note: 'Hand the paten back, held still just below his elbow.', cite: 'Kodet quiz p. 43' });
+      B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten; turn ccw altar; g putPaten', note: 'Hand the paten back, held still just below his elbow.', cite: '' });
       B({ P: 'say T.reposition; g closeTabernacle; signal tabClosed',
           A1: two ? 'stand; turn ccw people; go midR; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
           A2: 'stand; turn cw people; go midL; gen; go xG; kneel',
@@ -662,7 +666,7 @@
       B({ one: 'pour water', note: '…then water from your left. Never touch his hands.' });
       B({ one: 'go cred; put wine tray; put water tray; go plateTop; take paten; go cred; put paten cred.paten', P: 'g drink; go P.mid; g wipeChalice',
           note: 'Put the cruets back; go part way up again for the paten and put it away.', cite: 'SV p. 39' });
-      B({ one: 'go mid; gen; via cornerG; go floorG; go topG; take missal', note: 'Genuflect, then the long way round to the Gospel side for the Missal — drag it with the left hand.', cite: 'SV p. 39; Kodet quiz p. 42' });
+      B({ one: 'go mid; gen; via cornerG; go floorG; go topG; take missal', note: 'Genuflect, then the long way round to the Gospel side for the Missal — drag it with the left hand.', cite: 'SV p. 39' });
       B({ one: 'go mid; gen; go topE; put missal altar.E; take veil', note: 'Genuflect at the foot, take it up to the Epistle side, and pick up the chalice veil (cross facing outward).', cite: 'SV p. 39' });
       B({ one: 'go mid; gen; go veilG; put veil altar.veilG; take burse; hold burse',
           note: 'Down the short way, genuflect, up to the Gospel side: lay the veil down, take the burse and hold it open.', cite: 'SV pp. 39–40' });
@@ -723,7 +727,7 @@
     B({ P: 'stand; gen; go P.mid slow', S: 'pinch', note: 'Stay kneeling and help him up the steps; stand only once he reaches the top.', cite: 'SV p. 41' });
     B({ S: 'stand', P: 'g takeChalice' });
     B({ A1: 'go sed; take biretta; go cfR; face altar', A2: 'go cfL; face altar', one: 'go sed; take biretta; go cfR; face altar', P: 'go P.step; go P.foot; face altar',
-        note: 'Get the biretta from the sedilia.', cite: 'SV p. 25' });
+        note: 'Get the biretta from the sedilia.', noteA2: 'Go to the foot of the altar, on the priest’s left.', cite: 'SV p. 25' });
     B({ P: 'gen', S: 'gen', note: 'Genuflect with the priest.' });
     B({ A1: 'kiss biretta; give biretta P; kiss hand', P: 'need biretta; g donBiretta', note: 'Kiss the biretta, hand it to him, then kiss his hand.', cite: 'SV p. 25 (change 2025-12-20)' });
     if (two) {

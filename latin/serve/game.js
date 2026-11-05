@@ -270,6 +270,21 @@
       }
       return best;
     },
+    /** Among all that is under the hand, what you came for, if it is there. */
+    meant(zones) {
+      const c = Player.cur;
+      if (Explore.active) return null;
+      const cmd = c && USE_FIT.has(c.verb) ? c : !c || c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' ? Player.nextAction() : null;
+      if (!cmd || !USE_FIT.has(cmd.verb)) return null;
+      const reach = 38 * this.scale();
+      let best = null, bd = reach;
+      for (const z of zones) {
+        if (z.kind === 'self' || !this.fits(cmd, z)) continue;
+        const p = this.screen(z.at), d = p ? Math.hypot(p[0] - this.x, p[1] - this.y) : 1e9;
+        if (d < bd) { bd = d; best = z; }
+      }
+      return best;
+    },
     partUnder(f) {
       const k = this.scale() * (document.body.classList.contains('touch') ? 26 : 19);
       let best = null, bd = k;
@@ -287,12 +302,16 @@
       if (!f || !f.root.visible || UI.paused || this.active) return false;
       const part = this.partUnder(f);
       if (!part) return false;
+      this.startedAt = Player.t;
       this.active = { c0: Player.cur, part, f, x0: x, y0: y, trail: [], inside: null, moved: 0, spine0: f.spinePitch, neck0: f.neckPitch, last: y, dir: 0, run: 0, shakes: 0 };
       if (part === 'R' || part === 'L') {
         // already at your breast or wherever: that is not arriving there
-        const start = this.pick(this.zones(f).filter(z => z.kind === 'self'));
-        if (start) this.active.inside = start.id;
-        for (const n of Object.keys(SELF)) if (this.selfAt(f, n).distanceTo(f.handWorld(part)) < 0.14) this.active.inside = n;
+        const A = this.active; A.sx = x; A.sy = y;
+        for (const n of Object.keys(SELF)) if (this.selfAt(f, n).distanceTo(f.handWorld(part)) < 0.14) A.inside = n;
+        // a blow begins from outside the breast: picking up a hand already there is not one
+        const br = this.screen(this.selfAt(f, 'breast')), fh = this.screen(this.selfAt(f, 'forehead'));
+        const r = br && fh ? Math.max(16 * this.scale(), Math.hypot(fh[0] - br[0], fh[1] - br[1]) * 0.3) : 16 * this.scale();
+        A.drawnBack = !!br && Math.hypot(br[0] - x, br[1] - y) > r * 1.5;
       }
       canvas.style.cursor = 'grabbing';
       return true;
@@ -307,6 +326,7 @@
       }
       a.moved += Math.hypot(dx, dy);
       if (a.part === 'back' || a.part === 'head') this.swing(a, dx, dy);
+      if (a.part === 'R' || a.part === 'L') this.trace(a, a.f);
       if ((a.part === 'R' || a.part === 'L') && Props.slot.bells === a.part && !Explore.active && Props.holder('bells') === director.player) this.shake(a, x, y);
     },
     /** Sideways, and you turn with it: on your feet or on your knees, bowed or not. */
@@ -339,27 +359,63 @@
       }
       a.run += Math.abs(d); a.last = y;
     },
-    /** Moving past the parts of your own body: the sign of the cross, the small crosses, striking your breast, something to your lips. */
-    self(a, f, zones) {
-      const k = this.scale(), c = Player.cur;
-      // the parts of you are as near together as you are far from the camera: whichever is nearest the hand is the one it is on
-      const fh = this.screen(this.selfAt(f, 'forehead')), br = this.screen(this.selfAt(f, 'breast'));
-      this.selfR = fh && br ? Math.max(9 * k, Math.hypot(fh[0] - br[0], fh[1] - br[1]) * 0.24) : 15 * k;
-      const z = this.pick(zones.filter(q => q.kind === 'self'));
-      if (!z) {
-        if (a.inside) {
-          const was = zones.find(q => q.id === a.inside), p = was && this.screen(was.at);
-          if (!p || Math.hypot(p[0] - this.x, p[1] - this.y) > this.selfR * 1.5) a.inside = null;
-        }
-        return;
+    /** Moving past the parts of your own body: every point of the way the hand went, not only where it is now. */
+    trace(a, f) {
+      const k = this.scale(), at = {};
+      for (const n of Object.keys(SELF)) { const p = this.screen(this.selfAt(f, n)); if (!p) return; at[n] = p; }
+      const r = this.selfR = Math.max(16 * k, Math.hypot(at.forehead[0] - at.breast[0], at.forehead[1] - at.breast[1]) * 0.3);
+      const dist = Math.hypot(this.x - a.sx, this.y - a.sy), steps = Math.max(1, Math.ceil(dist / (4 * k)));
+      for (let i = 1; i <= steps; i++) {
+        const x = a.sx + (this.x - a.sx) * i / steps, y = a.sy + (this.y - a.sy) * i / steps;
+        // a blow on the breast: it need only draw back a little and come again
+        const db = Math.hypot(at.breast[0] - x, at.breast[1] - y);
+        // (and it is a blow only coming in: drawing back off the breast is not another)
+        if (a.drawnBack) { a.peak = Math.max(a.peak == null ? db : a.peak, db); if (db < r * 1.5 && a.peak - db >= 6 * k) { a.drawnBack = false; a.peak = null; a.nearest = db; this.blow(a, f); } }
+        else { a.nearest = Math.min(a.nearest == null ? db : a.nearest, db); if (db - a.nearest > 12 * k) a.drawnBack = true; }
+        // the part it is on: a shoulder if it is near one; otherwise, in line with you, the head above the shoulders and the breast below
+        let on = null, best = r;
+        for (const n of ['shoulderL', 'shoulderR']) { const d = Math.hypot(at[n][0] - x, at[n][1] - y); if (d < best) { best = d; on = n; } }
+        const span = Math.hypot(at.forehead[0] - at.breast[0], at.forehead[1] - at.breast[1]);
+        const shoulders = (at.shoulderL[1] + at.shoulderR[1]) / 2, neck = (at.lips[1] + shoulders) / 2;
+        if (!on && Math.abs(x - at.breast[0]) < r * 2.4 && y > at.forehead[1] - span * 0.8 && y < at.breast[1] + span * 1.2)
+          on = y >= neck ? 'breast' : y < (at.forehead[1] + at.lips[1]) / 2 ? 'forehead' : 'lips';
+        if (on === a.inside) continue;
+        a.inside = on;
+        if (on) this.reached(a, f, on);
       }
-      if (z.id === a.inside) return;
-      a.inside = z.id; a.trail.push(z.id);
-      if (!c) return;
-      if (c.verb === 'cross' && inOrder(CROSS, a.trail)) { a.trail = []; Player.act('cross'); }
-      else if (c.verb === 'small' && inOrder(SMALL, a.trail)) { a.trail = []; Player.act('small'); }
-      else if (c.verb === 'strike' && z.id === 'breast') { a.trail = []; Player.act('strike'); }
-      else if (c.verb === 'kiss' && z.id === 'lips' && c.args[0] !== 'hand' && Props.held(director.player).length) { a.trail = []; a.done = true; Player.act('kiss'); }
+      a.sx = this.x; a.sy = this.y;
+    },
+    /** Is this what is due now, or what comes next once you have finished what you are saying or walking? */
+    due(type) {
+      const c = Player.cur;
+      if (c && c.verb === type) return true;
+      if (c && !/^(go|turn|faceto)$/.test(c.verb)) return false;
+      const nx = c ? Player.nextAction() : Player.next() || Player.comingUp();
+      return !!nx && nx.verb === type;
+    },
+    /** Done, whether its moment has come or is just about to. */
+    body(type) {
+      const c = Player.cur;
+      if (Explore.active || c) return Player.act(type);
+      const nx = Player.next() || Player.comingUp();
+      Player.then = { cmd: nx.cmd, run: () => Player.act(type), far: !Player.next() };
+    },
+    blow(a, f) {
+      a.blows = (a.blows || 0) + 1;
+      if (Explore.active) return Player.act('strike');
+      const c = Player.cur;
+      if (c && c.verb === 'strike') return Player.act('strike');
+      const nx = this.due('strike') ? (c ? Player.nextAction() : Player.next() || Player.comingUp()) : null;
+      if (!nx) return;
+      Gest.strike(f);      // you are at the words already: it counts when its moment comes
+      Player.banked = (Player.banked || 0) + 1;
+    },
+    reached(a, f, id) {
+      a.trail.push(id);
+      const c = Player.cur;
+      if (this.due('cross') && inOrder(CROSS, a.trail)) { a.trail = []; a.done = true; return this.body('cross'); }
+      if (this.due('small') && id === 'breast' && (a.trail.includes('forehead') || a.trail.includes('lips'))) { a.trail = []; a.done = true; return this.body('small'); }      // from the head to the breast: the lips are on the way
+      if (c && c.verb === 'kiss' && id === 'lips' && c.args[0] !== 'hand' && Props.held(director.player).length) { a.trail = []; a.done = true; Player.act('kiss'); }
     },
     fits(c, z) {
       const [a0, a1] = c.args, person = who => z.kind === 'person' && (!who || z.who === who);
@@ -425,17 +481,21 @@
         return;
       }
       if (a.done) return;
+      // brought to the breast and let go there: that was the blow
+      if ((part === 'R' || part === 'L') && !a.blows && far && this.due('strike')) {
+        const br = this.screen(this.selfAt(f, 'breast'));
+        if (br && Math.hypot(br[0] - this.x, br[1] - this.y) < (this.selfR || 16 * k) * 1.5) return this.blow(a, f);
+      }
       if (c && c.verb === 'drop' && f.lift) return Player.act('vest');
       // whole signs made though they were not wanted are slips like any other
-      if (inOrder(CROSS, a.trail)) return Player.act('cross');
-      if (inOrder(SMALL, a.trail) && !(c && c.verb === 'cross')) return Player.act('small');
+      if (inOrder(CROSS, a.trail) && (!c || !USE_FIT.has(c.verb))) return Player.act('cross');
+      if (inOrder(SMALL, a.trail) && (!c || (c.verb !== 'cross' && !USE_FIT.has(c.verb)))) return Player.act('small');
       if (a.zone && a.zone.kind !== 'self') {
         if (Explore.active) return;
         if (c && USE_FIT.has(c.verb) && this.fits(c, a.zone)) return this.perform(c);
         // on your way to the spot, or waiting there: if this is what you came to do, you are there
         const nx = !c || c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' ? Player.nextAction() : null;
         if (nx && USE_FIT.has(nx.verb) && this.fits(nx, a.zone)) return Player.skipTo(cur => this.perform(cur));
-        if (c && USE_FIT.has(c.verb) && this.zones(f).some(z => { const p = this.screen(z.at); return p && z.kind !== 'self' && this.fits(c, z) && Math.hypot(p[0] - this.x, p[1] - this.y) < 14 * k; })) return this.perform(c);
         window.__serve.lastMiss = { cmd: c && c.cmd, zone: a.zone.id };
         if (c) { c.mistakes++; return director.mistake('That is not what is wanted now', describe(c.cmd)[0], Player.beat); }
         if (a.c0) return;      // you were reaching for what has just gone by, and have paid for that already
@@ -476,8 +536,8 @@
         tip = z ? 'Kiss: ' + z.label : a.swinging ? 'Turning' : dy > 25 ? 'Bow the head' : 'Head';
       } else {
         const zones = this.zones(f);
-        this.self(a, f, zones);
-        const z = this.pick(zones);
+        this.trace(a, f);
+        const z = this.meant(zones) || this.pick(zones);
         a.zone = z;
         this.showZones(zones, z);
         // the hand follows the pointer across the front of you; over something, it goes to it
@@ -506,7 +566,7 @@
         const sp = this.pool[i] || (this.pool[i] = dot(0xffffff));
         i++;
         sp.visible = true; sp.position.copy(z.at);
-        sp.scale.setScalar(z === hot ? 0.05 : z.kind === 'self' ? 0.02 : 0.03);
+        sp.scale.setScalar(z === hot ? 0.05 : z.kind === 'self' ? 0.02 : 0.024);
         sp.material.color.setHex(z === hot ? 0xffd36b : z.kind === 'self' ? 0xbfe6ff : 0xffffff);
         sp.material.opacity = z === hot ? 1 : 0.75;
       }
@@ -889,7 +949,7 @@
         case 'go': case 'via': {
           const s = spot(args[0]);
           const back = args[1] === 'back';
-          await this.step(f.walkTo(s[0], s[1], { back, speed: args[1] === 'slow' ? WALK * 0.4 : WALK, route: back ? null : Nav.route(f.x, f.z, s[0], s[1]) }));
+          await this.step(f.walkTo(s[0], s[1], { back, speed: args[1] === 'slow' ? WALK * 0.22 : WALK, route: back ? null : Nav.route(f.x, f.z, s[0], s[1]) }));
           if (verb === 'go' && !back && s[2] != null) await this.step(f.turnTo(s[2]));
           return;
         }
@@ -910,7 +970,11 @@
           if (role === this.player && Math.abs(f.x) < 0.8) Player.genSinceSide = true;
           return this.step(f.genuflect());
         case 'genhold': return this.step(f.genHold());
-        case 'sit': return this.step(f.sit());
+        case 'sit': {      // a seat faces the way it faces: you turn as you sit
+          const seat = role === this.player ? Player.lastFace : null;
+          if (seat != null) f.turnTo(seat);
+          return this.step(f.sit());
+        }
         case 'bow': return this.step(f.bow(args[0] === 'head' ? 1 : args[0] === 'deep' ? 3 : 2, args[1] && FIG[args[1]] ? FIG[args[1]].headWorld() : null));
         case 'up': return this.step(f.bow(0));
         case 'nod': return this.step(f.nod(args[0] && FIG[args[0]] ? FIG[args[0]].headWorld() : null));
@@ -1157,7 +1221,7 @@
     /** Work through the player's commands in this beat. */
     async track(d, list, beat) {
       this.d = d; this.beat = beat;
-      this.list = list;
+      this.list = list; if (!(list[0] || '').startsWith('strike')) this.banked = 0;
       for (let i = 0; i < list.length; i++) {
         d.check();
         this.i = i;
@@ -1184,7 +1248,7 @@
         await this.expect(d, c, beat);
         if (verb === 'go') { this.lastFace = spot(args[0])[2]; }
       }
-      this.cur = null; this.list = null; this.then = null; UI.remind(null);
+      this.cur = null; this.list = null; if (this.then && !this.then.far) this.then = null; UI.remind(null);
       this.owed = []; this.stage = Infinity;      // your part in this beat is over: nobody waits on it any more
       for (const o of Object.values(FIG)) o.keepBehind = null;
     },
@@ -1196,6 +1260,10 @@
       d.results.total++;
       UI.remind(this.cur, beat);
       this.cur.together = this.nextTogether; this.nextTogether = null;
+      if (verb === 'strike' && this.banked) {
+        const cur = this.cur; cur.count = Math.min(cur.need, this.banked); this.banked = 0;
+        if (cur.count >= cur.need) setTimeout(() => { if (this.cur === cur) this.done(); }, 0);
+      }
       if (this.then && this.then.cmd === cmd) { const run = this.then.run; this.then = null; setTimeout(() => { if (this.cur && this.cur.cmd === cmd) run(this.cur); }, 0); }
       else if (this.then && (verb === 'go' || verb === 'turn' || verb === 'faceto')) { const cur = this.cur; setTimeout(() => { if (this.cur === cur) this.doneEnough(); }, 0); }
       if (verb === 'go') { const s = spot(args[0]); goRing.position.set(s[0], C.heightAt(s[0], s[1]) + 0.01, s[1]); }
@@ -1226,6 +1294,12 @@
         return Object.assign(p, { cmd: this.list[j] });
       }
       return null;
+    },
+    /** What is first for you in the moment after this one: you may well see it coming. */
+    comingUp() {
+      const d = this.d, b = d && d.beats[d.index + 1], list = b && d.player && b.tracks[d.player];
+      if (!list || !list.length || this.next()) return null;
+      return Object.assign(C.parse(list[0]), { cmd: list[0] });
     },
     /** The next real thing to do, past any walking and turning still to be done; and where that walking was going. */
     nextAction() {
@@ -1274,7 +1348,7 @@
     /** Standing the wrong way in your place: a word from the coach, then a slip. Nobody turns you. */
     checkFacing(d, f, c, dt) {
       if (this.lastFace == null || (c && (c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' || USE_FIT.has(c.verb)))) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
-      if (this.autoing || f.walk || f.turn || f.manualWalk) return;      // busy with something, or on the way round
+      if (this.autoing || f.walk || f.turn || f.manualWalk || f.posture === 'sit') return;      // busy with something, on the way round, or seated
       { const nx = this.next(); if (nx && nx.verb === 'faceto') { this.faceT = 0; return; } }      // already turning to where you are about to be facing
       for (const o of Object.values(FIG)) {      // face to face with someone is never the wrong way
         if (o === f || !o.root.visible) continue;
@@ -1301,7 +1375,7 @@
       const closing = off < (this.lastOff == null ? off : this.lastOff) - 1e-4;     // coming back is always allowed
       this.lastOff = off;
       const canFail = d.o.failing !== false;
-      const inAltar = (x, z) => Math.abs(x) < 2.65 && z < 1.15 && z > -2.3;
+      const inAltar = (x, z) => Math.abs(x) < 2.65 && z < 0.9 && z > -2.3;      // the first step is where you kneel: above it is the altar's
       const entitled = going ? inAltar(target[0], target[1]) || inAltar(this.legFrom[0], this.legFrom[1]) : inAltar(this.anchor[0], this.anchor[1]);
       if (inAltar(f.x, f.z) && !entitled && off > 1.2) {     // on your way across the end of the steps is no offence; off it is
         this.altarT = (this.altarT || 0) + dt;
@@ -1405,8 +1479,8 @@
       // together with the other server: a moment behind is human; a couple of seconds is a slip
       if (perfect && c.together && !window.__serve.autoplay) {
         const at = c.beat.togetherAt && c.beat.togetherAt[c.together], byHand = Grab.active || Grab.justLet;
-        // arriving side by side for a genuflection, you may still have to turn to the altar
-        if (at != null && this.t - at > (byHand ? 3.2 : 1.6) + (c.need - 1) * 0.8 + (c.together.startsWith('sync ') ? 1.4 : 0)) {
+        // by hand, what counts is when you began; and arriving side by side for a genuflection, you may still have to turn to the altar
+        if (at != null && (byHand ? Grab.startedAt : this.t) - at > (byHand ? 3 : 1.6) + (c.need - 1) * 0.8 + (c.together.startsWith('sync ') ? 1.4 : 0)) {
           c.mistakes++;
           this.d.mistake('You were behind the other server', 'Move together with him: ' + describe(c.cmd)[0].toLowerCase() + '.', c.beat);
         }
@@ -1439,6 +1513,7 @@
         case 'kneel':
           if (f.posture !== 'stand' || f.walk) return;
           f.kneel();
+          if (this.unknelt && expect !== 'kneel') { this.unknelt = false; return; }      // back on your knees: that is putting it right
           if (expect !== 'kneel') return wrong('You knelt — not now.');
           if (this.lastGo && !near(this.lastGo, 2.2)) return wrong('Kneel at ' + (SPOT_TEXT[this.lastGo] || this.lastGo) + ' — stand (↑) and go there.');
           if (this.lastFace != null && !facing(this.lastFace, FACE_OFF)) { this.faceSlipped = true; c.mistakes++; d.mistake('You knelt facing the wrong way', 'Face ' + this.faceWord() + ' (← → turn you).', this.beat); }
@@ -1447,10 +1522,12 @@
           if (f.posture === 'stand') return;
           f.stand();
           if (expect === 'stand' || (expect === 'rise' && f.posture === 'stand')) return this.done();
+          this.unknelt = true;
           return wrong('You stood up too early.');
         case 'gen':
           if (f.posture !== 'stand') return;
           if (expect === 'genhold') return this.act('genhold');      // the one button: you stay down when staying down is what comes next
+          if (this.unheld && expect !== 'gen') { this.unheld = false; f.genHold(); return; }      // back down: that is putting it right
           f.genuflect();
           if (Math.abs(f.x) < 0.8) this.genSinceSide = true;
           if (expect !== 'gen') return wrong('A genuflection was not called for here.');
@@ -1467,14 +1544,17 @@
           if (f.posture !== 'genhold') return;
           f.stand();
           if (expect === 'rise') return this.done();
+          this.unheld = true;
           return wrong('Stay down until the priest reaches the top step.');
         case 'bow': {
           const lvl = arg === 'head' ? 1 : arg === 'deep' ? 3 : 2;
           if (f.bowLevel === lvl) {                 // second press: straighten up
             f.bow(0);
             if (expect === 'up') return this.done();
+            this.unbowed = lvl;
             return wrong('You straightened up too early.');
           }
+          if (this.unbowed && !f.bowLevel && expect !== 'bow') { f.bow(this.unbowed); this.unbowed = null; return; }      // going back down: that is putting it right
           const target = c && c.verb === 'bow' && c.args[1] && FIG[c.args[1]] ? FIG[c.args[1]].headWorld() : null;
           f.bow(lvl, target);
           if (expect === 'bow' && c.args[0] === arg) return this.done();
@@ -1697,6 +1777,7 @@
         this.done();
         return;
       }
+      if (c && !this.autoing && ((c.verb === 'up' && !f.bowLevel) || (c.verb === 'stand' && f.posture === 'stand') || (c.verb === 'kneel' && f.posture === 'kneel'))) { this.unbowed = null; this.unknelt = false; this.done(); return; }
       if (c && c.verb === 'faceto' && !this.autoing && !UI.paused && Math.abs(wrap(f.heading - headingFor(d.player, c.args[0]))) < 0.8) { this.done(); return; }
       const going = Input.walk();
       if (going && !this.autoing && f.posture === 'stand' && !UI.paused) {
@@ -2107,8 +2188,10 @@
       el.hidden = !on; document.body.classList.toggle('reminding', on);
       if (!on) return;
       const [text, hint] = describe(c.cmd), button = this.typing() && BODY_VERBS.has(c.verb) ? 'Alt' : hint;
-      let why = beat && beat.note ? beat.note.replace(/^[….\s]+/, '').split(/(?<=[.!?…])\s/)[0].replace(/[….\s]+$/, '') : '';
-      why = why.length > 0 && why.length <= 70 && why.toLowerCase() !== text.toLowerCase() ? why[0].toUpperCase() + why.slice(1) + '.' : '';
+      // the reason, from the sentences that are about you: what the other server does is not your hint
+      const me = director.player, other = me === 'A1' ? 'A2' : 'A1', note = beat && ((beat.notes && beat.notes[me]) || beat.note) || '';
+      let why = (note.replace(/^[….\s]+/, '').split(/(?<=[.!?…])\s/).find(x => director.o.servers !== 2 || !new RegExp('\\b' + other + '\\b').test(x) || new RegExp('\\b' + me + '\\b').test(x)) || '').replace(/[….\s]+$/, '');
+      why = why.length > 0 && why.length <= 90 && why.toLowerCase() !== text.toLowerCase() ? why[0].toUpperCase() + why.slice(1) + '.' : '';
       fill(el, h('b', { class: 'remind-btn' }, button), h('span', null, text + (text.endsWith('.') ? '' : '.')), why ? h('span', { class: 'remind-why' }, why) : null);
     },
     mistake(text, expected, major) {
@@ -2325,7 +2408,7 @@
     youRing.visible = kind === 'play';
     Grab.reset();
     Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false;
-    Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
+    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
     director.run();

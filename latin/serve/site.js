@@ -92,7 +92,7 @@
     const outGroup = new THREE.Group(); group.add(outGroup);     // the grounds: hidden while the camera is fixed at the altar
     const S = new Batch(group), O = new Batch(outGroup);
 
-    const oakMat = Tex.mat('oak', { color: 0xc49a70, rough: 0.55, normal: 0.35 });
+    const oakMat = Tex.mat('oak', { color: 0xa9aeae, rough: 0.55, normal: 0.35 });
     const plaster = M(0xeee7da, { roughness: 0.95 });
     const stucco = Tex.mat('stucco', { color: 0xe9d6ae, rough: 1, normal: 0.8 });
     const fasciaM = M(0x4f2e15, { roughness: 0.8 });
@@ -273,21 +273,24 @@
     S.box(M(0x35200f), 0.9, 0.12, 0.28, 7.08, 0.2, 2.62);          // the kneeler
     S.box(M(0x35200f), 0.9, 0.82, 0.07, 7.08, 0.41, 2.32);
     S.box(M(0x35200f), 0.95, 0.05, 0.2, 7.08, 0.85, 2.32);
-    const votive = (x0, x1, z, dimmed) => {                        // tiers of little candles in red glass
-      S.box(M(0x2d1b0c), x1 - x0, 0.75, 0.32, (x0 + x1) / 2, 0.38, z);
-      const n = Math.max(4, Math.round((x1 - x0) * 8));
-      for (let row = 0; row < 3; row++) {
-        const y = 0.78 + row * 0.13, zz = z + 0.1 - row * 0.1;
-        S.box(M(0x2d1b0c), x1 - x0, 0.05, 0.11, (x0 + x1) / 2, y - 0.03, zz);
+    const votive = (x0, x1, z) => {                                // a round gilt stand: tiers of little lights, and a cross on top
+      const x = (x0 + x1) / 2, gilt = M(0xb8923c, { metalness: 0.6, roughness: 0.4 });
+      S.cyl(gilt, 0.2, 0.26, 0.05, x, 0.03, z, 18);
+      S.cyl(gilt, 0.03, 0.05, 0.86, x, 0.48, z, 12);
+      for (const [r, y] of [[0.34, 0.92], [0.22, 1.06]]) {
+        S.cyl(gilt, r, r - 0.05, 0.05, x, y, z, 24);
+        const n = Math.round(r * 44);
         for (let k = 0; k < n; k++) {
-          const x = x0 + (x1 - x0) * (k + 0.5) / n;
-          S.cyl(M(0x8c1520, { emissive: 0x7a1010, roughness: 0.3 }), 0.028, 0.028, 0.07, x, y + 0.03, zz, 6);
-          if ((k + row * 2) % (dimmed ? 5 : 3) === 0) S.cyl(glow, 0.008, 0.012, 0.03, x, y + 0.08, zz, 5);
+          const a = k / n * 6.283, cx = x + Math.cos(a) * (r - 0.04), cz = z + Math.sin(a) * (r - 0.04);
+          S.cyl(M(0xe9dcc0, { roughness: 0.5 }), 0.018, 0.018, 0.03, cx, y + 0.04, cz, 6);
+          S.cyl(glow, 0.004, 0.011, 0.03, cx, y + 0.075, cz, 5);
         }
       }
+      S.cyl(gilt, 0.012, 0.012, 0.3, x, 1.24, z, 8);
+      S.box(gilt, 0.018, 0.17, 0.018, x, 1.46, z); S.box(gilt, 0.11, 0.018, 0.018, x, 1.48, z);
     };
     votive(7.75, 8.65, 3.4);                                       // the candles the laity light, right side
-    votive(-8.6, -7.7, 3.28);                                      // and by the sacristy-hall door
+    votive(-8.6, -7.7, 3.38);                                      // and by the sacristy-hall door
     const fontStone = Tex.mat('concrete', { color: 0xc9c2b2, rough: 0.6, normal: 0.4 });
     S.cyl(fontStone, 0.32, 0.42, 0.12, 7.5, 0.06, 4.1, 16);
     S.cyl(fontStone, 0.16, 0.24, 0.7, 7.5, 0.47, 4.1, 16);

@@ -101,11 +101,11 @@
     [5.65, 0.5, 6.05, 1.7, 'low'],         // bench
     // the right-hand bay: Our Mother of Perpetual Help with her kneeler; the baptismal font before it
     [6.63, 2.2, 7.53, 2.8, 'low'], [7.05, 3.65, 7.95, 4.55, 'low'],
-    [7.75, 3.2, 8.65, 3.6, 'low'],         // the candles the laity light, right side
+    [7.85, 3.05, 8.55, 3.75, 'low'],         // the candles the laity light, right side
     [8.0, 3.6, 8.7, 3.9],           // the hymn board's stand
     // the left-hand bay: statue and gilded stand; the laity's candles by the sacristy-hall door
     [-7.5, 2.2, -7.0, 2.7], [-6.6, 2.3, -6.25, 2.65],
-    [-8.6, 3.15, -7.7, 3.4, 'low'],
+    [-8.5, 3.05, -7.8, 3.68, 'low'],
     // confessionals against the side walls, with room to walk past them
     [7.55, 6.6, 8.7, 9.3], [-8.7, 9.2, -7.55, 11.9],
     // parish hall: the stage and the rows of chairs
