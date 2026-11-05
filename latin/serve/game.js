@@ -68,8 +68,12 @@
   const FX = world.fx, PROPS = world.props;
   const SITE3D = Site.build(scene, World);
   const OUT3D = Outdoors.build(scene, World, SITE3D);
-  const CARS = Traffic.build(scene, () => (Explore.active ? FIG.A1 : null), OUT3D.inHouse);
-  const SKY = Weather.build(scene, World, world.lights, { windowMat: SITE3D.windowMat, wetMats: [...SITE3D.wetMats, ...(OUT3D.wetMats || [])] });
+  const WIDE = Northridge.build(scene, World, OUT3D);
+  { const near = OUT3D.inHouse; OUT3D.inHouse = (x, z) => near(x, z) || WIDE.solidAt(x, z); }
+  const CART = Carts.build(OUT3D.group, Traffic.cartBays());
+  let walkerOut = null;         // whoever is out and about, for the traffic to mind
+  const CARS = Traffic.build(scene, () => walkerOut, OUT3D.inHouse, CART);
+  const SKY = Weather.build(scene, World, world.lights, { windowMat: SITE3D.windowMat, wetMats: [...SITE3D.wetMats, ...(OUT3D.wetMats || []), ...WIDE.wetMats] });
 
   function resize() {
     const w = window.innerWidth, ht = window.innerHeight;
@@ -107,7 +111,8 @@
         // behind you and rigid, turning exactly as you turn; dragging swings it away from there until R brings it back
         const out = Plan.regionAt(f.x, f.z);
         const room = /sacristy|servers|narthex|parish hall$/i.test(out);
-        const arm = room ? 2.6 : /nave|sanctuary|auditorium/i.test(out) ? 3.2 : 4.6;
+        const arm = room ? 2.6 : /nave|sanctuary|auditorium/i.test(out) ? 3.2 : CART.driving ? 5.4 : 4.6;
+        this.near0 = room || /nave|sanctuary|auditorium/i.test(out) ? 0.08 : 0.2;
         if (always) this.yaw = wrap(f.heading + Math.PI + this.offset);
         else {
           // watching someone else: no need to be behind them, only to have room to see them
@@ -125,7 +130,7 @@
         // never through a wall: with one close behind you it comes in at once, and goes out again gently once there is room
         this.armRoom = this.snap || clear < this.armRoom ? clear : this.armRoom + (clear - this.armRoom) * Math.min(1, dt * 5);
         // close in, it rises just over your head and looks where you are going, not down at your feet
-        const d = Math.min(this.armBase, this.armRoom), k = Math.min(1, d / 2.2), high = room ? 2.25 : 2.3 + (arm - 3.2) * 0.25, ahead = (1 - k) * 0.6;
+        const d = Math.min(this.armBase, this.armRoom), k = Math.min(1, d / 2.2), high = room ? 2.25 : 2.3 + (arm - 3.2) * 0.25 + (CART.driving ? 0.45 : 0), ahead = (1 - k) * 0.6;
         this.goal.set(f.x + ax * d, f.y + 1.95 + (high - 1.95) * k, f.z + az * d);
         this.look.set(f.x - ax * ahead, f.y + 1.0 + 0.1 * k, f.z - az * ahead);
       }
@@ -457,7 +462,7 @@
       canvas.style.cursor = '';
       if (this.tip) this.tip.hidden = true;
       for (const z of this.pool) z.visible = false;
-      if (UI.paused || (!Explore.active && (!director || director.failed))) return;
+      if (UI.paused || CART.driving || (!Explore.active && (!director || director.failed))) return;
       // when a bow is due, any honest move that way is the bow that is due, however deep it went
       const moved = (this.y - a.y0) / k, level = l => l === 3 ? 'deep' : l === 2 ? 'med' : 'head';
       if (part === 'back' || part === 'head') {
@@ -507,7 +512,7 @@
     },
     /** Each frame: the handles, the arm following the pointer, and what it is over. */
     update() {
-      const f = this.who(), show = !!f && f.root.visible && !UI.paused;
+      const f = this.who(), show = !!f && f.root.visible && !UI.paused && !CART.driving;
       for (const part of Object.keys(PARTS)) {
         const h = this.handles[part] || (this.handles[part] = dot(PARTS[part][1]));
         h.visible = show && (!this.active || this.active.part === part);
@@ -1871,7 +1876,7 @@
       if (Math.abs(x) > g - r) return true;
       if ((x >= 0 ? FX.gates.gateE : FX.gates.gateG).open < 0.5) return true;
     }
-    if (CARS.solidAt(x, z, r)) return true;
+    if (CARS.solidAt(x, z, r) || CART.solidAt(x, z, r)) return true;
     return OUT3D.inHouse(x, z);
   }
   function collide(x0, z0, x1, z1) {
@@ -1925,7 +1930,9 @@
       Grab.reset();
       resetWorld({ servers: 1, communion: false });
       FIG.P.root.visible = false;
-      this.active = true;
+      this.active = true; walkerOut = FIG.A1;
+      this.leaveCart(true); CART.reset();
+      this.wide(true);
       const f = FIG.A1, [x, z] = Plan.world(8, 15);
       f.place(x, z, Math.PI); f.y = 0;
       camera.position.set(x, 3, z + 4.6);
@@ -1938,9 +1945,76 @@
       this.region = '';
       this.setRegion();
     },
-    stop() { this.active = false; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    stop() { this.leaveCart(true); this.wide(false); this.active = false; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    /** Outdoors on foot or on wheels you can see across the whole town; at Mass there is no need. */
+    wide(on) {
+      const reach = on ? WIDE.fogFar : 620;
+      SKY.fogFar = reach; OUT3D.treeFar = reach; camera.far = on ? reach * 1.15 : 900; camera.updateProjectionMatrix();
+      if (on) WIDE.wake();
+    },
+    /** Into the cart beside you, or back out of the one you are in. */
+    toggleCart() {
+      if (!this.active || UI.paused) return;
+      const f = FIG.A1;
+      if (CART.driving) {
+        const c = CART.driving, out = CART.getOutAt(c, (x, z) => Plan.free(x, z, 0.18, blocked));
+        if (!out) { UI.toast('There is no room to get out here.'); return; }
+        if (Math.abs(c.speed) > 2) { UI.toast('Stop first.'); return; }
+        this.leaveCart(false, out);
+      } else {
+        const c = CART.nearest(f.x, f.z, 2.6);
+        if (!c || f.posture !== 'stand') return;
+        CART.driving = c; f.pose = {}; f.walk = null; f.turn = null; f.manualWalk = false; f.walkingManual = 0;
+        f.heading = c.h; f.rideY = CART.seatLift; f.sit();
+        Cam.offset = 0;
+        audio();
+      }
+      this.cartButton(true);
+    },
+    leaveCart(quiet, at) {
+      const f = FIG.A1, c = CART.driving;
+      if (!c) return;
+      c.speed = 0; c.steerA = 0; CART.driving = null;
+      f.rideY = 0; f.pose = {};
+      if (at) { f.x = at[0]; f.z = at[1]; }
+      if (!quiet) f.stand(); else if (f.posture !== 'stand') f.stand();
+      Cam.offset = 0;
+      if (this.hum) this.hum.gain.gain.value = 0;
+    },
+    /** The button shows only when it would do something. */
+    cartButton(force) {
+      const b = $('#btn-cart'), f = FIG.A1, driving = !!CART.driving, near = driving || (f.posture === 'stand' && !!CART.nearest(f.x, f.z, 2.6));
+      if (force || near !== !b.hidden) b.hidden = !near;
+      const text = driving ? 'Get out of the golf cart (Enter)' : 'Get in the golf cart (Enter)';
+      if (b.textContent !== text) b.textContent = text;
+      const tip = driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather';
+      if ($('#explore-tip').textContent !== tip) $('#explore-tip').textContent = tip;
+    },
+    /** A cart's motor: a low electric hum that rises with the speed. */
+    motor(speed) {
+      if (!opts.sound) return;
+      const a = audio(); if (!a) return;
+      if (!this.hum) {
+        const o = a.createOscillator(), gain = a.createGain(), filter = a.createBiquadFilter();
+        o.type = 'sawtooth'; filter.type = 'lowpass'; filter.frequency.value = 420; gain.gain.value = 0;
+        o.connect(filter); filter.connect(gain); gain.connect(a.destination); o.start();
+        this.hum = { o, gain, a };
+      }
+      const s = Math.abs(speed) / CART.TOP;
+      this.hum.o.frequency.setTargetAtTime(58 + s * 150, a.currentTime, 0.08);
+      this.hum.gain.gain.setTargetAtTime(CART.driving ? 0.012 + s * 0.022 : 0, a.currentTime, 0.1);
+    },
+    bump(hard) {
+      if (!opts.sound) return;
+      const a = audio(); if (!a) return;
+      const o = a.createOscillator(), g = a.createGain();
+      o.type = 'triangle'; o.frequency.setValueAtTime(90, a.currentTime); o.frequency.exponentialRampToValueAtTime(38, a.currentTime + 0.16);
+      g.gain.setValueAtTime(Math.min(0.5, 0.1 + hard * 0.05), a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.2);
+      o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.22);
+    },
     setRegion() {
-      const f = FIG.A1, r = Plan.regionAt(f.x, f.z);
+      const f = FIG.A1; let r = Plan.regionAt(f.x, f.z);
+      if (r === 'Northridge') r = WIDE.streetAt(f.x, f.z) || r;
       if (r !== this.region) {
         this.region = r; $('#part').textContent = r;
         $('#btn-serve-here').hidden = r !== 'The sacristy';
@@ -1949,6 +2023,17 @@
     update(dt) {
       if (!this.active || UI.paused) return;
       const f = FIG.A1;
+      this.cartButton();
+      if (CART.driving) {
+        const c = CART.driving, d = Input.down, open = (x, z) => Plan.free(x, z, 0.02, blocked) && !/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered walk/i.test(Plan.regionAt(x, z));
+        const hit = CART.drive(c, Math.min(dt, 0.05), { gas: !!d.ArrowUp, brake: !!d.ArrowDown, way: (d.ArrowLeft ? 1 : 0) - (d.ArrowRight ? 1 : 0) }, open);
+        if (hit) this.bump(hit);
+        this.motor(c.speed);
+        const [sx, sz] = CART.seat(c);
+        f.x = sx; f.z = sz; f.heading = c.h; f.y = 0;
+        this.setRegion();
+        return;
+      }
       Input.turn(f, dt);
       const going = Input.walk();
       if (going && f.posture === 'stand') {
@@ -1965,6 +2050,7 @@
     /** Kneeling, bowing and the rest are simply yours to do here: nothing is expected or marked. */
     act(type, arg) {
       const f = FIG.A1;
+      if (CART.driving) return;           // both hands on the wheel
       switch (type) {
         case 'kneel': if (f.posture === 'stand') f.kneel(); return;
         case 'stand': case 'rise': if (f.posture !== 'stand') f.stand(); return;
@@ -2116,6 +2202,7 @@
     }
     if (e.target.closest && e.target.closest('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
     if (e.key === 'Escape') { UI.togglePause(); e.preventDefault(); return; }
+    if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); Explore.toggleCart(); e.preventDefault(); return; }
     if (e.key === 'Shift' && !e.repeat && !Explore.active) { audio(); Player.act('kneel'); return; }
     if (e.key === 'Control' && !e.repeat) { audio(); standOrSit(); e.preventDefault(); return; }
     if (e.key === ' ') { if (!e.repeat) { audio(); Player.act('cross'); } e.preventDefault(); return; }
@@ -2375,7 +2462,7 @@
 
   // ─── starting and stopping ─────────────────────────────────────────────────
   let director = null;
-  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, autoplay: params.has('autoplay'),
+  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, WIDE, CART, autoplay: params.has('autoplay'),
     Cam, Grab, Fix, FX, headingFor, syllables, followLine, soundOf, Explore, Plan, Nav, camera, renderer, scene, collide, walkFree: (x, z) => Plan.free(x, z, 0.18, blocked), SKY, CARS, OUT3D, SITE3D,
     start: (kind, o) => { Object.assign(opts, o || {}); kind === 'play' ? beginPlay() : kind === 'explore' ? Explore.start() : startWatch(); } };
 
@@ -2548,7 +2635,11 @@
     const seeOut = !Cam.fixed && viewFrom !== 'The sanctuary';
     Sun.update(focus, seeOut && !SKY.indoors);
     OUT3D.group.visible = seeOut; CARS.group.visible = seeOut; SITE3D.outGroup.visible = seeOut;
-    if (seeOut) { CARS.update(real); OUT3D.update(camera, performance.now() / 1000); }
+    if (seeOut) {
+      CARS.update(real); OUT3D.update(camera, performance.now() / 1000, Explore.active); WIDE.update(camera, Explore.active, performance.now() / 1000); CART.update(real);
+      // the hands stay on the wheel
+      if (CART.driving) { const g = CART.grips(CART.driving), f = FIG.A1; f.pose.R = g.R; f.pose.L = g.L; }
+    }
     SKY.indoors = Cam.fixed || /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium/i.test(viewFrom);
     SKY.update(real, camera, { audio, sound: opts.sound });
     if (director && director.player) {
@@ -2598,6 +2689,7 @@
   $('#btn-play').addEventListener('click', startPlay);
   $('#btn-watch').addEventListener('click', startWatch);
   $('#btn-explore').addEventListener('click', () => { audio(); Explore.start(); });
+  $('#btn-cart').addEventListener('click', e => { audio(); Explore.toggleCart(); e.currentTarget.blur(); });
   $('#btn-serve-here').addEventListener('click', startPlay);
   $('#btn-options').addEventListener('click', () => { renderOptions(); $('#options').hidden = false; });
   $('#btn-controls').addEventListener('click', () => { $('#controls').hidden = false; });

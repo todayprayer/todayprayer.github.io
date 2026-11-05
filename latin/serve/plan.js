@@ -159,16 +159,16 @@
     lamps: [[3, 16], [3, -16], [24, -2], [24, -12]].map(p => world(p[0], p[1])),
     statue: world(11.5, 60),
     sign: world(3, 19),
-    // parking bays: a line of stalls from..to, each stall `w` wide and `len` long, leaning by `skew`
+    // parking bays: a line of stalls from..to along their heads, running `len` long in world direction `dir` out to the aisle, leaning by `skew`
     stalls: [
-      { from: world(33, -21), to: world(74, -21), n: 15, len: 5, dir: [0, 1], skew: 0.45 },
-      { from: world(70, -8), to: world(70, 36), n: 18, len: 5, dir: [-1, 0], skew: 0.5 },
-      { from: world(70, -8), to: world(70, 36), n: 18, len: 5, dir: [1, 0], skew: 0.5 },
-      { from: world(88, -6), to: world(88, 56), n: 22, len: 5, dir: [-1, 0], skew: 0.4 },
-      { from: world(20, 55), to: world(50, 55), n: 11, len: 5, dir: [0, 1], skew: 0.45 },
-      { from: world(20, 74), to: world(62, 74), n: 15, len: 5, dir: [0, -1], skew: 0.2 },
+      { from: world(33, -21), to: world(74, -21), n: 15, len: 5, dir: [-1, 0], skew: 0.45 },
+      { from: world(70, -8), to: world(70, 36), n: 18, len: 5, dir: [0, 1], skew: 0.5 },
+      { from: world(70, -8), to: world(70, 36), n: 18, len: 5, dir: [0, -1], skew: 0.5 },
+      { from: world(88, -6), to: world(88, 56), n: 22, len: 5, dir: [0, 1], skew: 0.4 },
+      { from: world(20, 55), to: world(50, 55), n: 11, len: 5, dir: [-1, 0], skew: 0.45, carts: 3 },
+      { from: world(20, 74), to: world(62, 74), n: 15, len: 5, dir: [1, 0], skew: 0.2 },
     ],
-    limit: 390,
+    limit: 1580,
   };
 
   /** What the camera must stay clear of: walls and furniture, but it can see over the pews. */

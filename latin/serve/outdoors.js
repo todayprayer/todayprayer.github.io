@@ -86,14 +86,18 @@
     const lawnM = Tex.mat('grass', { vertexColors: true, rough: 1, depthWrite: false, side: THREE.DoubleSide }); lawnM.userData.layer = -3.8;
     const solids = new Map(), CELL = 24;
 
+    const moved = (root.WideData && root.WideData.moved) || [];
     Data.buildings.forEach((bd, n) => {
       const pts = []; for (let i = 0; i < bd.p.length; i += 2) pts.push([bd.p[i], bd.p[i + 1]]);
       if (pts.length < 3) return;
+      // the flats, shops and halls among them are drawn with the rest of Northridge, as what they are
+      { const mx = pts.reduce((a, p) => a + p[0], 0) / pts.length, mz = pts.reduce((a, p) => a + p[1], 0) / pts.length; bd.isMoved = moved.some(q => Math.hypot(q[0] - mx, q[1] - mz) < 2.5); }
       const r = rng(n * 7919 + 13);
       const xs = pts.map(p => p[0]), zs = pts.map(p => p[1]);
       for (let gx = Math.floor(Math.min(...xs) / CELL); gx <= Math.floor(Math.max(...xs) / CELL); gx++) for (let gz = Math.floor(Math.min(...zs) / CELL); gz <= Math.floor(Math.max(...zs) / CELL); gz++) {
         const k = gx + ',' + gz; if (!solids.has(k)) solids.set(k, []); solids.get(k).push(pts);
       }
+      if (bd.isMoved) return;
       const { ang, rects } = wings(pts, L >= 2 ? 3 : 1);
       if (!rects.length) return;
       const wallC = WALL[n % WALL.length], roofC = bd.c == null ? 0x6a625a : bd.c, trimC = n % 3 === 0 ? 0x5a4632 : 0xe8e4da;
@@ -263,7 +267,7 @@
   function buildStreets(B, W) {
     const M = W.M;
     const layer = (n, name, o) => { const m = Tex.mat(name, Object.assign({ rough: 1, depthWrite: false, side: THREE.DoubleSide }, o)); m.userData.layer = n; return m; };
-    const walk = layer(-8, 'concrete', { color: 0xdcd8cc }), road = layer(-7, 'road', { color: 0xa8a8a8 });
+    const walk = layer(-8, 'concrete', { color: 0xdcd8cc }), road = layer(-7, 'asphalt', { color: 0x8c8c8c });
     B.wetMats = [road, walk];
     const yellow = new THREE.MeshStandardMaterial({ color: 0xb79a2c, roughness: 1, depthWrite: false, side: THREE.DoubleSide }); yellow.userData.layer = -6.5;
     const curb = Tex.mat('concrete', { color: 0xd8d4c8, rough: 1, side: THREE.DoubleSide });
@@ -407,79 +411,7 @@
     B.box(wood, 0.45, 0.05, 1.5, sx + 2.9, 0.45, sz); B.box(wood, 0.05, 0.42, 1.5, sx + 3.12, 0.72, sz);
     for (const k of [-0.65, 0.65]) B.box(iron, 0.4, 0.45, 0.05, sx + 2.9, 0.22, sz + k);
 
-    buildMary(group, sx, sz);
-  }
-
-  /** Our Lady in white marble: a robe in folds, a veil, hands joined, on a stepped pedestal. Faces the street. */
-  function buildMary(group, x, z) {
-    const marble = new THREE.MeshStandardMaterial({ color: 0xf1ece0, roughness: 0.42 });
-    const fig = new THREE.Group(); fig.position.set(x, 0, z); fig.rotation.y = 0; group.add(fig);
-    const add = (g, m = marble, px = 0, py = 0, pz = 0) => { const o = new THREE.Mesh(g, m); o.position.set(px, py, pz); o.castShadow = true; o.receiveShadow = true; fig.add(o); return o; };
-    const seg = Math.round(40 * Q.cards) + 24;
-    // the pedestal
-    const stone = Tex.mat('concrete', { color: 0xbdb7a8, rough: 0.9 });
-    add(new THREE.CylinderGeometry(0.72, 0.8, 0.22, 32), stone, 0, 0.11);
-    add(new THREE.CylinderGeometry(0.56, 0.62, 0.3, 32), stone, 0, 0.37);
-    add(new THREE.CylinderGeometry(0.42, 0.46, 0.5, 32), stone, 0, 0.77);
-    const base = 1.02;
-    // the robe, turned on a lathe, then gathered into folds that deepen towards the hem
-    const prof = [[0.34, 0], [0.33, 0.03], [0.3, 0.2], [0.27, 0.5], [0.235, 0.8], [0.2, 1.05], [0.175, 1.15], [0.205, 1.28], [0.23, 1.38], [0.215, 1.46], [0.13, 1.54], [0.06, 1.58], [0, 1.58]];
-    const pts = []; for (let i = 0; i < prof.length - 1; i++) for (let k = 0; k < 5; k++) { const t = k / 5; pts.push(new THREE.Vector2(prof[i][0] + (prof[i + 1][0] - prof[i][0]) * t, prof[i][1] + (prof[i + 1][1] - prof[i][1]) * t)); }
-    const robeG = new THREE.LatheGeometry(pts, seg * 2);
-    { const a = robeG.attributes.position;
-      for (let i = 0; i < a.count; i++) {
-        const X = a.getX(i), Y = a.getY(i), Z = a.getZ(i), ang = Math.atan2(X, Z), deep = Math.max(0, 1 - Y / 1.1), rr = Math.hypot(X, Z);
-        const fold = 1 + 0.11 * deep * Math.sin(ang * 9 + Math.sin(Y * 3)) + 0.03 * deep * Math.sin(ang * 23);
-        // flattened a little front to back, like a body
-        a.setXYZ(i, X * fold, Y, Z * fold * (Y > 0.7 ? 0.8 : 0.9));
-        if (rr === 0) a.setXYZ(i, 0, Y, 0);
-      }
-      robeG.computeVertexNormals();
-    }
-    add(robeG, marble, 0, base);
-    // the veil and mantle, falling from the head to below the shoulders behind
-    const veilP = [[0.03, 1.87], [0.095, 1.84], [0.125, 1.76], [0.125, 1.66], [0.155, 1.54], [0.235, 1.38], [0.26, 1.15], [0.26, 0.85], [0.235, 0.55]];
-    const vp = []; for (let i = 0; i < veilP.length - 1; i++) for (let k = 0; k < 4; k++) { const t = k / 4; vp.push(new THREE.Vector2(veilP[i][0] + (veilP[i + 1][0] - veilP[i][0]) * t, veilP[i][1] + (veilP[i + 1][1] - veilP[i][1]) * t)); }
-    const veilG = new THREE.LatheGeometry(vp, seg, Math.PI * 0.36, Math.PI * 1.28);   // open at the front
-    { const a = veilG.attributes.position;
-      for (let i = 0; i < a.count; i++) { const X = a.getX(i), Y = a.getY(i), Z = a.getZ(i), ang = Math.atan2(X, Z), below = Math.max(0, 1 - Y / 1.3), fold = 1 + 0.07 * below * Math.sin(ang * 7 + 1); a.setXYZ(i, X * fold, Y, Z * fold * (Y > 1.55 ? 1 : 0.9)); }
-      veilG.computeVertexNormals(); }
-    const veilM = marble.clone(); veilM.side = THREE.DoubleSide;
-    add(veilG, veilM, 0, base);
-    // her head and face
-    const head = new THREE.SphereGeometry(0.098, 28, 22);
-    { const a = head.attributes.position;
-      for (let i = 0; i < a.count; i++) {
-        const X = a.getX(i), Y = a.getY(i), Z = a.getZ(i);
-        let zz = Z * 1.05, yy = Y * 1.16, xx = X * 0.92;
-        if (Y < 0 && Z > 0) { xx *= 1 + Y * 2.2; }                                               // the jaw narrows
-        const nose = Math.exp(-(X * X) / 0.00016 - ((Y + 0.005) * (Y + 0.005)) / 0.0012); if (Z > 0) zz += nose * 0.022;
-        const brow = Math.exp(-((Y - 0.03) * (Y - 0.03)) / 0.0002); if (Z > 0.04) zz += brow * 0.004;
-        const eyes = Math.exp(-((Math.abs(X) - 0.036) ** 2) / 0.00018 - ((Y - 0.012) ** 2) / 0.00012); if (Z > 0) zz -= eyes * 0.011;
-        const lips = Math.exp(-(X * X) / 0.0006 - ((Y + 0.055) ** 2) / 0.00006); if (Z > 0) zz += lips * 0.006;
-        a.setXYZ(i, xx, yy, zz);
-      }
-      head.computeVertexNormals(); }
-    add(head, marble, 0, base + 1.72, 0.012);
-    add(new THREE.CylinderGeometry(0.046, 0.056, 0.12, 14), marble, 0, base + 1.6, 0);
-    // arms bent towards the joined hands
-    const limb = (ax, ay, az, bx, by, bz, ra, rb) => {
-      const L = Math.hypot(bx - ax, by - ay, bz - az);
-      const m = add(new THREE.CylinderGeometry(rb, ra, L, 14), marble, (ax + bx) / 2, (ay + by) / 2, (az + bz) / 2);
-      m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 1, 0), new THREE.Vector3(bx - ax, by - ay, bz - az).normalize());
-      add(new THREE.SphereGeometry(ra, 12, 10), marble, ax, ay, az);
-    };
-    for (const s of [-1, 1]) {
-      limb(s * 0.2, base + 1.42, 0, s * 0.215, base + 1.16, 0.09, 0.062, 0.058);
-      limb(s * 0.215, base + 1.16, 0.09, s * 0.03, base + 1.3, 0.22, 0.056, 0.038);
-      // a wide sleeve hanging from the forearm
-      const sl = add(new THREE.ConeGeometry(0.075, 0.26, 14, 1, true), veilM, s * 0.13, base + 1.1, 0.16); sl.rotation.x = 0.15;
-      // the hand, its fingers together, pointing up in prayer
-      const hand = add(new THREE.BoxGeometry(0.03, 0.09, 0.05), marble, s * 0.016, base + 1.35, 0.235); hand.rotation.x = -0.35; hand.rotation.z = s * -0.1;
-      for (let f = 0; f < 4; f++) { const fg = add(new THREE.CapsuleGeometry(0.0065, 0.05, 2, 6), marble, s * 0.016, base + 1.41, 0.218 + f * 0.013); fg.rotation.x = -0.35; }
-    }
-    // her feet at the hem
-    for (const s of [-1, 1]) add(new THREE.SphereGeometry(0.06, 12, 8), marble, s * 0.09, base + 0.03, 0.27).scale.set(0.9, 0.5, 1.4);
+    B.statue = root.Statue.build(group, sx, sz);
   }
 
   // ─── trees ─────────────────────────────────────────────────────────────────
@@ -610,6 +542,11 @@
       const sp = kind === 1 || u < 0.16 ? 'pine' : u < 0.22 ? 'palm' : u < 0.27 ? 'cypress' : u < 0.62 ? 'oak' : 'maple';
       put(x, z, sp === 'palm' ? 7 + r() * 5 : sp === 'cypress' ? 6 + r() * 5 : sp === 'pine' ? Math.max(11, h * 1.15) : h, sp, sp === 'pine' || sp === 'cypress' ? 0x16361f : GREEN[Math.floor(r() * GREEN.length)]);
     }
+    for (const t of (root.WideData && root.WideData.trees) || []) {
+      if (r() > share) continue;
+      const u = r(), [x, z, h] = t, sp = u < 0.1 ? 'pine' : u < 0.17 ? 'palm' : u < 0.22 ? 'cypress' : u < 0.62 ? 'oak' : 'maple';
+      put(x, z, sp === 'palm' ? 7 + r() * 5 : sp === 'cypress' ? 6 + r() * 5 : sp === 'pine' ? Math.max(11, h * 1.15) : h, sp, sp === 'pine' || sp === 'cypress' ? 0x16361f : GREEN[Math.floor(r() * GREEN.length)]);
+    }
     const tex = { broad: texBroad(), needle: texNeedle(), frond: texFrond() };
     const bark = Tex.mat('bark', { rough: 1, normal: 1 });
     const meshes = {};
@@ -637,11 +574,12 @@
     const color = new THREE.Color();
     let last = -1e9, lx = 1e9, lz = 1e9;
     /** Put each tree in the detailed or the cheap set according to its distance. */
-    function refresh(x, z) {
+    function refresh(x, z, far) {
       for (const set of Object.values(meshes)) {
         let n = 0, f = 0, w = 0;
         for (const t of set.items) {
           const d = Math.hypot(t.x - x, t.z - z);
+          if (d > far) continue;
           dummy.position.set(t.x, 0, t.z); dummy.rotation.set(0, (t.x * 13.7 + t.z * 7.1) % 6.283, 0);
           const wide = 0.86 + ((t.x * 3.1 + t.z) % 1 + 1) % 1 * 0.3;
           dummy.scale.set(t.h * wide, t.h, t.h * wide); dummy.updateMatrix();
@@ -655,38 +593,45 @@
         if (set.farL.instanceColor) set.farL.instanceColor.needsUpdate = true;
       }
     }
-    return { count: list.length, update(camera, t) {
+    let lastFar = 0;
+    return { count: list.length, update(camera, t, far = 620) {
       const moved = Math.hypot(camera.position.x - lx, camera.position.z - lz);
-      if (moved > 25 || t - last > 30) { lx = camera.position.x; lz = camera.position.z; last = t; refresh(lx, lz); }
+      if (moved > 25 || t - last > 30 || far !== lastFar) { lx = camera.position.x; lz = camera.position.z; last = t; lastFar = far; refresh(lx, lz, far); }
     } };
   }
 
   // ─── everything ────────────────────────────────────────────────────────────
 
-  function build(scene, W, site) {
-    const group = new THREE.Group(); scene.add(group);
-    const B = new root.Site.Batch(group);
-
-    // the aerial on the ground, sharpened close up by a tiling grass detail
-    const A = root.AerialData, img = new Image();
-    const aerial = new THREE.Texture(img); aerial.encoding = THREE.sRGBEncoding; aerial.anisotropy = 8;
-    img.onload = () => { aerial.needsUpdate = true; }; img.src = A.src;
+  /** The aerial on the ground, sharpened close up by a tiling grass detail. */
+  function groundMat(aerial) {
     const groundM = new THREE.MeshStandardMaterial({ map: aerial, roughness: 1, depthWrite: false, side: THREE.DoubleSide });
-    groundM.userData.layer = -9;
-    const detail = Tex.get('grass', 'd');
+    const detail = Tex.get('grass', 'd'), paved = Tex.get('concrete', 'd');
     groundM.onBeforeCompile = sh => {
-      sh.uniforms.detailMap = { value: detail };
+      sh.uniforms.detailMap = { value: detail }; sh.uniforms.pavedMap = { value: paved };
       sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nvarying vec2 vWorldXZ;')
         .replace('#include <begin_vertex>', '#include <begin_vertex>\nvWorldXZ = position.xz;');
-      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;\nvarying vec2 vWorldXZ;')
+      sh.fragmentShader = sh.fragmentShader.replace('#include <common>', '#include <common>\nuniform sampler2D detailMap;\nuniform sampler2D pavedMap;\nvarying vec2 vWorldXZ;')
         .replace('#include <map_fragment>', `#include <map_fragment>
           vec3 tile = texture2D(detailMap, vWorldXZ * 0.31).rgb;
           float dt = dot(tile, vec3(0.34));
           float green = smoothstep(-0.015, 0.05, diffuseColor.g - max(diffuseColor.r, diffuseColor.b));
           vec3 lawn = tile * (0.45 + dot(diffuseColor.rgb, vec3(0.9))) * vec3(0.92, 1.05, 0.72);
-          diffuseColor.rgb = mix(diffuseColor.rgb * (0.62 + dt * 1.1), lawn, green * 0.8);
+          vec3 hard = diffuseColor.rgb * (0.5 + 1.25 * dot(texture2D(pavedMap, vWorldXZ * 0.23).rgb, vec3(0.34)));
+          diffuseColor.rgb = mix(hard * (0.8 + dt * 0.45), lawn, green * 0.8);
 `);
     };
+    return groundM;
+  }
+
+  function build(scene, W, site) {
+    const group = new THREE.Group(); scene.add(group);
+    const B = new root.Site.Batch(group);
+
+    const A = root.AerialData, img = new Image();
+    const aerial = new THREE.Texture(img); aerial.encoding = THREE.sRGBEncoding; aerial.anisotropy = 8;
+    img.onload = () => { aerial.needsUpdate = true; }; img.src = A.src;
+    const groundM = groundMat(aerial);
+    groundM.userData.layer = -9;
     const R = A.r, x0 = A.cx - R, x1 = A.cx + R, z0 = A.cz - R, z1 = A.cz + R;
     const gg = new THREE.BufferGeometry();
     gg.setAttribute('position', new THREE.Float32BufferAttribute([x0, -0.05, z1, x1, -0.05, z1, x1, -0.05, z0, x0, -0.05, z0], 3));
@@ -695,18 +640,20 @@
     gg.setIndex([0, 1, 2, 0, 2, 3]);
     const ground = new THREE.Mesh(gg, groundM); ground.renderOrder = -9; ground.frustumCulled = false; group.add(ground);
     // beyond the photograph, a plain ground into the haze
-    const far = new THREE.Mesh(new THREE.PlaneGeometry(2400, 2400), new THREE.MeshStandardMaterial({ color: 0x5c6242, roughness: 1, depthWrite: false }));
+    const far = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: 0x5c6242, roughness: 1, depthWrite: false }));
     far.rotation.x = -Math.PI / 2; far.position.y = -0.06; far.renderOrder = -10; far.frustumCulled = false; group.add(far);
 
     const inHouse = buildHouses(B, W);
     buildStreets(B, W);
+    const wet = B.wetMats;
     buildFurniture(B, W, group);
     buildGarden(B, W, group);
     B.flush(false);
     const casters = group.children.filter(o => o.isMesh);
     const trees = buildTrees(group, W, inHouse);
-    return { group, inHouse, trees, casters, wetMats: B.wetMats, update(camera, t) { trees.update(camera, t); } };
+    const statue = B.statue;
+    return { group, inHouse, trees, casters, statue, treeFar: 620, wetMats: wet, update(camera, t, walking) { trees.update(camera, t, this.treeFar); statue.update(camera, walking); } };
   }
 
-  root.Outdoors = { build };
+  root.Outdoors = { build, wings, groundMat };
 })(typeof self !== 'undefined' ? self : this);

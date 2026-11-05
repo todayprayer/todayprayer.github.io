@@ -162,7 +162,7 @@
         lights.hemi.intensity = lights.hemiBase * (1 - (1 - now.ambient) * inside);
         if (scene.fog) {
           scene.fog.color.setRGB(0.81 - now.dark * 0.28, 0.87 - now.dark * 0.3, 0.9 - now.dark * 0.3);
-          scene.fog.near = 150 - now.rain * 90; scene.fog.far = 620 - now.rain * 280;
+          const reach = this.fogFar || 620; scene.fog.near = reach * (0.242 - now.rain * 0.145); scene.fog.far = reach * (1 - now.rain * 0.45);
         }
         if (site && site.windowMat) site.windowMat.color.setRGB(0.91 * now.tint, 0.95 * now.tint, 0.96 * now.tint);
         // rain falls where there is no roof over the camera

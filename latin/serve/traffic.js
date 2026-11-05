@@ -136,7 +136,7 @@
     const throughHouse = (a, b) => { const n = Math.ceil(Math.hypot(b.x - a.x, b.z - a.z) / 1.5); for (let i = 1; i < n; i++) if (inHouse(a.x + (b.x - a.x) * i / n, a.z + (b.z - a.z) * i / n)) return true; return false; };
     const nodes = new Map(), key = (x, z) => Math.round(x * 2) + ',' + Math.round(z * 2);
     const node = (x, z) => { const k = key(x, z); if (!nodes.has(k)) nodes.set(k, { x, z, out: [] }); return nodes.get(k); };
-    for (const r of Data.roads) {
+    for (const r of [...Data.roads, ...((root.WideData && root.WideData.roads) || []).filter(q => q.w >= 8)]) {
       if (r.k === 'service') continue;
       let prev = null;
       for (let i = 0; i < r.p.length; i += 2) {
@@ -165,9 +165,9 @@
   const W = Plan.world;
   const LOT = {
     A: W(6, 47.5), B: W(30, 47.5), C: W(53, 47.5), D: W(60, 47.5), E: W(60, 20), F: W(60, -14), G: W(31, -14), H: W(31, -25), I: W(83, -14), J: W(83, -25), K: W(6, 72), L: W(30, 65), M: W(53, 65),
-    N: W(79, 47.5), O: W(79, 20), P: W(79, -14),
+    N: W(79, 47.5), O: W(79, 20), P: W(79, -14), S: W(53, 64.5), Q: W(30, 64.5),
   };
-  const LINKS = 'A-B B-C C-D D-E E-F F-G G-H F-I I-J K-L L-M M-C D-N N-O O-P P-I P-F'.split(' ').map(s => s.split('-'));
+  const LINKS = 'A-B B-C C-D D-E E-F F-G G-H F-I I-J K-L L-M M-C D-N N-O O-P P-I P-F C-S S-Q'.split(' ').map(s => s.split('-'));
   const EXITS = [
     { name: 'A', road: W(-7, 47.5) }, { name: 'K', road: W(-7, 72) }, { name: 'H', road: W(31, -28) }, { name: 'J', road: W(83, -28) },
   ];
@@ -183,21 +183,34 @@
     const out = [];
     for (const st of Plan.SITE.stalls) {
       const [ax, az] = st.from, [bx, bz] = st.to, dx = (bx - ax) / st.n, dz = (bz - az) / st.n, [ux, uz] = st.dir;
-      for (let i = 0; i < st.n; i++) {
+      for (let i = st.carts || 0; i < st.n; i++) {
         const x = ax + dx * (i + 0.5) + ux * st.len * 0.5 + dx * st.skew * 0.5, z = az + dz * (i + 0.5) + uz * st.len * 0.5 + dz * st.skew * 0.5;
         // nearest aisle point, and the spot directly in front of the bay on the aisle side
         let best = 'A', bd = 1e9;
         for (const [name, [px, pz]] of Object.entries(LOT)) { if ('HJ'.includes(name)) continue; const d = Math.hypot(px - x, pz - z); if (d < bd) { bd = d; best = name; } }
-        out.push({ x, z, heading: Math.atan2(ux + dx * st.skew / st.len, uz + dz * st.skew / st.len), mouth: [x - ux * st.len * 1.2, z - uz * st.len * 1.2], aisle: best, used: false });
+        out.push({ x, z, heading: Math.atan2(-ux - dx * st.skew / st.len, -uz - dz * st.skew / st.len), mouth: [x + ux * st.len * 1.2, z + uz * st.len * 1.2], aisle: best, used: false });      // nose in, the aisle behind
       }
+    }
+    return out;
+  }
+
+  /** Where the golf carts wait: the bays set aside for them. */
+  function cartBays() {
+    const out = [];
+    for (const st of Plan.SITE.stalls) {
+      if (!st.carts) continue;
+      const [ax, az] = st.from, [bx, bz] = st.to, dx = (bx - ax) / st.n, dz = (bz - az) / st.n, [ux, uz] = st.dir;
+      for (let i = 0; i < st.carts; i++) out.push({ x: ax + dx * (i + 0.5) + ux * st.len * 0.5 + dx * st.skew * 0.5, z: az + dz * (i + 0.5) + uz * st.len * 0.5 + dz * st.skew * 0.5, h: Math.atan2(ux + dx * st.skew / st.len, uz + dz * st.skew / st.len) });
     }
     return out;
   }
 
   // ─── the cars ──────────────────────────────────────────────────────────────
 
-  function build(scene, isWalker, inHouse) {
+  function build(scene, isWalker, inHouse, carts) {
     const group = new THREE.Group(); scene.add(group);
+    const walkers = () => { const w = isWalker(); return w ? [w] : []; };
+    const standing = () => (carts && carts.list ? carts.list.filter(k => k !== carts.driving) : []);
     const graph = buildGraph(inHouse).filter(n => n.out.length);
     const r = rng(1962);
     const parking = bays();
@@ -212,10 +225,13 @@
       const e = (opts.length ? opts : n.out)[Math.floor(r() * Math.max(1, (opts.length ? opts : n.out).length))];
       c.edge = e;
     }
+    /** Where the traffic should be: round whoever is walking or driving, or else round the church. */
+    const about = () => { const w = walkers()[0]; return w ? [w.x, w.z] : [0, 20]; };
     function spawnRoad(c) {
-      for (let tries = 0; tries < 40; tries++) {
-        const n = graph[Math.floor(r() * graph.length)];
-        if (Math.hypot(n.x, n.z - 20) > 340) continue;
+      const [ax, az] = about(), walking = walkers().length > 0;
+      for (let tries = 0; tries < 400; tries++) {
+        const n = graph[Math.floor(r() * graph.length)], away = Math.hypot(n.x - ax, n.z - az);
+        if (away > 340 || (walking && away < 110)) continue;
         const e = n.out[Math.floor(r() * n.out.length)];
         const d = Math.atan2(e.to.x - n.x, e.to.z - n.z);
         c.x = n.x; c.z = n.z; c.h = d; c.speed = 6; setOnRoad(c, n, null); c.edge = e;
@@ -262,8 +278,7 @@
         const dx = o.x - c.x, dz = o.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
         if (along > 0 && side < 1.4 && along < d) d = along;
       }
-      const w = isWalker();
-      if (w) { const dx = w.x - c.x, dz = w.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx); if (along > 0 && side < 1.9 && along < d) d = along; }
+      for (const w of walkers().concat(standing())) { const dx = w.x - c.x, dz = w.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx); if (along > 0 && side < 1.9 && along < d) d = along; }
       return d;
     }
 
@@ -304,7 +319,7 @@
           const juncture = to.out.length > 2, dist = steerTo(c, tx, tz, dt, juncture && Math.hypot(to.x - c.x, to.z - c.z) < 14 ? Math.min(c.top, 4.5) : c.top);
           c.wd = (c.wd || 0) + dt;
           // lost, or wandered too far from anywhere it can go? start again somewhere else, out of sight of no one in particular
-          if (c.wd > 30 && ahead(c) > 15 || Math.hypot(c.x, c.z - 20) > 430) { c.wd = 0; spawnRoad(c); return; }
+          { const [ax, az] = about(); if (c.wd > 30 && ahead(c) > 15 || Math.hypot(c.x - ax, c.z - az) > 430) { c.wd = 0; spawnRoad(c); return; } }
           // reached the point, or driven past it
           if (dist < 4.5 || (tx - c.x) * dx + (tz - c.z) * dz < 0) {
             c.wd = 0;
@@ -313,7 +328,7 @@
             const prev = n; c.at = to; c.prev = prev;
             const opts = to.out.filter(q => q.to !== prev), list = opts.length ? opts : to.out;
             c.edge = list[Math.floor(r() * list.length)];
-            if (Math.hypot(to.x, to.z - 20) > 410) { spawnRoad(c); }
+            { const [ax, az] = about(); if (Math.hypot(to.x - ax, to.z - az) > 410) spawnRoad(c); }
           }
           return;
         }
@@ -382,5 +397,5 @@
     };
   }
 
-  root.Traffic = { build, KINDS, makeCar };
+  root.Traffic = { build, KINDS, makeCar, cartBays };
 })(typeof self !== 'undefined' ? self : this);

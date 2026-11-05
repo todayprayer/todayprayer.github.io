@@ -546,7 +546,7 @@
       // height follows the steps, smoothly
       const gh = heightAt ? heightAt(this.x, this.z) : 0;
       this.y += (gh - this.y) * Math.min(1, dt * 14);
-      this.root.position.set(this.x, this.y, this.z);
+      this.root.position.set(this.x, this.y + (this.rideY || 0), this.z);
       this.root.rotation.y = this.heading;
       if (this.tilt || this.jolt) {
         this.jolt = Math.max(0, (this.jolt || 0) - dt * 1.4);
