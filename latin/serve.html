@@ -146,7 +146,8 @@ body:not(.touch) #acts button:hover:not(.off) { background: rgba(70,50,36,.9); }
 #acts button { padding: 9px 2px; font-size: 11.5px; line-height: 1.15; min-height: 42px; }
 body.touch[data-mode="play"] #respond { bottom: 180px; }
 #explore-bar { position: absolute; left: 14px; bottom: 14px; display: flex; flex-direction: column; align-items: flex-start; gap: 6px; pointer-events: auto; }
-#explore-tip { font-size: 13px; color: #f4ecdc; background: rgba(20,14,9,.62); padding: 5px 10px; border-radius: 8px; }
+#explore-tip { font-size: 13px; color: #f4ecdc; background: rgba(20,14,9,.62); padding: 5px 10px; border-radius: 8px; transition: opacity .8s; }
+#explore-tip.faded { opacity: 0; }
 #explore-bar .osm { font-size: 11px; color: #f4ecdc; background: rgba(20,14,9,.55); padding: 2px 7px; border-radius: 6px; }
 #explore-bar .osm a { color: inherit; }
 body.touch #explore-bar { left: 172px; bottom: 8px; }
@@ -210,7 +211,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
     <button class="btn primary" id="btn-choir" hidden>Sit in choir (Enter)</button>
     <button class="btn primary" id="btn-ride" hidden>Get on (Enter)</button>
     <button class="btn primary" id="btn-cart" hidden>Get in the golf cart (Enter)</button>
-    <div id="explore-tip">↑ ↓ walk · ← → turn · Shift runs · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather</div>
+    <div id="explore-tip">↑ ↓ walk · ← → turn · Shift run</div>
     <div class="osm">© <a href="https://www.openstreetmap.org/copyright" target="_blank" rel="noopener">OpenStreetMap</a> contributors · aerial USDA NAIP · laser heights USGS 3DEP · textures Poly Haven · footsteps Kenney · baby and sparrow, Wikimedia Commons (CC0)</div>
   </div>
   <div id="remind" hidden></div>
@@ -280,6 +281,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
       <kbd>Your back</kbd><span>Drag it down to bow: a little for a moderate bow, far for a profound one. Drag it back up to straighten. Sideways, it turns you: that is how you face the priest while you are bowed.</span>
     </div>
     <p>While you hold a hand, circles mark what you can reach. They do not tell you which is wanted.</p>
+    <p><b>Getting about:</b> Enter gets you on or off a bus at its stop, a train at its station, or into a golf cart (they are in the lot on the north side). Riding, ↑ ↓ walk the aisle and Ctrl sits you down or stands you up. Drag to look around, R looks ahead again, and W changes the weather. Mind the traffic: a car will knock you over, though you get up again.</p>
     <p><b>Walking around</b> is only for fun: nothing is scored, and a Mass you start from there can never fail. <b>Watching from the choir</b>, a choice when you go to serve, you sit on the bench beside the altar (or, walking around, go to a bench, sit there, and start the Mass). All that is asked of you is the second Confiteor with the servers, going up to receive, and going back; only there can you slip, and the Mass goes on unless you knock someone over. <b>As the priest</b> (experimental, the other choice when you go to serve), you walk, turn, bow, genuflect, make the signs and say the audible prayers; his hands at the altar and his silent prayers happen by themselves.</p>
     <p>Reminders at the top say which button comes next, and why. Turn them off with the button under the keys, or in the options.</p>
     <p>On a phone or tablet the same moves are buttons on screen. The Mass runs in real time: the priest and the other server never wait, so it is your job to keep up. A moment you miss is a slip, facing the wrong way is a slip (nobody turns you: use <kbd>←</kbd> <kbd>→</kbd>), and a response not given in time goes unsaid. Ten slips are allowed, a major slip counting as three; one more ends the Mass. Miss something essential (keeping with the priest in procession, what he needs brought to him, the bell at the Consecration) or walk out, and the Mass ends for you and you choose to start again. You keep your place: leaving it is a major slip, staying away ends the Mass, and so does walking up to the altar unbidden. In procession those behind you wait for you to go ahead. Everyone is solid: walking square into someone or standing in their way is a major slip, and knocking the priest (while he carries something, on the steps, by pushing, or a second time) ends the Mass. It is up to you to know what comes next: the top right shows the keys and the buttons, the warnings at the bottom right tell you what you missed, and the summary at the end explains each slip. Circles on the floor show where to go, unless you turn them off in the options.</p>

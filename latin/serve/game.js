@@ -1945,6 +1945,7 @@
     [-C.LAYOUT.wallSide, C.LAYOUT.wallBack - 0.3, C.LAYOUT.wallSide, C.LAYOUT.wallBack],
   ];
   /** The altar and rail (whose gap closes with the gates), and the neighbouring houses. */
+  let throughCars = false;       // once a vehicle is on top of you, it no longer stops you walking out of it
   function blocked(x, z, r) {
     for (const [a, b, c2, d2] of SOLID) if (x > a - r && x < c2 + r && z > b - r && z < d2 + r) return true;
     const rz = C.LAYOUT.rail;
@@ -1953,10 +1954,16 @@
       if (Math.abs(x) > g - r) return true;
       if ((x >= 0 ? FX.gates.gateE : FX.gates.gateG).open < 0.5) return true;
     }
-    if (CARS.solidAt(x, z, r) || CART.solidAt(x, z, r) || RAIL.solidAt(x, z, r)) return true;
+    if (!throughCars && (CARS.solidAt(x, z, r) || CART.solidAt(x, z, r) || RAIL.solidAt(x, z, r))) return true;
     return OUT3D.inHouse(x, z);
   }
   function collide(x0, z0, x1, z1) {
+    throughCars = CARS.solidAt(x0, z0, 0.1) || CART.solidAt(x0, z0, 0.1) || RAIL.solidAt(x0, z0, 0.1);
+    const out = collideFree(x0, z0, x1, z1);
+    throughCars = false;
+    return out;
+  }
+  function collideFree(x0, z0, x1, z1) {
     const free = (x, z) => Plan.free(x, z, 0.18, blocked);
     if (free(x1, z1)) return [x1, z1];
     if (!free(x0, z0)) {     // left tight against something: you can always walk out towards open floor
@@ -1999,7 +2006,7 @@
 
   // ─── walking around the church and grounds ─────────────────────────────────
   const Explore = {
-    active: false, region: '', runHeld: false, seat: null,
+    active: false, region: '', runHeld: false, seat: null, down: null, tipAt: 0,
     start(at) {
       if (director) director.stop();
       director = null; Player.d = null; Player.cur = null;
@@ -2008,7 +2015,7 @@
       resetWorld({ servers: 1, communion: false });
       FIG.P.root.visible = false;
       this.active = true; walkerOut = FIG.A1;
-      this.leaveRide(true); this.leaveCart(true); CART.reset();
+      this.leaveRide(true); this.leaveCart(true); CART.reset(); this.getUp();
       this.wide(true);
       const f = FIG.A1, [x, z] = Plan.world(8, 15);
       f.place(x, z, Math.PI); f.y = 0;
@@ -2024,7 +2031,7 @@
       this.region = '';
       this.setRegion();
     },
-    stop() { this.leaveRide(true); this.leaveCart(true); this.wide(false); this.active = false; this.seat = null; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    stop() { this.getUp(); this.leaveRide(true); this.leaveCart(true); this.wide(false); this.active = false; this.seat = null; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
     /** The choir bench you are beside. */
     benchSide(f) { for (const k of ['E', 'G']) { const s = spot('K.' + k); if (Math.hypot(f.x - s[0], f.z - s[1]) < 1.5) return k; } return null; },
     sitInChoir(k) {
@@ -2054,7 +2061,7 @@
     },
     /** Into the cart beside you, or back out of the one you are in. */
     toggleCart() {
-      if (!this.active || UI.paused) return;
+      if (!this.active || UI.paused || this.down) return;
       const f = FIG.A1;
       if (CART.driving) {
         const c = CART.driving, out = CART.getOutAt(c, (x, z) => Plan.free(x, z, 0.18, blocked));
@@ -2081,9 +2088,44 @@
       Cam.offset = 0;
       if (this.hum) this.hum.gain.gain.value = 0;
     },
+    /** Something on wheels has reached you. Moving, it knocks you flat and clear of it; barely moving, it just shoves you aside. */
+    struck(hit) {
+      const f = FIG.A1, fx = Math.sin(hit.h), fz = Math.cos(hit.h), rx = fz, rz = -fx, way = hit.side >= 0 ? 1 : -1, sp = Math.abs(hit.speed);
+      if (sp < 2.2) {
+        // out by the shortest way, at a stumbling pace
+        const step = Math.min(hit.half + 0.3 - Math.abs(hit.side), 0.06), nx = f.x + rx * way * step, nz = f.z + rz * way * step;
+        throughCars = true; if (Plan.free(nx, nz, 0.18, blocked)) { f.x = nx; f.z = nz; } throughCars = false;
+        return;
+      }
+      const on = Math.sign(hit.speed) * Math.min(sp, 14) * 0.55, off = way * (3.2 + Math.min(sp, 14) * 0.35), vx = fx * on + rx * off, vz = fz * on + rz * off;
+      f.walk = null; f.turn = null; f.manualWalk = false; f.walkingManual = 0;
+      f.heading = Math.atan2(-vx, -vz);        // facing what hit you, and going over backwards
+      this.down = { t: 0, vx, vz };
+      this.bump(Math.min(8, sp));
+    },
+    /** On the ground, and up again. */
+    fallen(dt) {
+      const f = FIG.A1, D = this.down, FLY = 0.55, LIE = 1.7, UP = 2.5;
+      D.t += dt;
+      if (D.t < FLY) {
+        const nx = f.x + D.vx * dt, nz = f.z + D.vz * dt;
+        throughCars = true; const open = Plan.free(nx, nz, 0.18, blocked); throughCars = false;
+        if (open) { f.x = nx; f.z = nz; } else { D.vx = 0; D.vz = 0; }
+        const k = Math.max(0, 1 - dt * 2.4); D.vx *= k; D.vz *= k;
+      }
+      // never left lying under it
+      const under = CARS.hitBy(f.x, f.z, 0.1) || RAIL.hitBy(f.x, f.z, 0.1);
+      if (under) { const way = under.side >= 0 ? 1 : -1, nx = f.x + Math.cos(under.h) * way * dt * 3, nz = f.z - Math.sin(under.h) * way * dt * 3; throughCars = true; if (Plan.free(nx, nz, 0.18, blocked)) { f.x = nx; f.z = nz; } throughCars = false; if (D.t > LIE - 0.2) D.t = LIE - 0.2; }
+      const tilt = D.t < 0.42 ? (t => t * t * (3 - 2 * t))(D.t / 0.42) : D.t < LIE ? 1 : Math.max(0, 1 - (D.t - LIE) / (UP - LIE));
+      f.body.rotation.x = -1.5 * tilt;
+      f.body.position.y = 0.14 * tilt + (D.t < FLY ? Math.sin(Math.PI * D.t / FLY) * 0.22 : 0);
+      if (D.t >= UP) this.getUp();
+      this.setRegion();
+    },
+    getUp() { const f = FIG.A1; this.down = null; f.body.rotation.x = 0; f.body.position.y = 0; },
     /** Getting on: the bus or train whose open door you are standing at. */
     canBoard() {
-      const f = FIG.A1; if (Ride.on || CART.driving || f.posture !== 'stand') return null;
+      const f = FIG.A1; if (Ride.on || CART.driving || this.down || f.posture !== 'stand') return null;
       const v = TRANSIT.boardable(f.x, f.z); if (v) return { kind: 'bus', v };
       const q = RAIL.boardable(f.x, f.z); if (q) return { kind: 'train', v: q.t, car: q.car };
       return null;
@@ -2167,8 +2209,9 @@
       if (force || near !== !b.hidden) b.hidden = !near;
       const text = driving ? 'Get out of the golf cart (Enter)' : 'Get in the golf cart (Enter)';
       if (b.textContent !== text) b.textContent = text;
-      const tip = Ride.on ? '↑ ↓ walk the aisle · ← → turn · drag to look around, R to look ahead again · Ctrl sits you down · the doors open at each stop' : driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · buses stop at the benches and trains at the stations: Enter gets on · the choir benches beside the altar start a Mass · drag elsewhere to look around, R to look ahead again · W changes the weather';
-      if ($('#explore-tip').textContent !== tip) $('#explore-tip').textContent = tip;
+      const tip = Ride.on ? '↑ ↓ walk the aisle · Ctrl sit or stand' : driving ? '↑ drive · ↓ brake · ← → steer' : '↑ ↓ walk · ← → turn · Shift run', tipEl = $('#explore-tip'), now = performance.now();
+      if (tipEl.textContent !== tip) { tipEl.textContent = tip; this.tipAt = now; }
+      tipEl.classList.toggle('faded', now - this.tipAt > 9000);
     },
     /** A cart's motor: a low electric hum that rises with the speed. */
     motor(speed) {
@@ -2205,6 +2248,8 @@
       const f = FIG.A1;
       this.cartButton(); this.choirButton(); this.rideButton();
       if (Ride.on) { this.updateRide(dt); return; }
+      if (this.down) { this.fallen(Math.min(dt, 0.05)); return; }
+      if (!CART.driving) { const hit = CARS.hitBy(f.x, f.z, 0.12) || RAIL.hitBy(f.x, f.z, 0.12); if (hit) { this.struck(hit); if (this.down) return; } }
       if (CART.driving) {
         const c = CART.driving, d = Input.down, open = (x, z) => Plan.free(x, z, 0.02, blocked) && !WIDE.trunkAt(x, z, 0.02) && !/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered walk/i.test(Plan.regionAt(x, z));
         const hit = CART.drive(c, Math.min(dt, 0.05), { gas: !!d.ArrowUp, brake: !!d.ArrowDown, way: (d.ArrowLeft ? 1 : 0) - (d.ArrowRight ? 1 : 0) }, open);
@@ -2231,6 +2276,7 @@
     /** Kneeling, bowing and the rest are simply yours to do here: nothing is expected or marked. */
     act(type, arg) {
       const f = FIG.A1;
+      if (this.down) return;
       if (Ride.on) {
         if (type === 'sit' || type === 'stand' || type === 'rise') {
           if (Ride.seated) { Ride.seated = false; if (Ride.seat) { Ride.v.seatsTaken.delete(Ride.seat); Ride.seat = null; } Ride.lx = Math.max(-Ride.inside.bounds.x, Math.min(Ride.inside.bounds.x, Ride.lx)); return; }

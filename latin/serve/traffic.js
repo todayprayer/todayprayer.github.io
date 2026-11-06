@@ -428,9 +428,17 @@
       solidAt(x, z, rad) {
         for (const c of cars) {
           const dx = x - c.x, dz = z - c.z, fx = Math.sin(c.h), fz = Math.cos(c.h), along = dx * fx + dz * fz, side = dx * fz - dz * fx;
-          if (Math.abs(along) < c.len / 2 + rad && Math.abs(side) < 0.95 + rad) return true;
+          if (Math.abs(along) < c.len / 2 + rad && Math.abs(side) < (c.halfW || 0.95) + rad) return true;
         }
         return false;
+      },
+      /** Which vehicle, if any, has this spot under it, and how far along and to the side of its middle. */
+      hitBy(x, z, rad) {
+        for (const c of cars) {
+          const dx = x - c.x, dz = z - c.z, fx = Math.sin(c.h), fz = Math.cos(c.h), along = dx * fx + dz * fz, side = dx * fz - dz * fx, half = c.halfW || 0.95;
+          if (Math.abs(along) < c.len / 2 + rad && Math.abs(side) < half + rad) return { h: c.h, speed: c.speed || 0, along, side, half };
+        }
+        return null;
       },
       update(dt) {
         const d = Math.min(dt, 0.05);

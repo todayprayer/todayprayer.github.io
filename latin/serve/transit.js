@@ -114,7 +114,7 @@
     plate(other, W / 2 + 0.012, Math.PI / 2 * -1 + Math.PI);
     plate(side, -W / 2 - 0.012, -Math.PI / 2);    // the curb side (right of the driver: -x going +z)
     // the doors standing open, with the light of the inside showing through
-    const doors = DOOR_AT.map(d => { const p = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.085, H * 0.74), new THREE.MeshStandardMaterial({ color: 0xc4c0b0, emissive: 0x4a4638, roughness: 0.9 })); p.position.set(-W / 2 - 0.016, y0 + H * 0.4, (d + 0.0425 - 0.5) * L); p.rotation.y = -Math.PI / 2; p.visible = false; g.add(p); return p; });
+    const doors = DOOR_AT.map(d => { const p = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.085, H * 0.74), new THREE.MeshStandardMaterial({ color: 0x4a4a44, emissive: 0x1c1b18, roughness: 0.9 })); p.position.set(-W / 2 - 0.016, y0 + H * 0.4, (d + 0.0425 - 0.5) * L); p.rotation.y = -Math.PI / 2; p.visible = false; g.add(p); return p; });
     // the front: a great curved windscreen and the destination sign, and the back with its engine doors
     const front = canvasMat(512, 512, (c, w, h) => {
       c.fillStyle = metro ? '#ef6a1f' : cx ? '#f0f2f0' : '#e9e9e4'; c.fillRect(0, 0, w, h);
@@ -136,7 +136,7 @@
     for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.03), dark); a.position.set(s * (W / 2 + 0.16), y0 + H - 0.7, L / 2 - 0.2); g.add(a); const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.44, 0.18), dark); b.position.set(s * (W / 2 + 0.34), y0 + H - 0.86, L / 2 - 0.2); g.add(b); }
     const rack = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.86, 0.1), dark); rack.position.set(0, 1.0, L / 2 + 0.12); g.add(rack);
     const ws = wheelSet(g, [L * 0.27, -L * 0.2], W - 0.3, 0.5, 0.34, tire, hub);
-    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: csun ? 7 : 11, heavy: true, doors };
+    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: csun ? 7 : 11, heavy: true, doors, halfW: W / 2 };
   }
 
   /** A black-and-white: black with white doors, pillars and roof; a light bar; a push bar. */
@@ -168,7 +168,7 @@
     const word = canvasMat(1024, 128, (x, w, h) => { x.clearRect(0, 0, w, h); x.fillStyle = '#b00f14'; x.fillRect(0, 0, w, h); x.fillStyle = '#f0d66e'; x.font = '700 62px Georgia, serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('LOS ANGELES FIRE DEPT', w / 2, h / 2, w * 0.95); });
     for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(3, 0.36), word); p.position.set(s * (W / 2 + 0.006), 1.25, L / 2 - 1.5); p.rotation.y = s * Math.PI / 2; g.add(p); }
     const ws = wheelSet(g, [L / 2 - 1.3, -L / 2 + 2], W - 0.25, 0.5, 0.36, new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.95 }), chrome);
-    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: 15, heavy: true, kind: 'fire', bars: lights(g, [[-0.8, 3.1, L / 2 - 0.4, 0xff1010], [0.8, 3.1, L / 2 - 0.4, 0xff1010], [0, 3.1, L / 2 - 0.4, 0xffffff], [-1.2, 2.5, -L / 2 + 0.2, 0xff1010], [1.2, 2.5, -L / 2 + 0.2, 0xff1010]]) };
+    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: 15, heavy: true, halfW: W / 2, kind: 'fire', bars: lights(g, [[-0.8, 3.1, L / 2 - 0.4, 0xff1010], [0.8, 3.1, L / 2 - 0.4, 0xff1010], [0, 3.1, L / 2 - 0.4, 0xffffff], [-1.2, 2.5, -L / 2 + 0.2, 0xff1010], [1.2, 2.5, -L / 2 + 0.2, 0xff1010]]) };
   }
   /** A rescue ambulance: a white box on a truck chassis with a red band. */
   function makeAmbulance() {
@@ -183,7 +183,7 @@
     const band = canvasMat(1024, 256, (x, w, h) => { x.fillStyle = '#f1f1ec'; x.fillRect(0, 0, w, h); x.fillStyle = '#c21620'; x.fillRect(0, h * 0.58, w, h * 0.24); x.fillStyle = '#c21620'; x.font = '700 92px Arial, sans-serif'; x.textAlign = 'center'; x.textBaseline = 'middle'; x.fillText('RESCUE', w / 2, h * 0.28); x.fillStyle = '#fff'; x.font = '700 40px Arial, sans-serif'; x.fillText('LOS ANGELES FIRE DEPARTMENT', w / 2, h * 0.7, w * 0.9); });
     for (const s of [-1, 1]) { const p = new THREE.Mesh(new THREE.PlaneGeometry(4.08, 1), band); p.position.set(s * (W / 2 + 0.006), 1.65, -L / 2 + 2.05); p.rotation.y = s * Math.PI / 2; g.add(p); }
     const ws = wheelSet(g, [L / 2 - 1.1, -L / 2 + 1.5], W - 0.3, 0.42, 0.26, new THREE.MeshStandardMaterial({ color: 0x121214, roughness: 0.95 }), new THREE.MeshStandardMaterial({ color: 0xc8cacc, roughness: 0.3, metalness: 0.8 }));
-    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.42, roll: 0, steer: 0, top: 16, heavy: true, kind: 'ems', bars: lights(g, [[-1, 2.98, -L / 2 + 3.9, 0xff1010], [1, 2.98, -L / 2 + 3.9, 0xff1010], [0, 2.98, -L / 2 + 3.9, 0xffffff], [-1, 2.9, -L / 2 + 0.1, 0xff1010], [1, 2.9, -L / 2 + 0.1, 0xff1010]]) };
+    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.42, roll: 0, steer: 0, top: 16, heavy: true, halfW: W / 2, kind: 'ems', bars: lights(g, [[-1, 2.98, -L / 2 + 3.9, 0xff1010], [1, 2.98, -L / 2 + 3.9, 0xff1010], [0, 2.98, -L / 2 + 3.9, 0xffffff], [-1, 2.9, -L / 2 + 0.1, 0xff1010], [1, 2.9, -L / 2 + 0.1, 0xff1010]]) };
   }
   let _gt = null;
   function lights(g, list) {

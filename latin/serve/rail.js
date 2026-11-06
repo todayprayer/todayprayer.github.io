@@ -95,7 +95,7 @@
     const crown = new THREE.Mesh(new THREE.CylinderGeometry(W / 2, W / 2, L - 0.3, 14, 1, false, -Math.PI / 2, Math.PI).rotateX(Math.PI / 2).scale(1, 0.14, 1), m.roof); crown.position.y = H; g.add(crown);
     truck(g, L / 2 - 3.6); truck(g, -L / 2 + 3.6);
     const doors = {};
-    for (const s of [-1, 1]) { const d = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.26), new THREE.MeshStandardMaterial({ color: 0xc8c0a8, emissive: 0x5a5444, roughness: 0.9 })); d.position.set(s * (W / 2 + 0.012), 1.75, 0); d.rotation.y = s * Math.PI / 2; d.visible = false; g.add(d); doors[s] = d; }
+    for (const s of [-1, 1]) { const d = new THREE.Mesh(new THREE.PlaneGeometry(2.3, 2.26), new THREE.MeshStandardMaterial({ color: 0x4a4a44, emissive: 0x1c1b18, roughness: 0.9 })); d.position.set(s * (W / 2 + 0.012), 1.75, 0); d.rotation.y = s * Math.PI / 2; d.visible = false; g.add(d); doors[s] = d; }
     return { group: g, doors, L, coach: true, x: 0, z: 0, h: 0 };
   }
   function makeLoco() {
@@ -244,7 +244,7 @@
       t.v += Math.max(-a * dt, Math.min(a * dt, target - t.v));
       t.s += t.v * t.dir * dt;
       place(t);
-      if (stop && toStop < 0.9 && t.v < 0.8) { t.v = 0; t.station = stop; t.side = stop.side; t.dwell = rnd(22, 34); setDoors(t, true); return; }
+      if (stop && toStop < 1.6 && t.v < 2.2) { t.v = 0; t.s = stop.s; place(t); t.station = stop; t.side = stop.side; t.dwell = rnd(22, 34); setDoors(t, true); return; }
       if (toEnd < 1.2) {
         if (rid()) { t.v = 0; t.dwell = 9; t.ended = true; t.station = null; return; }
         for (const c of t.cars) c.group.visible = false; t.state = 'away'; t.dir = -t.dir; t.wait = rnd(25, 70); t.v = 0;
@@ -256,6 +256,11 @@
       solidAt(x, z, r) {
         for (const t of trains) { if (t.state === 'away') continue; for (const c of t.cars) { const dx = x - c.x, dz = z - c.z, co = Math.cos(c.h), si = Math.sin(c.h), side = dx * co - dz * si, along = dx * si + dz * co; if (Math.abs(along) < c.L / 2 + r && Math.abs(side) < W / 2 + r) return true; } }
         return false;
+      },
+      /** Which car, if any, has this spot under it. */
+      hitBy(x, z, rad) {
+        for (const t of trains) { if (t.state === 'away') continue; for (const c of t.cars) { const dx = x - c.x, dz = z - c.z, fx = Math.sin(c.h), fz = Math.cos(c.h), along = dx * fx + dz * fz, side = dx * fz - dz * fx; if (Math.abs(along) < c.L / 2 + rad && Math.abs(side) < W / 2 + rad) return { h: c.h, speed: t.v * t.dir, along, side, half: W / 2 }; } }
+        return null;
       },
       /** Standing at an open door? */
       boardable(x, z) {

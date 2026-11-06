@@ -39,7 +39,7 @@
       neck: new THREE.CylinderGeometry(0.05, 0.055, 0.1, 8).translate(0, 0.6, 0),
       head: new THREE.SphereGeometry(0.106, 12, 9).scale(0.92, 1.08, 1),
       eyes: (() => { const g = (s) => new THREE.SphereGeometry(0.013, 6, 4).scale(1, 0.8, 0.5).translate(s * 0.036, 0.018, 0.094).toNonIndexed(), a = g(-1), b = g(1), m = new THREE.BufferGeometry(), cat = n => { const u = a.attributes[n].array, v = b.attributes[n].array, o = new Float32Array(u.length + v.length); o.set(u); o.set(v, u.length); return new THREE.BufferAttribute(o, 3); }; m.setAttribute('position', cat('position')); m.setAttribute('normal', cat('normal')); return m; })(),
-      hair: new THREE.SphereGeometry(0.113, 12, 7, 0, 6.2832, 0, 1.5).scale(0.885, 1.0, 0.955).translate(0, 0.012, -0.006),
+      hair: new THREE.SphereGeometry(0.113, 12, 8, 0, 6.2832, 0, 1.95).rotateX(-0.62).scale(0.885, 1.0, 0.955).translate(0, 0.012, -0.008),
       long: new THREE.CylinderGeometry(0.09, 0.115, 0.3, 8).scale(1, 1, 0.6).translate(0, -0.13, -0.05),
       thigh: new THREE.CylinderGeometry(0.08, 0.058, 0.44, 8).translate(0, -0.22, 0),
       shin: new THREE.CylinderGeometry(0.056, 0.04, 0.44, 8).translate(0, -0.22, 0),
