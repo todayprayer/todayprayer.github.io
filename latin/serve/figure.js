@@ -619,14 +619,35 @@
         this.handT[side].y += (w[1] - this.handT[side].y) * kh;
         this.handT[side].z += (w[2] - this.handT[side].z) * kh;
       }
-      this.root.updateMatrixWorld(true);
       this.solveArm('R'); this.solveArm('L');
+    }
+
+    // ── being taken back to a moment ─────────────────────────────────────────
+    /** All that this figure's next moment depends on, between beats, when nothing is under way. The rest update(0) works out again. */
+    save() {
+      return {
+        x: this.x, z: this.z, y: this.y, heading: this.heading, legPose: this.legPose.slice(), posture: this.posture,
+        spinePitch: this.spinePitch, neckPitch: this.neckPitch, neckYaw: this.neckYaw, spineYaw: this.spineYaw,
+        bowLevel: this.bowLevel, bowTarget: this.bowTarget && this.bowTarget.clone(), nodT: this.nodT, nodTarget: this.nodTarget && this.nodTarget.clone(),
+        base: this.base, held: Object.assign({}, this.held), out: this.out, outHand: this.outHand, handR: this.handT.R.clone(), handL: this.handT.L.clone(),
+        phase: this.phase, stepHold: this.stepHold, lift: this.lift, liftHand: this.liftHand,
+        birettaOn: !!this.biretta && this.biretta.visible, manipleOn: !!this.maniple && this.maniple.visible,
+      };
+    }
+    load(s) {
+      this.gestures = []; this.walk = null; this.turn = null; this.legAnim = null;      // whoever was waiting on these waits no longer
+      this.stepping = false; this.walkLook = null; this.keepBehind = null; this.blockedBy = null; this.blockedT = 0;
+      const { handR, handL, birettaOn, manipleOn, ...rest } = s;
+      Object.assign(this, rest);
+      this.legPose = s.legPose.slice(); this.held = Object.assign({}, s.held);
+      this.bowTarget = s.bowTarget && s.bowTarget.clone(); this.nodTarget = s.nodTarget && s.nodTarget.clone();
+      this.handT.R.copy(handR); this.handT.L.copy(handL);
+      this.setBiretta(birettaOn); this.setManiple(manipleOn);
     }
 
     /** Spine-space coordinates of a world point (for reaching). */
     toSpine(world) {
       const v = world.clone();
-      this.spine.updateMatrixWorld(true);
       this.spine.worldToLocal(v);
       return [v.x, v.y, v.z];
     }

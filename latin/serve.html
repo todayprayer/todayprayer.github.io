@@ -61,6 +61,30 @@ body:not([data-mode="play"]) .score { display: none; }
 .cap-la.silent { font-style: italic; color: var(--muted); }
 .cap-en { color: var(--muted); font-size: 13px; margin-top: 3px; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; }
 
+#timebar { position: absolute; left: 0; right: 0; bottom: 0; padding: 22px 14px max(8px, env(safe-area-inset-bottom)); background: linear-gradient(rgba(10,7,4,0), rgba(10,7,4,.82)); user-select: none; -webkit-user-select: none; }
+#tb-track { position: relative; height: 18px; cursor: pointer; touch-action: none; }
+#tb-rail, #tb-fill { position: absolute; left: 0; top: 7px; height: 4px; border-radius: 2px; pointer-events: none; }
+#tb-rail { right: 0; background: rgba(255,255,255,.22); }
+#tb-fill { width: 0; background: var(--gold); }
+#tb-track:hover #tb-rail, #tb-track:hover #tb-fill { top: 6px; height: 6px; }
+#tb-marks i { position: absolute; top: 5px; width: 2px; height: 8px; margin-left: -1px; background: rgba(255,255,255,.5); pointer-events: none; }
+#tb-knob { position: absolute; top: 3px; width: 12px; height: 12px; margin-left: -6px; border-radius: 50%; background: var(--gold); box-shadow: 0 0 0 2px rgba(10,7,4,.5); pointer-events: none; }
+#tb-tip { position: absolute; bottom: 20px; transform: translateX(-50%); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 8px; padding: 3px 8px; font-size: 12.5px; white-space: nowrap; pointer-events: none; }
+.tb-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 4px; font-size: 13px; }
+.tb-row .icon { width: 32px; height: 32px; border-radius: 8px; flex: none; }
+#tb-time { font-variant-numeric: tabular-nums; margin-left: 6px; white-space: nowrap; }
+#tb-beat { color: var(--muted); margin-left: 6px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+#tb-speed { display: flex; gap: 2px; margin-left: auto; }
+#tb-speed button { border: 0; background: none; border-radius: 6px; padding: 4px 7px; font-size: 12.5px; color: var(--muted); }
+#tb-speed button[aria-pressed="true"] { background: rgba(255,255,255,.14); color: var(--ink); }
+#timebar .i-pause { display: none; }
+#timebar.playing .i-pause { display: block; }
+#timebar.playing .i-play { display: none; }
+#timebar.preparing #tb-knob, #timebar.preparing #tb-beat, #timebar.preparing #tb-speed, #timebar.preparing .icon { visibility: hidden; }
+#timebar.preparing #tb-track { cursor: default; }
+body[data-mode="watch"] .topbar .track { display: none; }
+body[data-mode="watch"] #note, body[data-mode="watch"] #toasts { bottom: 78px; }
+@media (max-width: 560px) { #tb-beat { display: none; } #tb-speed button { padding: 4px 4px; } }
 #note { position: absolute; left: 14px; bottom: 22px; width: min(340px, calc(100% - 28px)); background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; font-size: 13.5px; }
 
 #respond { position: absolute; left: 50%; bottom: 22px; transform: translateX(-50%); width: min(720px, calc(100% - 24px)); background: var(--panel-solid); border: 1px solid var(--line); border-radius: 16px; padding: 14px; box-shadow: 0 10px 40px rgba(0,0,0,.5); }
@@ -206,6 +230,20 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
     <div class="track"><div id="progress"></div></div>
   </div>
   <div id="note" hidden></div>
+  <div id="timebar" hidden>
+    <div id="tb-track" role="slider" aria-label="Time in the Mass" aria-valuemin="0" aria-valuenow="0" tabindex="-1">
+      <div id="tb-rail"></div><div id="tb-fill"></div><div id="tb-marks"></div><div id="tb-knob"></div><div id="tb-tip" hidden></div>
+    </div>
+    <div class="tb-row">
+      <button class="icon" id="tb-prev" tabindex="-1" aria-label="Previous beat" title="Previous beat (↓)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="4" y="5" width="3" height="14" rx="1"/><path d="M20 5v14L9 12z"/></svg></button>
+      <button class="icon" id="tb-back" tabindex="-1" aria-label="Back one step" title="Back 1/60 of a second (,)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M17 5v14L6 12z"/></svg></button>
+      <button class="icon" id="tb-play" tabindex="-1" aria-label="Play or pause" title="Play or pause (Space)"><svg class="i-play" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l13-8z"/></svg><svg class="i-pause" width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="5" width="4" height="14" rx="1"/><rect x="14" y="5" width="4" height="14" rx="1"/></svg></button>
+      <button class="icon" id="tb-on" tabindex="-1" aria-label="On one step" title="On 1/60 of a second (.)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M7 5v14l11-7z"/></svg></button>
+      <button class="icon" id="tb-next" tabindex="-1" aria-label="Next beat" title="Next beat (↑)"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><rect x="17" y="5" width="3" height="14" rx="1"/><path d="M4 5v14l11-7z"/></svg></button>
+      <span id="tb-time"></span><span id="tb-beat"></span>
+      <div id="tb-speed" aria-label="Speed"></div>
+    </div>
+  </div>
   <div id="explore-bar" hidden>
     <button class="btn primary" id="btn-serve-here" hidden>Serve Mass from here</button>
     <button class="btn primary" id="btn-choir" hidden>Sit in choir (Enter)</button>
@@ -281,6 +319,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
       <kbd>Your back</kbd><span>Drag it down to bow: a little for a moderate bow, far for a profound one. Drag it back up to straighten. Sideways, it turns you: that is how you face the priest while you are bowed.</span>
     </div>
     <p>While you hold a hand, circles mark what you can reach. They do not tell you which is wanted.</p>
+    <p><b>Watching a Mass:</b> Space plays and pauses. ← → go back or on 5 seconds, or half a second with Shift. ↓ ↑ go to the beat before or after, and , . move a single step. Home and End go to the start and the end, or drag along the bar. Drag the picture to look around.</p>
     <p><b>Getting about:</b> Enter gets you on or off a bus at its stop, a train at its station, or into a golf cart (they are in the lot on the north side). Riding, ↑ ↓ walk the aisle and Ctrl sits you down or stands you up. Drag to look around, R looks ahead again, and W changes the weather. Mind the traffic: a car will knock you over, though you get up again.</p>
     <p><b>Walking around</b> is only for fun: nothing is scored, and a Mass you start from there can never fail. <b>Watching from the choir</b>, a choice when you go to serve, you sit on the bench beside the altar (or, walking around, go to a bench, sit there, and start the Mass). All that is asked of you is the second Confiteor with the servers, going up to receive, and going back; only there can you slip, and the Mass goes on unless you knock someone over. <b>As the priest</b> (experimental, the other choice when you go to serve), you walk, turn, bow, genuflect, make the signs and say the audible prayers; his hands at the altar and his silent prayers happen by themselves.</p>
     <p>Reminders at the top say which button comes next, and why. Turn them off with the button under the keys, or in the options.</p>

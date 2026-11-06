@@ -910,6 +910,10 @@
       this.results = { ok: 0, total: 0, mistakes: [] };
       this.hostFor = new Set();
       this.answered = {};
+      this.steps = 0;                       // watching: how many fixed steps of time have gone by
+      this.quiet = false;                   // watching: running on to a moment, unseen and unheard
+      this.line = null;                     // watching: the Mass as a line in time
+      this.cap = null; this.capPart = null; this.noteNow = null;      // what the screen says now, for a moment gone back to
     }
     stop() { this.stopped = true; for (const t of this.timers) t.resolve(); this.timers = []; }
     /** Something essential went undone: the Mass cannot go on with you, and it is yours to start again. */
@@ -935,15 +939,18 @@
       this.timers = this.timers.filter(t => !(t.pred && t.pred()));
     }
 
-    async run() {
+    async run(from = 0) {
       try {
-        for (let i = 0; i < this.beats.length; i++) {
+        for (let i = from; i < this.beats.length; i++) {
           this.check();
           this.index = i;
           const b = this.beats[i];
-          UI.beat(this, b, i);
-          (this.log = this.log || []).push({ i, t: this.time, part: b.part });
-          if (window.__serve.stopAt && window.__serve.stopAt(this, b, i)) {        // tests: freeze on a beat
+          if (this.line) this.line.reached(i);
+          if (b.part !== this.capPart) { this.capPart = b.part; this.cap = null; }
+          if (b.note) this.noteNow = [b.note, b.cite];
+          if (!this.quiet) UI.beat(this, b, i);
+          if (!this.line) (this.log = this.log || []).push({ i, t: this.time, part: b.part });
+          if (!this.line && window.__serve.stopAt && window.__serve.stopAt(this, b, i)) {        // tests: freeze on a beat
             window.__serve.frozen = i;
             await this.step(this.until(() => window.__serve.frozen == null));
           }
@@ -959,9 +966,10 @@
           for (const f of Object.values(FIG)) f.keepBehind = null;
           await this.step(this.sleep(0.04));
         }
-        UI.ended(this);
+        this.ended = true;
+        if (!this.quiet) UI.ended(this);
       } catch (e) {
-        if (!(e instanceof Stopped)) { console.error(e); UI.toast('Something went wrong: ' + e.message); }
+        if (!(e instanceof Stopped)) { this.broke = e; console.error(e); UI.toast('Something went wrong: ' + e.message); }
       }
     }
 
@@ -1080,7 +1088,7 @@
           await this.step(Gest.pour(f, p));
           return;
         }
-        case 'ring': for (let i = 0; i < (+args[0] || 1); i++) { chime('hand'); await this.step(Gest.ring(f)); } return;
+        case 'ring': for (let i = 0; i < (+args[0] || 1); i++) { if (!this.quiet) chime('hand'); await this.step(Gest.ring(f)); } return;
         case 'pinch': return this.step(Gest.reach(f, () => FIG.P.albHemWorld(), role === 'A2' ? 'R' : 'L', 0.9, 0.15));
         case 'lift': f.lift = () => FIG.P.hemWorld(); f.liftHand = role === 'A2' ? 'R' : 'L'; return this.step(f.wait(0.35));
         case 'drop': f.lift = null; return this.step(f.wait(0.3));
@@ -1096,7 +1104,7 @@
           Props.out[who].delete('water-fingers'); FIG[who].out = false;
           return;
         }
-        case 'tug': Fix.bellSwing = 1.2; chime('sacristy'); return this.step(Gest.reach(f, () => fixturePos('sbell'), 'R', 0.8));
+        case 'tug': Fix.bellSwing = 1.2; if (!this.quiet) chime('sacristy'); return this.step(Gest.reach(f, () => fixturePos('sbell'), 'R', 0.8));
         case 'fold': Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); return this.step(Gest.fold(f));
         case 'say': return this.say(role, args[0], beat);
         case 'wait': return this.step(this.sleep(+args[0]));
@@ -1123,7 +1131,7 @@
       const both = isServer && this.o.servers === 2 && (beat.tracks.A1 || []).includes('say ' + ref) && (beat.tracks.A2 || []).includes('say ' + ref);
       if (both && role === 'A2') return this.step(this.until(() => this.answered[ref]));
       const who = role === 'P' ? (t.who === 'A' ? 'All' : 'P.') : both ? 'A1 · A2' : this.o.servers === 2 ? role : 'S.';
-      if (this.kind !== 'play' || role === 'P' || this.player === 'P' || this.player === 'K') UI.caption(who, t, role);      // serving, the top of the screen is for the priest alone
+      if (this.kind !== 'play' || role === 'P' || this.player === 'P' || this.player === 'K') { this.cap = [who, t, role]; if (!this.quiet) UI.caption(who, t, role); }      // serving, the top of the screen is for the priest alone
       const dur = (t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE;
       // a line you have to answer: you hear it out, and meanwhile you can get your answer ready
       const mine = (beat.tracks[role] || []), lastSay = mine.filter(c => c.startsWith('say ')).pop() === 'say ' + ref;
@@ -1157,6 +1165,230 @@
       if (this.results.slips > SLIP_LIMIT && this.o.failing !== false) this.fail('Too many slips: ' + this.results.slips + ', and only ' + SLIP_LIMIT + ' are allowed.', 'Fewer slips. The last was: ' + text.replace(/[.\s]+$/, '') + '.', beat && beat.cite);
     }
   }
+
+  // ─── the Mass as a line in time ────────────────────────────────────────────
+  /**
+   * Watching, nothing is asked of anyone, so every moment follows from the one before by the same code and a fixed step
+   * of time. Between beats nothing is under way: no one is walking or gesturing and nothing is waiting, so all of the Mass
+   * there is plain data. To go to any moment is to go to the start of its beat and run the director on from there.
+   */
+  const STEP = 1 / 60, STALL = 300;      // a beat this many seconds long has stuck
+  const nextTask = (() => {              // awaited promises resume between steps, as they do between frames
+    const mc = new MessageChannel(), waiting = [];
+    mc.port1.onmessage = () => waiting.shift()();
+    return () => new Promise(resolve => { waiting.push(resolve); mc.port2.postMessage(0); });
+  })();
+
+  class Timeline {
+    constructor(d) {
+      this.d = d;
+      this.saves = [];                   // by beat: where everything stood as it began
+      this.total = 0; this.target = 0; this.owed = 0;
+      this.preparing = true; this.playing = true; this.seeking = false; this.scrubbing = false; this.pumping = false;
+      this.pieces = []; this.glows = [];
+      for (const p of Object.values(PROPS)) p.obj.traverse(o => { if (o !== p.obj) { this.pieces.push(o); if (o.isLight) this.glows.push(o); } });
+    }
+    get ready() { return !this.preparing; }
+
+    /** The director has come to the start of this beat. */
+    reached(i) { if (!this.saves[i]) this.saves[i] = this.save(); }
+    save() {
+      const d = this.d;
+      return {
+        steps: d.steps, time: d.time, flags: new Set(d.flags), hostFor: new Set(d.hostFor), hostUp: d.hostUp, cap: d.cap, capPart: d.capPart, note: d.noteNow,
+        figs: Object.fromEntries(Object.entries(FIG).map(([r, f]) => [r, f.save()])),
+        loc: Object.assign({}, Props.loc), slot: Object.assign({}, Props.slot), tilt: Object.assign({}, Props.tilt), worn: Props.worn, veilFolded: Props.veilFolded,
+        out: Object.fromEntries(Object.entries(Props.out).map(([r, s]) => [r, new Set(s)])),
+        placed: Object.values(PROPS).map(p => [p.obj.position.clone(), p.obj.quaternion.clone()]),      // a worn biretta is left where it last was
+        shown: this.pieces.map(o => o.visible), glow: this.glows.map(o => o.intensity),
+        gates: Object.values(FX.gates).map(g => [g.open, g.pivot.rotation.y]), cloths: Object.values(FX.cloths).map(c => [c.flipped, c.pivot.rotation.x]),
+        tab: Fix.tab, bell: Fix.bellSwing, tabDoor: FX.tabDoor.rotation.y, sbell: FX.sbell.rotation.z,
+        loose: Object.values(FIG).filter(f => f.walk || f.turn || f.legAnim || f.gestures.length).length + d.timers.length,      // must be none
+      };
+    }
+    /** Back to the start of a beat, with the director running again from there. What was running before is dropped, and never resumes. */
+    restore(i) {
+      const d = this.d, s = this.saves[i];
+      d.timers = []; d.ended = false; d.index = i;
+      d.steps = s.steps; d.time = s.time; d.flags = new Set(s.flags); d.hostFor = new Set(s.hostFor); d.hostUp = s.hostUp; d.cap = s.cap; d.capPart = s.capPart; d.noteNow = s.note;
+      for (const [r, f] of Object.entries(FIG)) f.load(s.figs[r]);
+      Object.assign(Props, { loc: Object.assign({}, s.loc), slot: Object.assign({}, s.slot), tilt: Object.assign({}, s.tilt), worn: s.worn, veilFolded: s.veilFolded });
+      Props.out = Object.fromEntries(Object.entries(s.out).map(([r, o]) => [r, new Set(o)]));
+      Object.values(PROPS).forEach((p, k) => { p.obj.position.copy(s.placed[k][0]); p.obj.quaternion.copy(s.placed[k][1]); });
+      this.pieces.forEach((o, k) => { o.visible = s.shown[k]; });
+      this.glows.forEach((o, k) => { o.intensity = s.glow[k]; });
+      Object.values(FX.gates).forEach((g, k) => { g.open = s.gates[k][0]; g.pivot.rotation.y = s.gates[k][1]; });
+      Object.values(FX.cloths).forEach((c, k) => { c.flipped = s.cloths[k][0]; c.pivot.rotation.x = s.cloths[k][1]; });
+      Fix.tab = s.tab; Fix.bellSwing = s.bell; FX.tabDoor.rotation.y = s.tabDoor; FX.sbell.rotation.z = s.sbell;
+      for (const f of Object.values(FIG)) f.update(0, C.heightAt);
+      Props.update();
+      d.run(i);
+    }
+    /** One step of time. This is all that moves the Mass while you watch. */
+    stepOnce() {
+      const d = this.d;
+      d.tick(STEP); d.pollConditions();
+      for (const f of Object.values(FIG)) if (f.root.visible) f.update(STEP, C.heightAt);
+      Props.update(); Fix.update(STEP);
+      d.steps++;
+    }
+    /** Which beat a moment falls in. */
+    beatAt(step) {
+      let a = 0, b = this.saves.length - 1;
+      while (a < b) { const m = (a + b + 1) >> 1; if (this.saves[m].steps <= step) a = m; else b = m - 1; }
+      return a;
+    }
+    /** Run the real Mass through once, to learn how long it is and where each beat begins. */
+    async prepare() {
+      const d = this.d;
+      d.quiet = true; d.run();
+      await nextTask();
+      let index = 0, since = 0;
+      while (!d.stopped && !d.ended && !d.broke) {
+        this.stepOnce();
+        await nextTask();
+        if (d.index !== index) { index = d.index; since = d.steps; }
+        else if ((d.steps - since) * STEP > STALL) { UI.toast('The Mass stuck at beat ' + (index + 1) + ' (' + d.beats[index].part + ')'); break; }
+      }
+      if (d.stopped) return;
+      this.total = d.steps;
+      this.preparing = false; d.quiet = false;
+      this.restore(0);
+      Bar.laidOut(this);
+    }
+    /** Time going by: only while it is playing. */
+    advance(real) {
+      if (this.preparing || !this.playing || this.scrubbing || this.seeking || UI.paused) return;
+      this.owed += real * this.d.o.speed / STEP;
+      const n = Math.floor(this.owed);
+      if (!n) return;
+      this.owed -= n;
+      this.target = Math.min(this.total, this.target + n);
+      if (this.target >= this.total) this.playing = false;
+      this.pump();
+    }
+    seek(step) {
+      if (this.preparing) return;
+      this.target = Math.round(Math.max(0, Math.min(this.total, step)));
+      if (this.target === this.d.steps) return;
+      this.owed = 0; this.seeking = true; this.d.quiet = true;
+      this.pump();
+    }
+    toggle() {
+      if (this.preparing) return;
+      if (!this.playing && this.d.steps >= this.total) this.seek(0);
+      this.playing = !this.playing;
+    }
+    /** Bring the Mass to the moment wanted: straight there if it is just ahead in this beat, by way of the start of its beat if not. */
+    async pump() {
+      if (this.pumping) return;
+      this.pumping = true;
+      const d = this.d;
+      while (!d.stopped && d.steps !== this.target) {
+        const b = this.beatAt(this.target);
+        if (this.target < d.steps || b > d.index) this.restore(b);
+        else this.stepOnce();
+        await nextTask();
+      }
+      this.pumping = false;
+      if (this.seeking && !d.stopped) { this.seeking = false; d.quiet = false; this.showNow(); }
+    }
+    /** The screen, as it was at this moment. */
+    showNow() {
+      const d = this.d, b = d.beats[d.index];
+      UI.lastPart = b.part;
+      UI.beat(d, b, d.index);
+      if (d.noteNow) UI.note(d.noteNow[0], d.noteNow[1]); else $('#note').hidden = true;
+      const cap = $('#caption'), la = cap.querySelector('.cap-la'), who = cap.querySelector('.cap-who');
+      if (!d.cap) cap.hidden = true;
+      else if (cap.hidden || !la || la.textContent !== d.cap[1].la || who.textContent !== d.cap[0]) UI.caption(...d.cap);      // no flicker while dragging across one line
+      Cam.snap = true;
+    }
+  }
+
+  /** The bar along the bottom, as on a video. */
+  const Bar = {
+    line() { return director && director.line; },
+    clock: s => { s = Math.max(0, Math.floor(s)); const m = Math.floor(s / 60), x = s % 60; return m + ':' + (x < 10 ? '0' : '') + x; },
+    /** The start of each part of the Mass, marked along the bar. */
+    laidOut(line) {
+      const d = line.d, ticks = [];
+      line.saves.forEach((s, i) => { if (i && d.beats[i].part !== d.beats[i - 1].part) ticks.push(h('i', { style: 'left:' + (100 * s.steps / line.total).toFixed(3) + '%' })); });
+      fill($('#tb-marks'), ...ticks);
+    },
+    paint() {
+      const line = this.line(); if (!line) return;
+      const d = line.d, bar = $('#timebar');
+      bar.classList.toggle('preparing', line.preparing);
+      if (line.preparing) {
+        $('#tb-fill').style.width = (100 * (d.index || 0) / d.beats.length).toFixed(1) + '%';
+        $('#tb-time').textContent = 'Going through the Mass…';
+        return;
+      }
+      const at = (line.seeking || line.scrubbing ? line.target : d.steps), pc = 100 * at / line.total + '%', bt = line.beatAt(at);
+      $('#tb-fill').style.width = pc; $('#tb-knob').style.left = pc;
+      $('#tb-time').textContent = this.clock(at * STEP) + ' / ' + this.clock(line.total * STEP);
+      $('#tb-beat').textContent = 'Beat ' + (bt + 1) + ' of ' + d.beats.length;
+      $('#tb-track').setAttribute('aria-valuenow', Math.round(at * STEP));
+      $('#tb-track').setAttribute('aria-valuemax', Math.round(line.total * STEP));
+      bar.classList.toggle('playing', line.playing);
+      for (const b of $('#tb-speed').children) b.setAttribute('aria-pressed', String(+b.dataset.v === d.o.speed));
+    },
+    /** A beat's start, or the one before if you are well into this one, as the back button of a player goes. */
+    toBeat(way) {
+      const line = this.line(), d = line.d, here = line.beatAt(line.target);
+      if (way > 0) return line.seek(here + 1 < line.saves.length ? line.saves[here + 1].steps : line.total);
+      line.seek(line.saves[line.target - line.saves[here].steps > 30 ? here : Math.max(0, here - 1)].steps);
+    },
+    /** Keys while watching: true if it was one of these. */
+    key(e) {
+      const line = this.line();
+      if (!line || !line.ready) return false;
+      const by = s => line.seek(line.target + s / STEP);
+      switch (e.key) {
+        case ' ': if (!e.repeat) line.toggle(); return true;
+        case 'ArrowLeft': by(e.shiftKey ? -0.5 : -5); return true;
+        case 'ArrowRight': by(e.shiftKey ? 0.5 : 5); return true;
+        case 'ArrowUp': this.toBeat(1); return true;
+        case 'ArrowDown': this.toBeat(-1); return true;
+        case ',': line.playing = false; line.seek(line.target - 1); return true;
+        case '.': line.playing = false; line.seek(line.target + 1); return true;
+        case 'Home': line.seek(0); return true;
+        case 'End': line.seek(line.total); return true;
+        default: return false;
+      }
+    },
+    init() {
+      const track = $('#tb-track'), tip = $('#tb-tip');
+      const stepAt = e => { const r = track.getBoundingClientRect(); return Math.max(0, Math.min(1, (e.clientX - r.left) / r.width)) * this.line().total; };
+      let drag = false;
+      track.addEventListener('pointerdown', e => {
+        const line = this.line(); if (!line || !line.ready) return;
+        drag = true; line.scrubbing = true; try { track.setPointerCapture(e.pointerId); } catch (err) { /* a test's made-up pointer */ }
+        line.seek(stepAt(e)); e.preventDefault();
+      });
+      track.addEventListener('pointermove', e => {
+        const line = this.line(); if (!line || !line.ready) return;
+        const at = stepAt(e), b = line.beatAt(at);
+        if (drag) line.seek(at);
+        tip.hidden = false; tip.style.left = (100 * at / line.total) + '%';
+        tip.textContent = this.clock(at * STEP) + ' · ' + (b + 1) + ' · ' + line.d.beats[b].part;
+      });
+      const end = () => { drag = false; const line = this.line(); if (line) line.scrubbing = false; };
+      track.addEventListener('pointerup', end); track.addEventListener('pointercancel', end);
+      track.addEventListener('pointerleave', () => { tip.hidden = true; });
+      const button = (id, fn) => { const b = $(id); b.addEventListener('mousedown', e => e.preventDefault()); b.addEventListener('click', () => { const line = this.line(); if (line && line.ready) fn(line); }); };
+      button('#tb-play', line => line.toggle());
+      button('#tb-prev', () => this.toBeat(-1));
+      button('#tb-next', () => this.toBeat(1));
+      button('#tb-back', line => { line.playing = false; line.seek(line.target - 1); });
+      button('#tb-on', line => { line.playing = false; line.seek(line.target + 1); });
+      for (const v of [0.25, 0.5, 1, 1.25, 2, 4]) {
+        const b = h('button', { tabindex: -1, 'data-v': v, 'aria-pressed': 'false', onmousedown: e => e.preventDefault(), onclick: () => { const line = this.line(); if (line) line.d.o.speed = v; } }, v + '×');
+        $('#tb-speed').append(b);
+      }
+    },
+  };
 
   // ─── gestures (hand targets in spine space) ────────────────────────────────
   const J = { R: [-0.02, 0.36, 0.22], L: [0.02, 0.36, 0.22] }, FL = [0.03, 0.30, 0.17];
@@ -2438,6 +2670,7 @@
     }
     if (e.target.closest && e.target.closest('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
     if (e.key === 'Escape') { UI.togglePause(); e.preventDefault(); return; }
+    if (!UI.paused && Bar.key(e)) { e.preventDefault(); return; }
     if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); if (!Explore.rideKey() && !Explore.choirKey()) Explore.toggleCart(); e.preventDefault(); return; }
     if (e.key === 'Shift' && !e.repeat && !Explore.active) { audio(); Player.act('kneel'); return; }
     if (e.key === 'Control' && !e.repeat) { audio(); standOrSit(); e.preventDefault(); return; }
@@ -2624,7 +2857,7 @@
     ended(d) {
       window.__serve.finished = (window.__serve.finished || []).concat([{ kind: d.kind, o: d.o, time: d.time, results: d.results, log: d.log, beats: d.beats.length }]);
       if (d.kind === 'demo') { setTimeout(() => startDemo(), 1500); return; }
-      if (d.kind === 'watch') { this.toast('The Mass has ended. Ite, missa est.'); setTimeout(() => toTitle(), 2500); return; }
+      if (d.kind === 'watch') { this.toast('The Mass has ended. Ite, missa est.'); return; }      // and it stays here, to go back through
       if (d.o.fromExplore) {      // you came here walking around: on you go
         const f = FIG[d.player], at = [f.x, f.z, f.heading];
         this.toast('The Mass has ended. Ite, missa est.'); setTimeout(() => { if (director === d) Explore.start(at); }, 2500); return;
@@ -2715,7 +2948,6 @@
     Props.reset(); Fix.reset();
     const start = { P: 'sacP', A1: 'sacA1', A2: 'sacA2', C1: 'C1.out', C2: 'C2.out', C3: 'C3.out', C4: 'C4.out', K: 'K.' + (o.choir || 'E') };
     for (const [r, f] of Object.entries(FIG)) {
-      for (const g of f.gestures) g.resolve();
       f.gestures = []; f.walk = null; f.turn = null; f.legAnim = null; f.lift = null; f.out = false; f.base = null;
       f.keepBehind = null; f.stepping = false; f.walkLook = null; f.tilt = 0; f.jolt = 0; f.blockedBy = null; f.blockedT = 0; f.isPlayer = false; f.bumps = 0; f.bumpAt = null; f.blockSlipAt = null;
       f.bowLevel = 0; f.nodT = 0; f.posture = 'stand'; f.legPose = [0, 0, 0, 0, window.FigureDims.hip, 0];
@@ -2746,7 +2978,9 @@
     Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
-    director.run();
+    $('#timebar').hidden = kind !== 'watch';
+    if (kind === 'watch') { director.line = new Timeline(director); director.line.prepare(); }
+    else director.run();
   }
   function startDemo() { begin('demo', Object.assign({}, opts, { servers: 2, speed: 1.25, communion: true, sermon: 'random' })); UI.show('title'); }
   function toTitle() { startDemo(); }
@@ -2858,20 +3092,25 @@
   function frame(now) {
     const real = Math.min(0.05, (now - last) / 1000); last = now;
     if (!TURBO) step(real);
-    if (!TURBO || (frameNo++ % 8) === 0) renderer.render(scene, camera);
+    const line = director && director.line;
+    if (line && (line.preparing || line.seeking)) Bar.paint();      // the picture stays until there is a moment to show
+    else if (!TURBO || (frameNo++ % 8) === 0) renderer.render(scene, camera);
     requestAnimationFrame(frame);
   }
   function step(real) {
     if (window.__serve.onStep) window.__serve.onStep(real);
+    const line = director && director.line;
+    if (line && line.preparing) return;
     const speed = director ? (director.kind === 'demo' ? 1 : director.o.speed) : 1;
     const sim = UI.paused || window.__serve.frozen != null || (director && director.failed) ? 0 : real * speed;    // the Mass does not stop for anyone's answer
     Input.update();
-    if (director) { director.tick(sim); director.pollConditions(); }
+    if (line) line.advance(real);
+    else if (director) { director.tick(sim); director.pollConditions(); }
     Player.update(real);
     if (!UI.paused) RAIL.update(real);
     Explore.update(real);
     const me = director && director.player ? FIG[director.player] : null;
-    for (const f of Object.values(FIG)) {
+    if (!line) for (const f of Object.values(FIG)) {
       // your own figure keeps moving while the Mass waits for your answer
       f.update((f === me && sim === 0 && !UI.paused) || (Explore.active && !UI.paused) ? real : sim, C.heightAt);
       if (f.manualWalk && f.posture === 'stand') {
@@ -2880,7 +3119,8 @@
         f.legs.R.knee.rotation.x = Math.max(0, -s) * 0.5; f.legs.L.knee.rotation.x = Math.max(0, s) * 0.5;
       }
     }
-    Props.update(); Fix.update(sim || real); updateDoors(real);
+    if (!line) { Props.update(); Fix.update(sim || real); }
+    updateDoors(real);
     // who the camera follows when they are away from the altar
     const focus = Explore.active ? FIG.A1 : me || FIG.P;
     Cam.update(real, focus, Explore.active || (!!me && opts.camera !== 'fixed'));
@@ -2910,6 +3150,7 @@
     }
     // the host held up at the elevation
     hostMesh.visible = !!(director && director.hostUp);
+    Bar.paint();
     if (hostMesh.visible) { hostMesh.position.copy(FIG.P.handWorld('R').add(FIG.P.handWorld('L')).multiplyScalar(0.5)).add(V(0, 0.08, 0)); hostMesh.rotation.y = FIG.P.heading; }
   }
   const hostMesh = new THREE.Mesh(new THREE.CylinderGeometry(0.045, 0.045, 0.004, 24), new THREE.MeshStandardMaterial({ color: 0xf8f1dc, emissive: 0x332a18 }));
@@ -2976,6 +3217,7 @@
   const touch = matchMedia('(pointer: coarse)').matches || params.has('touch');
   document.body.classList.toggle('touch', touch);
   buildTouch();
+  Bar.init();
 
   if (params.get('mode') === 'play') startPlay();
   else if (params.get('mode') === 'watch') startWatch();
