@@ -168,7 +168,8 @@
       { from: world(20, 55), to: world(50, 55), n: 11, len: 5, dir: [-1, 0], skew: 0.45, carts: 3 },
       { from: world(20, 74), to: world(62, 74), n: 15, len: 5, dir: [1, 0], skew: 0.2 },
     ],
-    limit: 1580,
+    // how far you can go: north past Chatsworth Street, south past the railway, west past Chatsworth station
+    bounds: [-2780, -1660, 2500, 8380],
   };
 
   /** What the camera must stay clear of: walls and furniture, but it can see over the pews. */
@@ -195,7 +196,8 @@
   function free(x, z, r = 0.18, extra) {
     for (const [a, b, c, d] of SOLIDS) if (x > a - r && x < c + r && z > b - r && z < d + r) return false;
     if (extra && extra(x, z, r)) return false;
-    return Math.hypot(x, z - 20) < SITE.limit;
+    const [bx0, bz0, bx1, bz1] = SITE.bounds;
+    return x > bx0 && x < bx1 && z > bz0 && z < bz1;
   }
 
   /** How far along a straight line from a to b (0–1) is the nearest wall? −1 if it is clear. (For the camera, and the tests.) */
@@ -235,7 +237,7 @@
     const [wx, wz] = world(0, 0);
     if (Math.abs(z - wz - 8) < 9 && x > -420) return 'White Oak Avenue';
     if (Math.abs(x - wx - 27) < 9) return 'Superior Street';
-    return 'Northridge';
+    return z > 4770 ? 'Chatsworth' : 'Northridge';     // Winnetka Avenue, near enough
   }
 
   const API = { world, CH, DOORS, WALLS, FURNITURE, SIGHT, PEWS, PIERS, SITE, SOLIDS, free, crosses, regionAt, rect };

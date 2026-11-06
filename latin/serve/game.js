@@ -77,8 +77,18 @@
   // a little sky for the paint and glass of every vehicle to reflect
   const TRANSIT_DEPS = () => ({ cars: CARS.cars, focus: () => { const f = walkerOut; return f ? [f.x, f.z] : [0, 20]; }, ahead: CARS.ahead, amb: AMB, nearestRoad: WIDE.nearestRoad });
   { const pm = new THREE.PMREMGenerator(renderer), sc = new THREE.Scene(), sph = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 12), new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 v; void main() { v = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'varying vec3 v; void main() { float h = normalize(v).y; vec3 sky = mix(vec3(0.82, 0.88, 0.95), vec3(0.28, 0.48, 0.82), pow(max(h, 0.0), 0.5)), ground = mix(vec3(0.34, 0.33, 0.3), vec3(0.14, 0.14, 0.13), min(1.0, -h * 2.0)); gl_FragColor = vec4(h > 0.0 ? sky : ground, 1.0); }' })); sc.add(sph); Traffic.setEnv(pm.fromScene(sc, 0.02).texture); pm.dispose(); }
-  const AMB = Ambient.build(scene, { audio: () => audio(), camera, figures: () => Object.values(FIG), sky: SKY, statue: OUT3D.statue, parent: OUT3D.group });
-  const TRANSIT = Transit.build(CARS.group, TRANSIT_DEPS());
+  const AMB = Ambient.build(scene, { audio: () => audio(), camera, figures: () => Object.values(FIG), sky: SKY, statue: OUT3D.statue, parent: OUT3D.group, inHouse: OUT3D.inHouse });
+  const Ride = {
+    on: false, kind: '', v: null, car: null, lx: 0, lz: 0, seated: true, inside: null, seat: null,
+    /** What you are riding in, for where to put you: the bus, or this coach of the train. */
+    get frame() { return this.kind === 'train' ? this.car : this.v; },
+  };
+  const TRANSIT = Transit.build(CARS.group, Object.assign(TRANSIT_DEPS(), { gone: v => { if (PEOPLE) PEOPLE.emptyVehicle(v); } }));
+  const RAIL = Rail.build(CARS.group, { amb: AMB, focus: () => { const f = walkerOut; return f ? [f.x, f.z] : [0, 20]; }, riding: () => Ride.on && Ride.kind === 'train' });
+  const PEOPLE = People.build(scene, { cars: CARS, transit: TRANSIT, rail: RAIL, wide: WIDE, amb: AMB, inHouse: OUT3D.inHouse, ride: Ride, focus: () => { const f = walkerOut; return f ? [f.x, f.z] : [0, 20]; } });
+  CARS.hooks.parked = c => PEOPLE.unload(c);
+  CARS.hooks.people = () => PEOPLE.onRoad();
+  CARS.hooks.barriers = () => RAIL.barriers;
 
   function resize() {
     const w = window.innerWidth, ht = window.innerHeight;
@@ -109,6 +119,16 @@
     /** Is someone at this place within view of the fixed camera? */
     atAltar(x, z) { return Math.abs(x) < 5.9 && z < 7.3; },
     update(dt, f, always) {
+      if (Ride.on) {
+        const c = Ride.frame, co = Math.cos(c.h), si = Math.sin(c.h), eye = Ride.inside.floor + (Ride.seated ? 1.12 : 1.58);
+        const x = c.x + Ride.lx * co + Ride.lz * si, z = c.z - Ride.lx * si + Ride.lz * co;
+        const yw = c.h + f.heading - this.offset, a = Math.max(-1.3, Math.min(1.3, this.pitch));
+        this.fixed = false; camera.position.set(x, eye, z);
+        camera.lookAt(x + Math.sin(yw) * Math.cos(a), eye + Math.sin(a), z + Math.cos(yw) * Math.cos(a));
+        if (Math.abs(camera.near - 0.06) > 0.004) { camera.near = 0.06; camera.updateProjectionMatrix(); }
+        if (Math.abs(camera.fov - this.walkFov) > 0.02) { camera.fov = this.walkFov; camera.updateProjectionMatrix(); }
+        this.snap = false; return;
+      }
       this.fixed = !always && (!f || this.atAltar(f.x, f.z));
       if (this.fixed) {
         this.goal.set(...CAM.pos); this.look.set(...CAM.look);
@@ -1933,7 +1953,7 @@
       if (Math.abs(x) > g - r) return true;
       if ((x >= 0 ? FX.gates.gateE : FX.gates.gateG).open < 0.5) return true;
     }
-    if (CARS.solidAt(x, z, r) || CART.solidAt(x, z, r)) return true;
+    if (CARS.solidAt(x, z, r) || CART.solidAt(x, z, r) || RAIL.solidAt(x, z, r)) return true;
     return OUT3D.inHouse(x, z);
   }
   function collide(x0, z0, x1, z1) {
@@ -1988,7 +2008,7 @@
       resetWorld({ servers: 1, communion: false });
       FIG.P.root.visible = false;
       this.active = true; walkerOut = FIG.A1;
-      this.leaveCart(true); CART.reset();
+      this.leaveRide(true); this.leaveCart(true); CART.reset();
       this.wide(true);
       const f = FIG.A1, [x, z] = Plan.world(8, 15);
       f.place(x, z, Math.PI); f.y = 0;
@@ -2004,7 +2024,7 @@
       this.region = '';
       this.setRegion();
     },
-    stop() { this.leaveCart(true); this.wide(false); this.active = false; this.seat = null; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
+    stop() { this.leaveRide(true); this.leaveCart(true); this.wide(false); this.active = false; this.seat = null; walkerOut = null; $('#explore-bar').hidden = true; FIG.P.root.visible = true; },
     /** The choir bench you are beside. */
     benchSide(f) { for (const k of ['E', 'G']) { const s = spot('K.' + k); if (Math.hypot(f.x - s[0], f.z - s[1]) < 1.5) return k; } return null; },
     sitInChoir(k) {
@@ -2061,13 +2081,93 @@
       Cam.offset = 0;
       if (this.hum) this.hum.gain.gain.value = 0;
     },
+    /** Getting on: the bus or train whose open door you are standing at. */
+    canBoard() {
+      const f = FIG.A1; if (Ride.on || CART.driving || f.posture !== 'stand') return null;
+      const v = TRANSIT.boardable(f.x, f.z); if (v) return { kind: 'bus', v };
+      const q = RAIL.boardable(f.x, f.z); if (q) return { kind: 'train', v: q.t, car: q.car };
+      return null;
+    },
+    board(b) {
+      const f = FIG.A1;
+      f.walk = null; f.turn = null; f.manualWalk = false; f.walkingManual = 0; f.root.visible = false; f.aboard = true;
+      Object.assign(Ride, { on: true, kind: b.kind, v: b.v, car: b.car || null, seated: true });
+      Ride.inside = b.kind === 'bus' ? TRANSIT.interior(b.v) : RAIL.interior();
+      Ride.frame.group.add(Ride.inside.group);
+      const c = Ride.frame; b.v.aboard = true; b.v.seatsTaken = new Set();
+      PEOPLE.fillVehicle(b.v, b.car, Ride.inside.seats, Ride.inside.floor, b.kind === 'bus' ? Ride.inside.driver : null, b.kind === 'bus' ? (b.v.riders == null ? (b.v.riders = 2 + Math.floor(Math.random() * 7)) : b.v.riders) : 4 + Math.floor(Math.random() * 12));
+      // the free seat nearest the door, by a window for choice
+      const door = b.kind === 'bus' ? Ride.inside.door[1] : Ride.inside.door, free = Ride.inside.seats.filter(q => !b.v.seatsTaken.has(q)).sort((p, q) => (Math.hypot(p.z - door.z, p.x) - Math.abs(p.x) * 0.5) - (Math.hypot(q.z - door.z, q.x) - Math.abs(q.x) * 0.5));
+      Ride.seat = free[0] || Ride.inside.seats[0]; b.v.seatsTaken.add(Ride.seat);
+      Ride.lx = Ride.seat.x; Ride.lz = Ride.seat.z; f.heading = Ride.seat.h || 0; void c;
+      Cam.offset = Cam.pitch = 0; Cam.snap = true;
+      audio();
+      if (AMB.hiss) AMB.hiss(f.x, f.z);
+    },
+    /** Off at the door, onto the sidewalk or the platform. `quiet` when the whole thing is being reset. */
+    leaveRide(quiet) {
+      if (!Ride.on) return;
+      const f = FIG.A1, c = Ride.frame, v = Ride.v;
+      const door = Ride.kind === 'bus' ? Ride.inside.door[1] : { x: v.side * (Rail.W / 2 + 0.7), z: 0 };
+      const co = Math.cos(c.h), si = Math.sin(c.h), wx = (lx, lz) => [c.x + lx * co + lz * si, c.z - lx * si + lz * co];
+      let spot = null;
+      for (const reach of [0, 0.6, 1.2, 2, 3]) for (const along of [0, 1, -1, 2, -2, 3, -3]) { const out = Math.sign(door.x) * (Math.abs(door.x) + reach), q = wx(out, door.z + along); if (Plan.free(q[0], q[1], 0.18, blocked)) { spot = q; break; } if (spot) break; }
+      spot = spot || wx(door.x, door.z);
+      f.x = spot[0]; f.z = spot[1]; f.y = 0; f.heading = c.h + (door.x < 0 ? -Math.PI / 2 : Math.PI / 2); f.root.visible = true; f.aboard = false;
+      Ride.frame.group.remove(Ride.inside.group);
+      PEOPLE.emptyVehicle(v); v.aboard = false; v.ended = false;
+      Object.assign(Ride, { on: false, kind: '', v: null, car: null, inside: null, seat: null });
+      AMB.riding('', 0);
+      Cam.offset = Cam.pitch = 0; Cam.snap = true;
+      if (!quiet && AMB.hiss) AMB.hiss(f.x, f.z);
+    },
+    /** Enter: on, or off. Says whether it did anything. */
+    rideKey() {
+      if (Ride.on) {
+        if (Ride.v.dwell > 0) { this.leaveRide(false); return true; }
+        UI.toast(Ride.kind === 'bus' ? 'The doors open at the next stop.' : 'The doors open at the next station.');
+        return true;
+      }
+      const b = this.canBoard(); if (b) { this.board(b); return true; }
+      return false;
+    },
+    rideButton() {
+      const b = $('#btn-ride'); let text = '';
+      if (Ride.on) { if (Ride.v.dwell > 0) text = Ride.kind === 'bus' ? 'Get off here (Enter)' : `Get off${Ride.v.station ? ' at ' + Ride.v.station.name : ''} (Enter)`; }
+      else { const q = this.canBoard(); if (q) text = q.kind === 'bus' ? `Get on the ${q.v.route.ref} bus (Enter)` : 'Get on the train (Enter)'; }
+      if (!!text === b.hidden) b.hidden = !text;
+      if (text && b.textContent !== text) b.textContent = text;
+    },
+    /** Riding: your place moves with the vehicle; you can look about, and walk the aisle. */
+    updateRide(dt) {
+      const f = FIG.A1, c = Ride.frame, I = Ride.inside, v = Ride.v;
+      Input.turn(f, dt);
+      const going = Input.walk();
+      if (going) {
+        Ride.seated = false; if (Ride.seat) { v.seatsTaken.delete(Ride.seat); Ride.seat = null; }
+        const sp = 1.5 * going * dt; let nx = Ride.lx + Math.sin(f.heading) * sp, nz = Ride.lz + Math.cos(f.heading) * sp;
+        const B = I.bounds, zlo = B.z0 != null ? B.z0 : -B.z, zhi = B.z1 != null ? B.z1 : B.z;
+        Ride.lx = Math.abs(Ride.lx) > B.x ? Ride.lx + (Math.sign(-Ride.lx)) * Math.min(Math.abs(Ride.lx) - B.x, dt * 2) : Math.max(-B.x, Math.min(B.x, nx));
+        Ride.lz = Math.max(zlo, Math.min(zhi, nz));
+      }
+      const co = Math.cos(c.h), si = Math.sin(c.h);
+      f.x = c.x + Ride.lx * co + Ride.lz * si; f.z = c.z - Ride.lx * si + Ride.lz * co; f.y = 0;
+      AMB.riding(Ride.kind, v.speed != null && Ride.kind === 'bus' ? v.speed : v.v || 0);
+      if (v.ended) {
+        if (Ride.kind === 'bus') { UI.toast('End of the line: everybody off.'); this.leaveRide(false); return; }
+        if (!Ride.endNoted) { Ride.endNoted = true; UI.toast('The line goes on beyond the map, so this train turns back here.'); }
+      } else Ride.endNoted = false;
+      const street = Plan.regionAt(f.x, f.z) === 'Northridge' || Plan.regionAt(f.x, f.z) === 'Chatsworth' ? (WIDE.streetAt(f.x, f.z) || Plan.regionAt(f.x, f.z)) : Plan.regionAt(f.x, f.z);
+      const r = Ride.kind === 'bus' ? `On the ${v.route.ref} bus · ${street}` : `On the train · ${Plan.regionAt(f.x, f.z)}`;
+      if (r !== this.region) { this.region = r; $('#part').textContent = r; $('#btn-serve-here').hidden = true; }
+    },
     /** The button shows only when it would do something. */
     cartButton(force) {
-      const b = $('#btn-cart'), f = FIG.A1, driving = !!CART.driving, near = driving || (f.posture === 'stand' && !!CART.nearest(f.x, f.z, 2.6));
+      const b = $('#btn-cart'), f = FIG.A1, driving = !!CART.driving, near = !Ride.on && (driving || (f.posture === 'stand' && !!CART.nearest(f.x, f.z, 2.6)));
       if (force || near !== !b.hidden) b.hidden = !near;
       const text = driving ? 'Get out of the golf cart (Enter)' : 'Get in the golf cart (Enter)';
       if (b.textContent !== text) b.textContent = text;
-      const tip = driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · the choir benches beside the altar start a Mass · drag your hands, head or back · drag elsewhere to look around, R to look ahead again · W changes the weather';
+      const tip = Ride.on ? '↑ ↓ walk the aisle · ← → turn · drag to look around, R to look ahead again · Ctrl sits you down · the doors open at each stop' : driving ? '↑ drive · ↓ brake, then reverse · ← → steer · drag elsewhere to look around, R to look ahead again · W changes the weather' : '↑ ↓ walk · ← → turn · Shift runs · golf carts are in the lot on the north side · buses stop at the benches and trains at the stations: Enter gets on · the choir benches beside the altar start a Mass · drag elsewhere to look around, R to look ahead again · W changes the weather';
       if ($('#explore-tip').textContent !== tip) $('#explore-tip').textContent = tip;
     },
     /** A cart's motor: a low electric hum that rises with the speed. */
@@ -2094,7 +2194,7 @@
     },
     setRegion() {
       const f = FIG.A1; let r = Plan.regionAt(f.x, f.z);
-      if (r === 'Northridge') r = WIDE.streetAt(f.x, f.z) || r;
+      if (r === 'Northridge' || r === 'Chatsworth') r = WIDE.streetAt(f.x, f.z) || r;
       if (r !== this.region) {
         this.region = r; $('#part').textContent = r;
         $('#btn-serve-here').hidden = r !== 'The sacristy';
@@ -2103,7 +2203,8 @@
     update(dt) {
       if (!this.active || UI.paused) return;
       const f = FIG.A1;
-      this.cartButton(); this.choirButton();
+      this.cartButton(); this.choirButton(); this.rideButton();
+      if (Ride.on) { this.updateRide(dt); return; }
       if (CART.driving) {
         const c = CART.driving, d = Input.down, open = (x, z) => Plan.free(x, z, 0.02, blocked) && !WIDE.trunkAt(x, z, 0.02) && !/sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered walk/i.test(Plan.regionAt(x, z));
         const hit = CART.drive(c, Math.min(dt, 0.05), { gas: !!d.ArrowUp, brake: !!d.ArrowDown, way: (d.ArrowLeft ? 1 : 0) - (d.ArrowRight ? 1 : 0) }, open);
@@ -2130,6 +2231,14 @@
     /** Kneeling, bowing and the rest are simply yours to do here: nothing is expected or marked. */
     act(type, arg) {
       const f = FIG.A1;
+      if (Ride.on) {
+        if (type === 'sit' || type === 'stand' || type === 'rise') {
+          if (Ride.seated) { Ride.seated = false; if (Ride.seat) { Ride.v.seatsTaken.delete(Ride.seat); Ride.seat = null; } Ride.lx = Math.max(-Ride.inside.bounds.x, Math.min(Ride.inside.bounds.x, Ride.lx)); return; }
+          let best = null, bd = 1.6; for (const s of Ride.inside.seats) { if (Ride.v.seatsTaken.has(s)) continue; const d = Math.hypot(s.x - Ride.lx, s.z - Ride.lz); if (d < bd) { bd = d; best = s; } }
+          if (best) { Ride.seat = best; Ride.v.seatsTaken.add(best); Ride.lx = best.x; Ride.lz = best.z; Ride.seated = true; f.heading = best.h || 0; } else UI.toast('No free seat just here.');
+        }
+        return;
+      }
       if (CART.driving) return;           // both hands on the wheel
       switch (type) {
         case 'kneel': if (f.posture === 'stand') f.kneel(); return;
@@ -2210,6 +2319,7 @@
       const cx = d.axis === 'x' ? d.c : d.at, cz = d.axis === 'x' ? d.at : d.c;
       let near = false;
       for (const f of Object.values(FIG)) if (f.root.visible && Math.hypot(f.x - cx, f.z - cz) < 1.5) { near = true; break; }
+      if (!near && PEOPLE.nearDoor(cx, cz)) near = true;
       door.open += ((near ? 1 : 0) - door.open) * Math.min(1, dt * 7);
       for (const it of door.items) it.pivot.rotation.y = -door.open * 1.5 * it.dir;
     }
@@ -2282,7 +2392,7 @@
     }
     if (e.target.closest && e.target.closest('input, textarea, select')) { if (e.key === 'Escape') e.target.blur(); return; }
     if (e.key === 'Escape') { UI.togglePause(); e.preventDefault(); return; }
-    if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); if (!Explore.choirKey()) Explore.toggleCart(); e.preventDefault(); return; }
+    if (e.key === 'Enter' && !e.repeat && Explore.active && !(e.target.closest && e.target.closest('button'))) { audio(); if (!Explore.rideKey() && !Explore.choirKey()) Explore.toggleCart(); e.preventDefault(); return; }
     if (e.key === 'Shift' && !e.repeat && !Explore.active) { audio(); Player.act('kneel'); return; }
     if (e.key === 'Control' && !e.repeat) { audio(); standOrSit(); e.preventDefault(); return; }
     if (e.key === ' ') { if (!e.repeat) { audio(); Player.act('cross'); } e.preventDefault(); return; }
@@ -2295,6 +2405,7 @@
   function standOrSit() {
     const f = Explore.active ? FIG.A1 : Player.d && Player.d.player && FIG[Player.d.player];
     if (!f) return;
+    if (Ride.on) return Explore.act('sit');
     if (f.posture === 'genhold') return Player.act('rise');
     if (f.posture !== 'stand') return Player.act('stand');
     if (canSit(f)) Player.act('sit');
@@ -2550,7 +2661,7 @@
 
   // ─── starting and stopping ─────────────────────────────────────────────────
   let director = null;
-  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, WIDE, CART, AMB, TRANSIT, autoplay: params.has('autoplay'),
+  window.__serve = { get director() { return director; }, FIG, Props, Player, C, UI, Input, WIDE, CART, AMB, TRANSIT, RAIL, PEOPLE, Ride, autoplay: params.has('autoplay'),
     Cam, Grab, Fix, FX, headingFor, syllables, followLine, soundOf, Explore, Plan, Nav, camera, renderer, scene, collide, walkFree: (x, z) => Plan.free(x, z, 0.18, blocked), SKY, CARS, OUT3D, SITE3D,
     start: (kind, o) => { Object.assign(opts, o || {}); playAs = {}; kind === 'play' ? beginPlay() : kind === 'explore' ? Explore.start() : kind === 'priest' ? startPriest() : kind === 'choir' ? startChoir((o && o.side) || 'E') : kind === 'casual' ? (playAs = { casual: true, failing: false, fromExplore: true }, beginPlay()) : startWatch(); } };
 
@@ -2711,6 +2822,7 @@
     Input.update();
     if (director) { director.tick(sim); director.pollConditions(); }
     Player.update(real);
+    if (!UI.paused) RAIL.update(real);
     Explore.update(real);
     const me = director && director.player ? FIG[director.player] : null;
     for (const f of Object.values(FIG)) {
@@ -2743,7 +2855,9 @@
     SKY.update(real, camera, { audio, sound: sounding });
     Traffic.setNight(SKY.night);
     TRANSIT.update(real, { explore: Explore.active, night: SKY.night });
-    AMB.update(real, { cars: CARS.cars, sound: sounding, seeOut, explore: Explore.active, me: me || (Explore.active ? FIG.A1 : null), indoorsAt: (x, z) => /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered/i.test(Plan.regionAt(x, z)) });
+    { const part = director && director.beats && director.beats[director.index] ? director.beats[director.index].part : null;
+      PEOPLE.update(UI.paused ? 0 : real, { explore: Explore.active, mass: !!director && !Explore.active, part, night: SKY.night, wet: SKY.wetness || 0 }); }
+    AMB.update(real, { cars: CARS.cars, sound: sounding, seeOut, aboard: Ride.on, explore: Explore.active, me: me || (Explore.active ? FIG.A1 : null), indoorsAt: (x, z) => /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered/i.test(Plan.regionAt(x, z)) });
     if (director && director.player) {
       const f = FIG[director.player];
       youRing.position.set(f.x, f.y + 0.012, f.z);
@@ -2796,6 +2910,7 @@
   $('#btn-watch').addEventListener('click', startWatch);
   $('#btn-explore').addEventListener('click', () => { audio(); Explore.start(); });
   $('#btn-cart').addEventListener('click', e => { audio(); Explore.toggleCart(); e.currentTarget.blur(); });
+  $('#btn-ride').addEventListener('click', e => { audio(); Explore.rideKey(); e.currentTarget.blur(); });
   $('#btn-serve-here').addEventListener('click', () => { playAs = { casual: true, failing: false, fromExplore: true }; startPlay(); });      // you came to walk around: this one is only for fun
   $('#btn-options').addEventListener('click', () => { renderOptions(); $('#options').hidden = false; });
   $('#btn-controls').addEventListener('click', () => { $('#controls').hidden = false; });

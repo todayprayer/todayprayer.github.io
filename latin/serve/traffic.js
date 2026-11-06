@@ -175,11 +175,13 @@
       }
     }
     // ways that meet part-way along a segment, without sharing a point: tie each dangling end to the nearest point
-    const list = [...nodes.values()];
+    const list = [...nodes.values()], NC = 16, cells = new Map();
+    for (const n of list) { const k = Math.floor(n.x / NC) + ',' + Math.floor(n.z / NC); let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(n); }
     for (const n of list) {
       if (n.out.length !== 1) continue;
       let best = null, bd = 16;
-      for (const m of list) {
+      const cx = Math.floor(n.x / NC), cz = Math.floor(n.z / NC);
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) for (const m of cells.get((cx + a) + ',' + (cz + b)) || []) {
         if (m === n || n.out[0].to === m) continue;
         const d = Math.hypot(m.x - n.x, m.z - n.z);
         if (d < bd && !throughHouse(n, m)) { bd = d; best = m; }
@@ -241,10 +243,14 @@
     const walkers = () => { const w = isWalker(); return w ? [w] : []; };
     const standing = () => (carts && carts.list ? carts.list.filter(k => k !== carts.driving) : []);
     const graph = buildGraph(inHouse).filter(n => n.out.length);
+    // the map is too big to pick a corner at random and hope it is near you
+    const GC = 340, byCell = new Map();
+    for (const n of graph) { const k = Math.floor(n.x / GC) + ',' + Math.floor(n.z / GC); let l = byCell.get(k); if (!l) byCell.set(k, l = []); l.push(n); }
     const r = rng(1962);
     const parking = bays();
     const cars = [];
-    const KIND_LIST = ['sedan', 'suv', 'sedan', 'pickup', 'suv', 'sedan', 'van', 'suv', 'sedan', 'pickup'];
+    const KIND_LIST = ['sedan', 'suv', 'van', 'pickup', 'suv', 'sedan', 'van', 'suv', 'sedan', 'pickup', 'van'];
+    const hooks = { parked: null, people: () => [], barriers: () => [] };
 
     const near = (x, z) => { let b = graph[0], d = 1e9; for (const n of graph) { const q = Math.hypot(n.x - x, n.z - z); if (q < d) { d = q; b = n; } } return b; };
 
@@ -257,9 +263,11 @@
     /** Where the traffic should be: round whoever is walking or driving, or else round the church. */
     const about = () => { const w = walkers()[0]; return w ? [w.x, w.z] : [0, 20]; };
     function spawnRoad(c) {
-      const [ax, az] = about(), walking = walkers().length > 0;
-      for (let tries = 0; tries < 400; tries++) {
-        const n = graph[Math.floor(r() * graph.length)], away = Math.hypot(n.x - ax, n.z - az);
+      const [ax, az] = about(), walking = walkers().length > 0, cx = Math.floor(ax / GC), cz = Math.floor(az / GC), pool = [];
+      for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const l = byCell.get((cx + a) + ',' + (cz + b)); if (l) pool.push(l); }
+      if (!pool.length) return;
+      for (let tries = 0; tries < 60; tries++) {
+        const l = pool[Math.floor(r() * pool.length)], n = l[Math.floor(r() * l.length)], away = Math.hypot(n.x - ax, n.z - az);
         if (away > 340 || (walking && away < 110)) continue;
         const e = n.out[Math.floor(r() * n.out.length)];
         const d = Math.atan2(e.to.x - n.x, e.to.z - n.z);
@@ -270,6 +278,7 @@
     function park(c, bay, instantly) {
       bay.used = true; c.bay = bay; c.mode = 'parked'; c.until = instantly ? 20 + r() * 240 : 40 + r() * 180;
       c.x = bay.x; c.z = bay.z; c.h = bay.heading; c.speed = 0;
+      if (!instantly && hooks.parked) hooks.parked(c);
     }
     const count = Math.round(Q.cars * 1.3);
     for (let i = 0; i < count; i++) {
@@ -307,7 +316,7 @@
         const dx = o.x - c.x, dz = o.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx);
         if (along > 0 && side < 1.4 && along < d) d = along;
       }
-      for (const w of walkers().concat(standing())) { const dx = w.x - c.x, dz = w.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx); if (along > 0 && side < 1.9 && along < d) d = along; }
+      for (const l of [walkers(), standing(), hooks.people(), hooks.barriers()]) for (const w of l) { if (w.aboard) continue; const dx = w.x - c.x, dz = w.z - c.z, along = dx * fx + dz * fz, side = Math.abs(dx * fz - dz * fx); if (along > 0 && side < 1.9 && along < d) d = along; }
       return d;
     }
 
@@ -373,7 +382,7 @@
           c.speed = 0; c.until -= dt;
           // settle into the bay's line
           c.h += wrap(c.bay.heading - c.h) * Math.min(1, dt * 2);
-          if (c.until < 0) leaveLot(c);
+          if (c.until < 0 && !c.hold) leaveLot(c);
           return;
         }
         case 'backing': {
@@ -403,7 +412,18 @@
     }
 
     return {
-      group, cars, ahead,
+      group, cars, ahead, hooks,
+      /** The way from a parking bay to the corner of the parish hall, on foot, then on towards the church doors. */
+      walkFromBay(bay) { return [bay.mouth, ...lotPath(bay.aisle, 'B'), [-41.6, 30], [-15, 29.6]]; },
+      /** Send a car, a van for choice, to church: one that is out of your sight, in by whichever drive is further from you. */
+      arrive() {
+        const [ax, az] = about(), list = cars.filter(c => c.mode === 'road' && c.kind && Math.hypot(c.x - ax, c.z - az) > 60);
+        const c = list.find(k => k.kind === 'van') || list[0]; if (!c) return false;
+        const ex = EXITS.slice().sort((p, q) => Math.hypot(q.road[0] - ax, q.road[1] - az) - Math.hypot(p.road[0] - ax, p.road[1] - az))[0];
+        if (Math.hypot(ex.road[0] - ax, ex.road[1] - az) < 30) return false;
+        const lot = LOT[ex.name]; c.x = ex.road[0]; c.z = ex.road[1]; c.h = Math.atan2(lot[0] - c.x, lot[1] - c.z); c.speed = 3;
+        return enterLot(c, ex);
+      },
       /** Is this spot taken by a car, parked or moving? */
       solidAt(x, z, rad) {
         for (const c of cars) {

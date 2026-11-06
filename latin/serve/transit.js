@@ -1,5 +1,5 @@
 /*
- * The vehicles with somewhere particular to be. Buses run the real lines of the San Fernando Valley on their real streets and stop at their real stops;
+ * The vehicles with somewhere particular to be. Buses run the real lines of the San Fernando Valley on their real streets and stop at their real stops, and you can ride them;
  * and now and then a police car, a fire engine or a rescue ambulance goes by, lights and siren, on one of the big streets.
  * Paint is matched from public descriptions and photographs from memory: colours and lettering, no agency's actual seal or logo artwork.
  */
@@ -27,6 +27,57 @@
   }
   const roundedSide = (w, h, r) => { const s = new THREE.Shape(), x = -w / 2, y = 0; s.moveTo(x + r * 0.5, y); s.lineTo(x + w - r * 0.5, y); s.quadraticCurveTo(x + w, y, x + w, y + r * 0.5); s.lineTo(x + w, y + h - r); s.quadraticCurveTo(x + w, y + h, x + w - r, y + h); s.lineTo(x + r, y + h); s.quadraticCurveTo(x, y + h, x, y + h - r); s.lineTo(x, y + r * 0.5); s.quadraticCurveTo(x, y, x + r * 0.5, y); return s; };
 
+  const DOOR_AT = [0.86, 0.5];        // along the curb side, rear to front
+  const FLOOR = 0.44;
+  /** Boxes, merged into one mesh for each colour: for the insides of things. */
+  function boxes(list) {
+    const by = new Map();
+    for (const [m, w, h, d, x, y, z] of list) { let l = by.get(m); if (!l) by.set(m, l = []); l.push(new THREE.BoxGeometry(w, h, d).translate(x, y, z).toNonIndexed()); }
+    const group = new THREE.Group();
+    for (const [m, l] of by) {
+      let n = 0; for (const g of l) n += g.attributes.position.count;
+      const pos = new Float32Array(n * 3), nor = new Float32Array(n * 3); let o = 0;
+      for (const g of l) { pos.set(g.attributes.position.array, o * 3); nor.set(g.attributes.normal.array, o * 3); o += g.attributes.position.count; g.dispose(); }
+      const G = new THREE.BufferGeometry(); G.setAttribute('position', new THREE.BufferAttribute(pos, 3)); G.setAttribute('normal', new THREE.BufferAttribute(nor, 3));
+      const mesh = new THREE.Mesh(G, new THREE.MeshStandardMaterial({ color: new THREE.Color(m.color).convertSRGBToLinear(), emissive: new THREE.Color(m.emissive || 0).convertSRGBToLinear(), roughness: m.rough || 0.8, metalness: m.metal || 0 })); mesh.frustumCulled = false; group.add(mesh);
+    }
+    return group;
+  }
+  /** The inside of a bus: seats either side of the aisle, poles, the driver's place. Its outer skin shows nothing inwards, so what is left open here is window. */
+  const insides = {};
+  function busInterior(L) {
+    if (insides[L]) return insides[L];
+    const W = 2.59, wall = { color: 0xcfcbbf, emissive: 0x24221e }, seatC = { color: 0x2a3a5c, emissive: 0x0a0e16 }, floorC = { color: 0x4e5256 }, ceil = { color: 0xe6e4da, emissive: 0x55534a }, pole = { color: 0xd8b220, rough: 0.35, metal: 0.4, emissive: 0x2a2204 }, dark = { color: 0x1c1e22 }, list = [], HW = W / 2 - 0.08;
+    const B = (mat, w, h, d, x, y, z) => list.push([mat, w, h, d, x, y, z]);
+    B(floorC, W - 0.08, 0.05, L - 0.12, 0, FLOOR - 0.025, 0);
+    B(ceil, W - 0.08, 0.05, L - 0.12, 0, 2.86, 0);
+    for (const s of [-1, 1]) {
+      B(wall, 0.05, 1.18, L - 0.12, s * HW, FLOOR + 0.59, 0);       // below the windows
+      B(wall, 0.05, 0.26, L - 0.12, s * HW, 2.73, 0);               // above them
+      for (let k = 1; k < 8; k++) B(dark, 0.05, 1.0, 0.1, s * HW, 2.12, (k / 8 - 0.5) * L);
+    }
+    B(wall, W - 0.08, 2.4, 0.05, 0, FLOOR + 1.2, -L / 2 + 0.06);    // the back wall
+    B(dark, W - 0.2, 0.42, 0.5, 0, FLOOR + 0.62, L / 2 - 0.34);     // the dash, under the windscreen
+    // the openings where the doors are, on the curb side
+    const door = DOOR_AT.map(d => ({ x: -W / 2 - 0.55, z: (d + 0.0425 - 0.5) * L }));
+    for (const q of door) { B(wall, 0.052, 2.4, 0.08, -HW, FLOOR + 1.2, q.z - L * 0.0425); B(wall, 0.052, 2.4, 0.08, -HW, FLOOR + 1.2, q.z + L * 0.0425); }
+    const seats = [], front = L / 2 - 2.5, rear = -L / 2 + 0.9;
+    for (let z = rear; z < front; z += 0.86) for (const s of [-1, 1]) {
+      if (s < 0 && door.some(q => Math.abs(q.z - z) < L * 0.06)) continue;
+      for (const x of [0.66, 1.1]) {
+        B(seatC, 0.42, 0.09, 0.42, s * x, FLOOR + 0.42, z); B(seatC, 0.42, 0.56, 0.08, s * x, FLOOR + 0.72, z - 0.22); B(dark, 0.05, 0.4, 0.05, s * x, FLOOR + 0.2, z);
+        seats.push({ x: s * x, z });
+      }
+    }
+    for (const z of [L / 2 - 2.2, door[1].z + 0.9, door[1].z - 0.9, -L / 2 + 2.5]) for (const s of [-1, 1]) B(pole, 0.04, 2.42, 0.04, s * 0.42, FLOOR + 1.21, z);
+    for (const s of [-1, 1]) B(pole, 0.04, 0.04, L * 0.8, s * 0.42, 2.48, -0.2);
+    for (let z = -L / 2 + 1; z < L / 2 - 1; z += 2.4) for (const s of [-1, 1]) B(ceil, 0.26, 0.02, 1.4, s * 0.78, 2.83, z);
+    const driver = { x: 0.72, z: L / 2 - 1.15 };
+    B(dark, 0.5, 0.09, 0.5, driver.x, FLOOR + 0.42, driver.z); B(dark, 0.5, 0.7, 0.08, driver.x, FLOOR + 0.8, driver.z - 0.26);
+    B(wall, 1.0, 1.4, 0.05, 0.75, FLOOR + 0.7, L / 2 - 1.7);
+    return (insides[L] = { group: boxes(list), seats, door, driver, floor: FLOOR, bounds: { x: 0.34, z0: -L / 2 + 0.8, z1: L / 2 - 2 } });
+  }
+
   /** A forty-foot low-floor city bus, with the natural-gas tanks in a hump on its roof. */
   function makeBus(route, length = 12.2) {
     const g = new THREE.Group(), net = route.net, W = 2.59, H = 2.72, y0 = 0.36, L = length;
@@ -48,7 +99,7 @@
       c.fillStyle = gr; c.fillRect(w * 0.015, win0, w * 0.97, win1 - win0);
       c.fillStyle = 'rgba(0,0,0,.55)'; for (let k = 1; k < 8; k++) c.fillRect(w * k / 8, win0, 7, win1 - win0);
       // the doors: on the curb side only
-      if (!flip) for (const d of [0.1, 0.5]) { c.fillStyle = '#1a2026'; c.fillRect(w * d, win0 - 6, w * 0.085, h - win0 - 18); c.fillStyle = '#6a6e72'; c.fillRect(w * (d + 0.041), win0 - 6, 5, h - win0 - 18); c.strokeStyle = '#7a7e82'; c.lineWidth = 4; c.strokeRect(w * d, win0 - 6, w * 0.085, h - win0 - 18); }
+      if (!flip) for (const d of DOOR_AT) { c.fillStyle = '#1a2026'; c.fillRect(w * d, win0 - 6, w * 0.085, h - win0 - 18); c.fillStyle = '#6a6e72'; c.fillRect(w * (d + 0.041), win0 - 6, 5, h - win0 - 18); c.strokeStyle = '#7a7e82'; c.lineWidth = 4; c.strokeRect(w * d, win0 - 6, w * 0.085, h - win0 - 18); }
       // the lettering: the agency's name and the line
       c.fillStyle = metro ? '#ffffff' : cx ? '#0d5aa7' : '#b5121b'; c.textBaseline = 'middle'; c.textAlign = 'center';
       c.font = `700 ${Math.round(h * 0.2)}px Arial, Helvetica, sans-serif`;
@@ -60,8 +111,10 @@
     };
     const side = canvasMat(2048, 450, sideDraw(false)), other = canvasMat(2048, 450, sideDraw(true));
     const plate = (mat, x, ry) => { const p = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.995, H * 0.97), mat); p.position.set(x, y0 + H / 2 - 0.02, 0); p.rotation.y = ry; g.add(p); return p; };
-    plate(side, W / 2 + 0.012, Math.PI / 2 * -1 + Math.PI);    // curb side (right of the driver: -x going +z)
-    plate(side, -W / 2 - 0.012, -Math.PI / 2);
+    plate(other, W / 2 + 0.012, Math.PI / 2 * -1 + Math.PI);
+    plate(side, -W / 2 - 0.012, -Math.PI / 2);    // the curb side (right of the driver: -x going +z)
+    // the doors standing open, with the light of the inside showing through
+    const doors = DOOR_AT.map(d => { const p = new THREE.Mesh(new THREE.PlaneGeometry(L * 0.085, H * 0.74), new THREE.MeshStandardMaterial({ color: 0xc4c0b0, emissive: 0x4a4638, roughness: 0.9 })); p.position.set(-W / 2 - 0.016, y0 + H * 0.4, (d + 0.0425 - 0.5) * L); p.rotation.y = -Math.PI / 2; p.visible = false; g.add(p); return p; });
     // the front: a great curved windscreen and the destination sign, and the back with its engine doors
     const front = canvasMat(512, 512, (c, w, h) => {
       c.fillStyle = metro ? '#ef6a1f' : cx ? '#f0f2f0' : '#e9e9e4'; c.fillRect(0, 0, w, h);
@@ -83,7 +136,7 @@
     for (const s of [-1, 1]) { const a = new THREE.Mesh(new THREE.BoxGeometry(0.34, 0.03, 0.03), dark); a.position.set(s * (W / 2 + 0.16), y0 + H - 0.7, L / 2 - 0.2); g.add(a); const b = new THREE.Mesh(new THREE.BoxGeometry(0.1, 0.44, 0.18), dark); b.position.set(s * (W / 2 + 0.34), y0 + H - 0.86, L / 2 - 0.2); g.add(b); }
     const rack = new THREE.Mesh(new THREE.BoxGeometry(1.7, 0.86, 0.1), dark); rack.position.set(0, 1.0, L / 2 + 0.12); g.add(rack);
     const ws = wheelSet(g, [L * 0.27, -L * 0.2], W - 0.3, 0.5, 0.34, tire, hub);
-    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: csun ? 7 : 11, heavy: true };
+    return { group: g, wheels: ws.wheels, front: ws.front, len: L, wr: 0.5, roll: 0, steer: 0, top: csun ? 7 : 11, heavy: true, doors };
   }
 
   /** A black-and-white: black with white doors, pillars and roof; a light bar; a push bar. */
@@ -171,10 +224,11 @@
     const signStops = Wide.signs.filter(s => s.k === 'bus');
     for (const p of paths) {
       const stops = [];
-      const consider = (x, z) => { let best = 1e9, bs = 0; for (let i = 0; i + 1 < p.path.pts.length; i++) { const a = p.path.pts[i], b = p.path.pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / ((dx * dx + dz * dz) || 1))), d = Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz); if (d < best) { best = d; bs = p.path.cum[i] + t * Math.hypot(dx, dz); } } if (best < 16) stops.push(bs); };
+      const xs = p.path.pts.map(q => q[0]), zs = p.path.pts.map(q => q[1]), bx0 = Math.min(...xs) - 16, bx1 = Math.max(...xs) + 16, bz0 = Math.min(...zs) - 16, bz1 = Math.max(...zs) + 16;
+      const consider = (x, z) => { if (x < bx0 || x > bx1 || z < bz0 || z > bz1) return; let best = 1e9, bs = 0; for (let i = 0; i + 1 < p.path.pts.length; i++) { const a = p.path.pts[i], b = p.path.pts[i + 1], dx = b[0] - a[0], dz = b[1] - a[1], t = Math.max(0, Math.min(1, ((x - a[0]) * dx + (z - a[1]) * dz) / ((dx * dx + dz * dz) || 1))), d = Math.hypot(x - a[0] - t * dx, z - a[1] - t * dz); if (d < best) { best = d; bs = p.path.cum[i] + t * Math.hypot(dx, dz); } } if (best < 16) stops.push(bs); };
       for (const q of p.r.stops) consider(q[0], q[1]);
       for (const s of signStops) consider(s.x, s.z);
-      p.stops = [...new Set(stops.map(v => Math.round(v / 20) * 20))].sort((a, b) => a - b);
+      p.stops = []; for (const v of stops.slice().sort((a, b) => a - b)) if (!p.stops.length || v - p.stops[p.stops.length - 1] > 170) p.stops.push(v);
     }
     const ACTIVE = root.Quality.level === 'low' ? 2 : 4, buses = [];
     /** Put a bus on some line that runs near where you are, far enough off that you do not see it appear. */
@@ -218,7 +272,7 @@
     const slots = []; for (let i = 0; i < ACTIVE; i++) slots.push({ v: null, wait: i * 25 + rnd(0, 20) });
 
     // ── sirens, rarely ──
-    const STREETS = { police: ['Nordhoff Street', 'Reseda Boulevard', 'Zelzah Avenue', 'Devonshire Street', 'Plummer Street', 'White Oak Avenue', 'Lassen Street'], fire: ['Reseda Boulevard', 'Plummer Street', 'Nordhoff Street', 'Devonshire Street'], ems: ['Reseda Boulevard', 'Nordhoff Street', 'Plummer Street', 'Zelzah Avenue'] };
+    const STREETS = { police: ['Nordhoff Street', 'Reseda Boulevard', 'Zelzah Avenue', 'Devonshire Street', 'Plummer Street', 'White Oak Avenue', 'Lassen Street', 'Chatsworth Street', 'Topanga Canyon Boulevard', 'Tampa Avenue', 'Corbin Avenue'], fire: ['Reseda Boulevard', 'Plummer Street', 'Nordhoff Street', 'Devonshire Street', 'Topanga Canyon Boulevard', 'Tampa Avenue'], ems: ['Reseda Boulevard', 'Nordhoff Street', 'Plummer Street', 'Zelzah Avenue', 'Devonshire Street', 'Topanga Canyon Boulevard'] };
     const cache = {};
     const street = n => (n in cache ? cache[n] : (cache[n] = arterial(n)));
     let run = null, nextRun = rnd(70, 200), flash = 0;
@@ -239,20 +293,39 @@
       run = null;
     }
     return {
-      slots, startRun, startBus, get run() { return run; }, paths, street, makeBus, makePolice, makeEngine, makeAmbulance,
+      slots, startRun, startBus, get run() { return run; }, paths, street, makeBus, makePolice, makeEngine, makeAmbulance, floor: FLOOR, interior: v => busInterior(v.len),
+      /** The middle of the door you get on by, in the bus's own frame. */
+      door(v) { const q = busInterior(v.len).door[1]; return q; },
+      freeSeat(v) { const s = busInterior(v.len).seats.filter(q => !v.seatsTaken || !v.seatsTaken.has(q)); return s[Math.floor(Math.random() * s.length)] || null; },
+      /** A bus with its doors open, close enough to step aboard. */
+      boardable(x, z) {
+        for (const sl of slots) {
+          const v = sl.v; if (!v || !(v.dwell > 0) || v.ended) continue;
+          for (const q of busInterior(v.len).door) { const co = Math.cos(v.h), si = Math.sin(v.h), wx = v.x + q.x * co + q.z * si, wz = v.z - q.x * si + q.z * co; if (Math.hypot(wx - x, wz - z) < 4.2) return v; }
+        }
+        return null;
+      },
+      stopName(v) { const s = v.nextName; return s || ''; },
       update(dt, ctx) {
         const d = Math.min(dt, 0.05);
         for (const sl of slots) {
           if (!sl.v) { sl.wait -= d; if (sl.wait < 0) startBus(sl); continue; }
           const v = sl.v, [fx, fz] = focus();
           // stops
-          if (v.dwell > 0) { v.dwell -= d; v.speed = 0; place(v, d); if (v.dwell <= 0 && amb.hiss) amb.hiss(v.x, v.z); }
+          v.doors.forEach(q => { q.visible = v.dwell > 0; });
+          if (v.ended) { v.speed = 0; v.dwell = 1; continue; }
+          if (v.dwell > 0) {
+            // the driver sees you coming
+            if (!v.aboard && v.dwell < 2.5 && v.held == null && Math.hypot(v.x - fx, v.z - fz) < 16) { v.held = 1; v.dwell = 7; }
+            v.dwell -= d; v.speed = 0; place(v, d); if (v.dwell <= 0) { v.held = null; if (amb.hiss) amb.hiss(v.x, v.z); }
+          }
           else {
             const next = v.stops.find(q => q > v.s + 0.5), to = next == null ? 1e9 : next - v.s;
             if (to < 26 && v.speed > 0) { const goal = Math.max(1.2, to * 0.34); drive(v, d, Math.min(v.top, goal)); if (to < 1.5) { v.dwell = rnd(5, 14); v.s += 2; if (amb.hiss) amb.hiss(v.x, v.z); } }
             else drive(v, d, v.top);
           }
-          if (v.s > v.path.len - 2 || Math.hypot(v.x - fx, v.z - fz) > 1200) { sl.wait = rnd(5, 30); group.remove(v.group); const k = cars.indexOf(v); if (k >= 0) cars.splice(k, 1); sl.v = null; }
+          if (v.aboard && v.s > v.path.len - 3) { v.ended = true; v.speed = 0; v.dwell = 1; continue; }
+          if (v.s > v.path.len - 2 || Math.hypot(v.x - fx, v.z - fz) > 1200) { sl.wait = rnd(5, 30); group.remove(v.group); const k = cars.indexOf(v); if (k >= 0) cars.splice(k, 1); sl.v = null; if (deps.gone) deps.gone(v); }
         }
         // a run with lights and siren: every few minutes out of doors, seldom enough during Mass
         nextRun -= d;
@@ -269,5 +342,5 @@
       },
     };
   }
-  root.Transit = { build, makeBus, makePolice, makeEngine, makeAmbulance };
+  root.Transit = { build, makeBus, makePolice, makeEngine, makeAmbulance, boxes };
 })(typeof self !== 'undefined' ? self : this);

@@ -54,3 +54,5 @@
 !latin/serve.html
 !latin/serve/
 !latin/serve/*.js
+!latin/serve/aerial/
+!latin/serve/aerial/*.js

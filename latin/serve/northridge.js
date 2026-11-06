@@ -1,16 +1,16 @@
 /*
- * Northridge past the first few blocks, to about a mile out: real street plan, building outlines and heights, names and addresses
+ * Northridge past the first few blocks, out to Chatsworth: real street plan, railway, building outlines and heights, names and addresses
  * from OpenStreetMap, on the USDA NAIP aerial. Walls and windows are generated: no one has measured those.
  * Built a tile at a time as you come near, so that serving Mass never pays for it.
  */
 (function (root) {
   'use strict';
-  const THREE = root.THREE, Plan = root.Plan, Tex = root.Tex, Data = root.WideData, Inner = root.SiteData, Q = root.Quality, Aerial = root.AerialWide;
+  const THREE = root.THREE, Plan = root.Plan, Tex = root.Tex, Data = root.WideData, Inner = root.SiteData, Q = root.Quality;
   const rng = seed => { let s = (seed % 2147483646) + 1; return () => ((s = (s * 16807) % 2147483647) / 2147483647); };
   const TILE = (root.WideData && root.WideData.tile) || 280;
   // how far you can see, by detail level: what is built must always reach into the haze
   const RANGE = { low: [520, 680], medium: [850, 1050], high: [1300, 1600], ultra: [1700, 2100] };
-  const SIGN_NEAR = 320, SIGN_FAR = 480;
+  const SIGN_NEAR = 320, SIGN_FAR = 480, PLATFORM_W = 4;
 
   function polygon(flat) {
     const p = []; for (let i = 0; i < flat.length; i += 2) p.push([flat[i], flat[i + 1]]);
@@ -179,17 +179,17 @@
   const short = n => n.replace(/\bStreet\b/, 'St').replace(/\bAvenue\b/, 'Ave').replace(/\bBoulevard\b/, 'Blvd').replace(/\bDrive\b/, 'Dr').replace(/\bPlace\b/, 'Pl').replace(/\bLane\b/, 'Ln').replace(/\bRoad\b/, 'Rd').replace(/\bCourt\b/, 'Ct');
   /** Every street's name on one sheet, so that a blade is two triangles. */
   function bladeAtlas(W) {
-    const names = [...new Set(Data.blades.flatMap(b => [b.a, b.b]))], cell = {}, CW = 512, CH = 64;
-    const t = W.canvasTex(2048, 2048, (g) => {
+    const names = [...new Set(Data.blades.flatMap(b => [b.a, b.b]))], cell = {}, COLS = 12, CW = 320, CH = 40, AW = COLS * CW, AH = Math.ceil(names.length / COLS) * CH;
+    const t = W.canvasTex(AW, AH, (g) => {
       g.textBaseline = 'middle'; g.textAlign = 'center';
       names.forEach((n, i) => {
-        const x = (i % 4) * CW, y = Math.floor(i / 4) * CH, s = short(n);
+        const x = (i % COLS) * CW, y = Math.floor(i / COLS) * CH, s = short(n);
         g.fillStyle = '#123f84'; g.fillRect(x, y, CW, CH);
-        g.strokeStyle = '#f2f4f6'; g.lineWidth = 3; g.strokeRect(x + 4, y + 4, CW - 8, CH - 8);
-        let size = 44; g.font = `700 ${size}px Arial, Helvetica, sans-serif`;
-        while (g.measureText(s).width > CW - 30 && size > 16) { size -= 2; g.font = `700 ${size}px Arial, Helvetica, sans-serif`; }
-        g.fillStyle = '#ffffff'; g.fillText(s, x + CW / 2, y + CH / 2 + 2);
-        cell[n] = [x / 2048, 1 - (y + CH) / 2048, (x + CW) / 2048, 1 - y / 2048];
+        g.strokeStyle = '#f2f4f6'; g.lineWidth = 2; g.strokeRect(x + 3, y + 3, CW - 6, CH - 6);
+        let size = 28; g.font = `700 ${size}px Arial, Helvetica, sans-serif`;
+        while (g.measureText(s).width > CW - 20 && size > 12) { size -= 1; g.font = `700 ${size}px Arial, Helvetica, sans-serif`; }
+        g.fillStyle = '#ffffff'; g.fillText(s, x + CW / 2, y + CH / 2 + 1);
+        cell[n] = [x / AW, 1 - (y + CH) / AH, (x + CW) / AW, 1 - y / AH];
       });
     });
     t.wrapS = t.wrapT = THREE.ClampToEdgeWrapping; t.anisotropy = 8;
@@ -232,8 +232,34 @@
     const M = W.M, level = Q.level, [range, fogFar] = RANGE[level] || RANGE.medium;
     const key = (x, z) => Math.floor(x / TILE) + ',' + Math.floor(z / TILE);
     const tiles = new Map(), RADII = { low: 0, medium: 260, high: 420, ultra: 560 }, nearR = RADII[level] || 0, roofStep = level === 'ultra' ? 1 : level === 'high' ? 1 : 2;
-    const tile = (x, z) => { const k = key(x, z); let t = tiles.get(k); if (!t) { const [a, b] = k.split(',').map(Number); tiles.set(k, t = { x: (a + 0.5) * TILE, z: (b + 0.5) * TILE, buildings: [], roads: [], signs: [], blades: [], stops: [], signals: [], lamps: [], hydrants: [], touch: [], roadsNear: [], moreLamps: [], group: null, signGroup: null, built: false, i: a, j: b, solid: null, near: null, data: null, loading: false, heights: null, tex: null }); } return t; };
-    for (let i = Math.floor(-1700 / TILE); i <= Math.floor(1700 / TILE); i++) for (let j = Math.floor(-1680 / TILE); j <= Math.floor(1720 / TILE); j++) tile((i + 0.5) * TILE, (j + 0.5) * TILE);
+    const tile = (x, z) => { const k = key(x, z); let t = tiles.get(k); if (!t) { const [a, b] = k.split(',').map(Number); tiles.set(k, t = { x: (a + 0.5) * TILE, z: (b + 0.5) * TILE, buildings: [], roads: [], signs: [], blades: [], stops: [], signals: [], lamps: [], hydrants: [], rails: [], platforms: [], touch: [], roadsNear: [], moreLamps: [], group: null, signGroup: null, built: false, i: a, j: b, solid: null, near: null, data: null, loading: false, heights: null, tex: null }); } return t; };
+    const [BX0, BZ0, BX1, BZ1] = Data.bounds;
+    for (let i = Math.floor(BX0 / TILE); i < Math.floor(BX1 / TILE); i++) for (let j = Math.floor(BZ0 / TILE); j < Math.floor(BZ1 / TILE); j++) tile((i + 0.5) * TILE, (j + 0.5) * TILE);
+    /** The map gives a station's platform only as an outline: work out from that where its warning line, shelters and name boards go. */
+    function furnish(s) {
+      if (s.bus) return;
+      const dist = (a, b) => Math.hypot(a[0] - b[0], a[1] - b[1]);
+      const station = Data.signs.filter(q => /^(Northridge|Chatsworth) Station$/.test(q.n)).find(q => dist([q.x, q.z], s.pts[0]) < 400);
+      if (!station) return;
+      let A = s.pts[0], B = s.pts[0], L = 0;
+      for (const a of s.pts) for (const b of s.pts) if (dist(a, b) > L) { L = dist(a, b); A = a; B = b; }
+      const ux = (B[0] - A[0]) / L, uz = (B[1] - A[1]) / L, nx = -uz, nz = ux, ry = Math.atan2(ux, uz), line = [], shelters = [];
+      const toRail = (x, z) => { let m = 1e9; for (const r of Data.rails) for (let i = 0; i + 3 < r.p.length; i += 2) { const dx = r.p[i + 2] - r.p[i], dz = r.p[i + 3] - r.p[i + 1], t = Math.max(0, Math.min(1, ((x - r.p[i]) * dx + (z - r.p[i + 1]) * dz) / ((dx * dx + dz * dz) || 1))); m = Math.min(m, Math.hypot(x - r.p[i] - t * dx, z - r.p[i + 1] - t * dz)); } return m; };
+      let n = 0;
+      for (let t = 1.5; t < L - 1; t += 6, n++) {
+        const ox = A[0] + ux * t, oz = A[1] + uz * t; let lo = null, hi = null;
+        for (let k = -16; k <= 16; k += 0.25) if (inPoly(s.pts, ox + nx * k, oz + nz * k)) { if (lo == null) lo = k; hi = k; }
+        if (lo == null || hi - lo < 1.2) continue;
+        const e = toRail(ox + nx * hi, oz + nz * hi) < toRail(ox + nx * lo, oz + nz * lo) ? hi - 0.5 : lo + 0.5;
+        line.push(ox + nx * e, oz + nz * e);
+        if (n % 7 === 3) {
+          const m = (lo + hi) / 2, x = ox + nx * m, z = oz + nz * m;
+          shelters.push([x, z, ry, Math.min(2.8, hi - lo - 0.5)]);
+          tile(x, z).signs.push({ n: station.n, x: x + ux * 3.8, z: z + uz * 3.8, ry: Math.atan2(e > m ? nx : -nx, e > m ? nz : -nz), k: 'lot' });
+        }
+      }
+      s.furn = { line, shelters };
+    }
     // ── who stands where ──
     const CELL = 24, solids = new Map();
     const solidHas = (x, z) => { const l = solids.get(Math.floor(x / CELL) + ',' + Math.floor(z / CELL)); if (!l) return false; for (const p of l) if (inPoly(p, x, z)) return true; return false; };
@@ -254,10 +280,14 @@
     for (const s of Data.signals) tile(s[0], s[1]).signals.push(s);
     for (const s of Data.lamps) tile(s[0], s[1]).lamps.push(s);
     for (const s of Data.hydrants) tile(s[0], s[1]).hydrants.push(s);
+    for (const s of Data.rails) { const m = Math.floor(s.p.length / 4) * 2; tile(s.p[m], s.p[m + 1]).rails.push(s); }
+    for (const s of Data.platforms) { const m = Math.floor(s.p.length / 4) * 2; tile(s.p[m], s.p[m + 1]).platforms.push(s); if (s.a) { const { pts } = polygon(s.p); s.pts = pts; furnish(s); } }
     // what overlaps each tile, for masking the ground
     const ensure = (i, j) => tiles.get(i + ',' + j);
     Data.buildings.forEach(b => { const xs = b.pts.map(p => p[0]), zs = b.pts.map(p => p[1]); for (let i = Math.floor(Math.min(...xs) / TILE); i <= Math.floor(Math.max(...xs) / TILE); i++) for (let j = Math.floor(Math.min(...zs) / TILE); j <= Math.floor(Math.max(...zs) / TILE); j++) { const t = ensure(i, j); if (t) t.touch.push(b); } });
-    const allRoads = [...Inner.roads, ...Data.roads];
+    // the railway keeps the ground's bumps off itself as the streets do
+    for (const s of Data.platforms) if (s.pts) { const xs = s.pts.map(p => p[0]), zs = s.pts.map(p => p[1]); for (let i = Math.floor(Math.min(...xs) / TILE); i <= Math.floor(Math.max(...xs) / TILE); i++) for (let j = Math.floor(Math.min(...zs) / TILE); j <= Math.floor(Math.max(...zs) / TILE); j++) { const t = ensure(i, j); if (t) t.touch.push(s); } }
+    const allRoads = [...Inner.roads, ...Data.roads, ...Data.rails.map(s => ({ p: s.p, w: 4.2 })), ...Data.platforms.filter(s => !s.a).map(s => ({ p: s.p, w: PLATFORM_W + 0.4 }))];
     for (const r of allRoads) {
       const seen = new Set();
       for (let i = 0; i + 1 < r.p.length; i += 2) { const k = key(r.p[i], r.p[i + 1]); if (!seen.has(k)) { seen.add(k); const t = tiles.get(k); if (t) t.roadsNear.push(r); } if (i + 3 < r.p.length) { const q = key((r.p[i] + r.p[i + 2]) / 2, (r.p[i + 1] + r.p[i + 3]) / 2); if (!seen.has(q)) { seen.add(q); const t = tiles.get(q); if (t) t.roadsNear.push(r); } } }
@@ -266,7 +296,7 @@
       let run = 30, side = 1;
       for (let i = 0; i + 3 < r.p.length; i += 2) {
         const ax = r.p[i], az = r.p[i + 1], bx = r.p[i + 2], bz = r.p[i + 3], L = Math.hypot(bx - ax, bz - az) || 1, ux = (bx - ax) / L, uz = (bz - az) / L;
-        for (let d = 72 - run; d < L; d += 72) { const px = ax + ux * d - uz * side * (r.w / 2 + 0.9), pz = az + uz * d + ux * side * (r.w / 2 + 0.9), t = tiles.get(key(px, pz)); if (t && !solidHas(px, pz)) t.moreLamps.push([px, pz, uz * side, -ux * side]); side = -side; run = 0; }
+        for (let d = 72 - run; d < L; d += 72) { const px = ax + ux * d - uz * side * (r.w / 2 + 0.9), pz = az + uz * d + ux * side * (r.w / 2 + 0.9), t = tiles.get(key(px, pz)); if (t && !solidHas(px, pz) && !root.Outdoors.onStreet(px, pz, r, 0.5)) t.moreLamps.push([px, pz, uz * side, -ux * side]); side = -side; run = 0; }
         run += L; run %= 72;
       }
     }
@@ -294,6 +324,12 @@
     const walk = Tex.mat('concrete', { color: 0xdcd8cc, rough: 1, depthWrite: false, side: THREE.DoubleSide }); walk.userData.layer = -8;
     const yellow = new THREE.MeshStandardMaterial({ color: 0xb79a2c, roughness: 1, depthWrite: false, side: THREE.DoubleSide }); yellow.userData.layer = -6.5;
     const curb = Tex.mat('concrete', { color: 0xd8d4c8, rough: 1, side: THREE.DoubleSide });
+    const ballast = Tex.mat('concrete', { color: 0x6e6a60, rough: 1, depthWrite: false, side: THREE.DoubleSide }); ballast.userData.layer = -7.4;
+    const tieM = Tex.mat('oak', { color: 0x3a3029, rough: 1, depthWrite: false, side: THREE.DoubleSide }); tieM.userData.layer = -7.2;
+    const railM = M(0x77726a, { metalness: 0.65, roughness: 0.4, side: THREE.DoubleSide });
+    const platformM = Tex.mat('concrete', { color: 0xf4f2ec, rough: 1, depthWrite: false, side: THREE.DoubleSide }); platformM.userData.layer = -6.8;
+    const canopyM = M(0x4c5760, { roughness: 0.6, side: THREE.DoubleSide });
+    const platformEdge = new THREE.MeshStandardMaterial({ color: 0xb8920f, roughness: 0.9, depthWrite: false, side: THREE.DoubleSide }); platformEdge.userData.layer = -6.7;
     let MATS = null;
     function mats() {
       if (MATS) return MATS;
@@ -407,8 +443,38 @@
       if (foot) { ribbon(G, walk, r.p, r.w, -0.031); return; }
       if (r.w > 5) ribbon(G, walk, r.p, r.w + 5, -0.03);
       ribbon(G, road, r.p, r.w, -0.026);
-      if (r.w >= 11) { ribbon(G, yellow, r.p, 0.1, -0.022, 0.09); ribbon(G, yellow, r.p, 0.1, -0.022, -0.09); }
-      if (r.w > 5 && Q.houses >= 2) for (const side of [-1, 1]) { const off = side * (r.w / 2 + 0.08); ribbon(G, curb, r.p, 0.16, 0.13, off); ribbon(G, curb, r.p, 0.02, -0.02, off - side * 0.08, 0.13); }
+      if (r.w >= 11) for (const run of root.Outdoors.yellowRuns(r)) ribbon(G, yellow, run, 0.1, -0.022);
+      if (r.w > 5 && Q.houses >= 2) for (const side of [-1, 1]) for (const run of root.Outdoors.curbRuns(r, side)) { ribbon(G, curb, run, 0.16, 0.13); ribbon(G, curb, run, 0.02, -0.02, -side * 0.08, 0.13); }
+    }
+    /** A track: stone, sleepers and two steel rails standard gauge apart. */
+    function addRail(G, s) {
+      ribbon(G, ballast, s.p, s.s ? 3.2 : 3.8, -0.024);
+      if (Q.houses >= 2) {
+        let run = 0.3;
+        for (let i = 0; i + 3 < s.p.length; i += 2) {
+          const ax = s.p[i], az = s.p[i + 1], bx = s.p[i + 2], bz = s.p[i + 3], L = Math.hypot(bx - ax, bz - az) || 1, ux = (bx - ax) / L, uz = (bz - az) / L, nx = -uz, nz = ux;
+          for (let d = run; d < L; d += 0.65) {
+            const x = ax + ux * d, z = az + uz * d, P = (a, b) => [x + nx * a + ux * b, -0.02, z + nz * a + uz * b];
+            G.up(tieM, P(-1.3, -0.11), P(1.3, -0.11), P(1.3, 0.11)); G.up(tieM, P(-1.3, -0.11), P(1.3, 0.11), P(-1.3, 0.11));
+            run = d + 0.65 - L;
+          }
+        }
+      }
+      for (const off of [-0.72, 0.72]) { ribbon(G, railM, s.p, 0.075, 0.13, off); ribbon(G, railM, s.p, 0.02, -0.02, off, 0.13); }
+    }
+    /** A platform: flat and level with the ground you walk on, as these low ones nearly are, with its yellow warning line along a drawn edge. */
+    function addPlatform(G, s) {
+      if (s.pts) { flatRoof(G, platformM, s.pts, -0.018); if (s.furn && s.furn.line.length >= 4) ribbon(G, platformEdge, s.furn.line, 0.3, -0.016); return; }
+      ribbon(G, platformM, s.p, PLATFORM_W, -0.018);
+      for (const off of [-1, 1]) ribbon(G, platformEdge, s.p, 0.3, -0.016, off * (PLATFORM_W / 2 - 0.45));
+    }
+    /** A shelter on the platform: a roof on four posts, and a bench. */
+    function addShelter(G, [x, z, ry, w]) {
+      const m = mats(), ux = Math.sin(ry), uz = Math.cos(ry), nx = -uz, nz = ux;
+      G.box(canopyM, x, 3, z, w, 0.1, 6.4, ry);
+      for (const a of [-2.6, 2.6]) for (const b of [-0.42, 0.42]) G.cyl(m.post, x + ux * a + nx * b * w, 0, 2.96, z + uz * a + nz * b * w, 0.05, 0.05, 6);
+      G.box(m.dark, x, 0.46, z, 0.42, 0.06, 1.9, ry);
+      for (const a of [-0.8, 0.8]) G.box(m.post, x + ux * a, 0.22, z + uz * a, 0.36, 0.44, 0.06, ry);
     }
     /** A flat sign facing along ry, and its back. */
     function plate(G, mat, x, y, z, w, h, ry, uv) {
@@ -477,6 +543,8 @@
       const g = new THREE.Group(), B = new THREE.Group(), G = new Mesher(), R = new Mesher(), H = new Mesher();
       for (const b of t.buildings) addBuilding(H, b);
       for (const r of t.roads) addRoad(R, r);
+      for (const s of t.rails) addRail(R, s);
+      for (const s of t.platforms) { addPlatform(R, s); if (s.furn) for (const q of s.furn.shelters) addShelter(G, q); }
       for (const s of t.stops) addStop(G, s);
       for (const s of t.signals) addSignal(G, s);
       for (const s of t.lamps) addLamp(G, s);
@@ -692,6 +760,13 @@
       if (t.farBuildings) t.farBuildings.visible = true;
     }
 
+    /** A bus stop's bench goes behind its pole, on the side away from the street, if there is room for it. */
+    function busStop(s) {
+      if (s.spot) return s.spot;
+      const n = nearestRoad(s.x, s.z); let ax = 1, az = 0; if (n && n.d > 0.2) { ax = (s.x - n.x) / n.d; az = (s.z - n.z) / n.d; }
+      const bx = s.x + ax * 0.9, bz = s.z + az * 0.9;
+      return (s.spot = { ax, az, bx, bz, ry: Math.atan2(-ax, -az), bench: !solidAt(bx, bz) && !solidAt(bx + ax * 0.8, bz + az * 0.8) && !root.Outdoors.onStreet(bx, bz, null, 0), shelter: hash(s.n) % 2 === 0 });
+    }
     /** The named things, close enough to read. */
     function buildSigns(t) {
       const g = new THREE.Group(), G = new Mesher(), m = mats(), textures = [];
@@ -709,6 +784,17 @@
         } else if (s.k === 'bus') {
           const w = Math.min(1.1, 0.42 * f.aspect), h = w / f.aspect, nx = Math.cos(s.ry), nz = -Math.sin(s.ry);
           G.cyl(m.steel, s.x, 0, 3, s.z, 0.03, 0.03, 6);
+          const spot = busStop(s);
+          if (spot.bench) {
+            const { bx, bz, ax, az, ry } = spot;
+            G.box(m.dark, bx, 0.46, bz, 1.7, 0.05, 0.42, ry); G.box(m.dark, bx + ax * 0.2, 0.74, bz + az * 0.2, 1.7, 0.42, 0.05, ry);
+            for (const e of [-0.7, 0.7]) G.box(m.post, bx + az * e, 0.22, bz - ax * e, 0.05, 0.44, 0.36, ry);
+            if (spot.shelter) {
+              G.box(m.post, bx + ax * 0.2, 2.5, bz + az * 0.2, 3.3, 0.07, 1.7, ry);
+              G.box(m.post, bx + ax * 0.82, 1.42, bz + az * 0.82, 3.2, 1.9, 0.03, ry);
+              for (const e of [-1.5, 1.5]) G.cyl(m.post, bx + ax * 0.8 + az * e, 0, 2.48, bz + az * 0.8 - ax * e, 0.04, 0.04, 6);
+            }
+          }
           face(s.x + nx * 0.03, 2.62, s.z + nz * 0.03, w, h, Math.atan2(nx, nz)); face(s.x - nx * 0.03, 2.62, s.z - nz * 0.03, w, h, Math.atan2(-nx, -nz));
         } else {            // a sign standing on the ground: a parking lot's, a park's, a school's
           const lot = s.k === 'lot', w = lot ? Math.min(1.5, 0.5 * f.aspect) : Math.min(3.6, 0.95 * f.aspect), h = w / f.aspect, y = lot ? 2.1 : 0.46 + h / 2;
@@ -727,28 +813,46 @@
       t.signGroup = null; t.signStuff = null;
     }
 
-    // ── the outer aerial, under the near one; made when first wanted ──
-    let ground = null;
-    function wake() {
-      if (ground) return;
+    // ── the outer aerial, under the near one: a patch at a time, as you come within sight of it ──
+    const PATCH = Data.patch, patches = new Map();
+    let awake = false;
+    for (let a = 0; a * PATCH < BX1 - BX0; a++) for (let b = 0; b * PATCH < BZ1 - BZ0; b++) patches.set(a + ',' + b, { a, b, x0: BX0 + a * PATCH, z0: BZ0 + b * PATCH, x1: BX0 + (a + 1) * PATCH, z1: BZ0 + (b + 1) * PATCH, mesh: null, loading: false });
+    const patchList = [...patches.values()];
+    root.__patch = (k, src) => {
+      const p = patches.get(k); if (!p || !p.loading || p.mesh) return;
       const img = new Image(), tex = new THREE.Texture(img); tex.encoding = THREE.sRGBEncoding; tex.anisotropy = 8;
-      img.onload = () => { tex.needsUpdate = true; }; img.src = Aerial.src;
-      const mat = root.Outdoors.groundMat(tex); mat.userData.layer = -9.5;
-      const R = Aerial.r, x0 = Aerial.cx - R, x1 = Aerial.cx + R, z0 = Aerial.cz - R, z1 = Aerial.cz + R;
-      const gg = new THREE.BufferGeometry();
-      gg.setAttribute('position', new THREE.Float32BufferAttribute([x0, -0.055, z1, x1, -0.055, z1, x1, -0.055, z0, x0, -0.055, z0], 3));
-      gg.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
-      gg.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 1, 1], 2));
-      gg.setIndex([0, 1, 2, 0, 2, 3]);
-      ground = new THREE.Mesh(gg, mat); ground.renderOrder = -9.5; ground.frustumCulled = false; group.add(ground);
+      img.onload = () => {
+        if (!p.loading) return;
+        tex.needsUpdate = true;
+        const mat = root.Outdoors.groundMat(tex); mat.userData.layer = -9.5;
+        const gg = new THREE.BufferGeometry();
+        gg.setAttribute('position', new THREE.Float32BufferAttribute([p.x0, -0.055, p.z1, p.x1, -0.055, p.z1, p.x1, -0.055, p.z0, p.x0, -0.055, p.z0], 3));
+        gg.setAttribute('normal', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 0, 1, 0, 0, 1, 0], 3));
+        gg.setAttribute('uv', new THREE.Float32BufferAttribute([0, 1, 0, 0, 1, 0, 1, 1], 2));
+        gg.setIndex([0, 1, 2, 0, 2, 3]);
+        p.mesh = new THREE.Mesh(gg, mat); p.mesh.renderOrder = -9.5; p.mesh.frustumCulled = false; group.add(p.mesh);
+      };
+      img.src = src;
+    };
+    function loadPatch(p) {
+      if (p.loading) return;
+      p.loading = true;
+      const sc = document.createElement('script'); sc.src = `serve/aerial/${p.a}_${p.b}.js`; sc.async = true;
+      sc.onerror = () => sc.remove(); sc.onload = () => sc.remove();
+      document.head.appendChild(sc);
     }
+    function dropPatch(p) {
+      group.remove(p.mesh); p.mesh.geometry.dispose(); p.mesh.material.map.dispose(); p.mesh.material.dispose();
+      p.mesh = null; p.loading = false;
+    }
+    function wake() { if (!awake) { awake = true; lx = 1e9; } }
 
     const trunks = new Map();
     for (const t of Data.trees) { const k = Math.floor(t[0] / 8) + ',' + Math.floor(t[1] / 8); if (!trunks.has(k)) trunks.set(k, []); trunks.get(k).push(t); }
     const list = [...tiles.values()];
     let lastLook = -1, lx = 1e9, lz = 1e9;
     return {
-      group, fogFar, range, solidAt, nearestRoad, wake, wetMats: [road, walk], tiles: list,
+      group, fogFar, range, solidAt, nearestRoad, wake, busStop, wetMats: [road, walk], tiles: list,
       /** Bring what is near into being, a little each frame; hide what is too far off to see. */
       update(camera, wide, now, opts) {
         const x = camera.position.x, z = camera.position.z, reach = wide ? range : 480;
@@ -761,6 +865,10 @@
         if (best) { buildTile(best); lx = 1e9; }      // one is plenty for a frame
         if (Math.hypot(x - lx, z - lz) > 20 || now - lastLook > 2) {
           lx = x; lz = z; lastLook = now;
+          if (awake && wide) for (const p of patchList) {
+            const d = Math.hypot(Math.max(p.x0 - x, 0, x - p.x1), Math.max(p.z0 - z, 0, z - p.z1));
+            if (d < range + 500) loadPatch(p); else if (p.mesh && d > range + 1600) dropPatch(p);
+          }
           for (const t of list) {
             const d = Math.hypot(t.x - x, t.z - z);
             if (t.group) t.group.visible = d < reach + TILE * 0.72;

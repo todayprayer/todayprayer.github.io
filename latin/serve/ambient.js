@@ -1,7 +1,7 @@
 /*
- * What you hear and the small things you notice: boots on hard floors, birds by day and crickets by night, the far hum of the Valley,
- * sirens, aeroplanes; butterflies over the garden and ladybirds that settle on Our Lady.
- * The boots are recordings (steps-data.js); every other sound is synthesised here. Whatever is outdoors comes through one bus, all but shut when you are inside the church; only a siren carries through the walls.
+ * What you hear and the small things you notice: boots on hard floors, sparrows in the trees and on the ground, the far hum of the Valley,
+ * sirens, aeroplanes, the train; butterflies over the garden and ladybirds that settle on Our Lady.
+ * Boots, sparrows and the crying baby are recordings; the rest is synthesised here. Whatever is outdoors comes through one bus, all but shut when you are inside the church; only a siren carries through the walls.
  */
 (function (root) {
   'use strict';
@@ -11,7 +11,7 @@
 
   function build(scene, deps) {
     const { audio, camera, figures, sky, statue, parent } = deps;
-    let ctx = null, outBus = null, sirenBus = null, outFilter = null, roomIn = null, dryIn = null, hum = null, crickets = null, stepsBuf = [], lastStepBuf = null;
+    let ctx = null, outBus = null, sirenBus = null, outFilter = null, roomIn = null, dryIn = null, hum = null, stepsBuf = [], lastStepBuf = null, voices = null;
 
     // ── the bus, and a room for the church ──
     function start() {
@@ -29,7 +29,7 @@
       roomIn = a.createGain(); roomIn.gain.value = 0.07; roomIn.connect(conv).connect(a.destination);
       dryIn = a.createGain(); dryIn.gain.value = 1; dryIn.connect(a.destination);
       stepsBuf = loadSteps(a);
-      hum = cityHum(a); crickets = cricketBed(a);
+      hum = cityHum(a);
       return ctx;
     }
 
@@ -65,7 +65,7 @@
       return Math.max(-1, Math.min(1, (dx * rx + dz * rz) / L));
     };
 
-    // ── the Valley, far off, and the crickets of a warm night ──
+    // ── the Valley, far off ──
     function noiseBuf(a, seconds, fn) {
       const sr = a.sampleRate, n = Math.floor(sr * seconds), xf = Math.floor(sr * 1.5), b = a.createBuffer(2, n + xf, sr);
       for (let ch = 0; ch < 2; ch++) { const d = b.getChannelData(ch); fn(d, n + xf, sr); for (let i = 0; i < xf; i++) { const k = i / xf; d[i] = d[i] * k + d[n + i] * (1 - k); } }
@@ -79,24 +79,6 @@
       loopOf(a, nb).connect(f).connect(h).connect(g).connect(outBus);
       return g;
     }
-    function cricketBed(a) {
-      // a few of them, each with its own stutter, a little apart
-      const nb = noiseBuf(a, 8, (d, n, sr) => {
-        for (const [hz, rate, off] of [[4400, 2.1, 0.1], [4700, 1.7, 0.7], [4150, 2.6, 0.35], [5000, 1.3, 0.9]]) {
-          const phaseOff = off * sr, per = sr / rate, amp = 0.05 + Math.random() * 0.05;
-          for (let i = 0; i < n; i++) {
-            const p = (i + phaseOff) % per, burst = p / sr;
-            if (burst > 0.2) continue;
-            const pulse = Math.pow(Math.sin(Math.PI * ((burst * 38) % 1)), 2) * Math.sin(Math.PI * burst / 0.2);
-            d[i] += Math.sin(2 * Math.PI * hz * i / sr) * pulse * amp;
-          }
-        }
-      });
-      const g = a.createGain(); g.gain.value = 0;
-      loopOf(a, nb).connect(g).connect(outBus);
-      return g;
-    }
-
     // ── what the road sounds like: tyres on asphalt, rising and falling as they pass; and the air brakes of a bus ──
     let tyres = null;
     function tyreBed(a) {
@@ -113,40 +95,146 @@
       const t = ctx.currentTime, lvl = 0.08 / (1 + d * d * 0.004); g.gain.setValueAtTime(lvl, t); g.gain.exponentialRampToValueAtTime(0.0005, t + 0.8);
       s.connect(f).connect(g).connect(outBus); s.start(t); s.stop(t + 0.85);
     }
-    // ── birds: real-sounding phrases made from sweeps ──
-    function tone(f0s, times, amp, type, pan) {
-      const t0 = ctx.currentTime + 0.02, o = ctx.createOscillator(), g = ctx.createGain(), p = ctx.createStereoPanner(); p.pan.value = pan;
-      o.type = type || 'sine';
-      o.frequency.setValueAtTime(f0s[0], t0); g.gain.setValueAtTime(0, t0);
-      let t = t0;
-      f0s.forEach((f, i) => { if (i) o.frequency.exponentialRampToValueAtTime(f, t0 + times[i]); });
-      const end = t0 + times[times.length - 1];
-      g.gain.linearRampToValueAtTime(amp, t0 + Math.min(0.012, (end - t0) * 0.2));
-      g.gain.setValueAtTime(amp, Math.max(t0 + 0.012, end - 0.012));
-      g.gain.linearRampToValueAtTime(0.0001, end);
-      o.connect(g).connect(p).connect(outBus); o.start(t0); o.stop(end + 0.02);
-      void t;
+    let nextPlane = rnd(40, 110);
+
+    // ── the recordings: a sparrow's calls and a crying newborn ──
+    function loadVoices() {
+      if (voices || !ctx) return voices;
+      const D = root.VoiceData, raw = (s, rate) => { const r = atob(s), n = r.length >> 1, b = ctx.createBuffer(1, n, rate), d = b.getChannelData(0); for (let i = 0; i < n; i++) { const v = r.charCodeAt(i * 2) | (r.charCodeAt(i * 2 + 1) << 8); d[i] = (v > 32767 ? v - 65536 : v) / 32768; } return b; };
+      return (voices = { baby: raw(D.baby.s, D.baby.rate), sparrow: D.sparrow.calls.map(c => raw(c, D.sparrow.rate)) });
     }
-    const later = (ms, fn) => setTimeout(fn, ms);
-    const SONGS = {
-      sparrow(a, p) { let t = 0; const hi = rnd(3400, 4400), n = 3 + Math.floor(Math.random() * 4); for (let i = 0; i < n; i++) { later(t, () => tone([hi, hi * 0.72, hi * 0.92], [0, 0.05, 0.09], a, 'sine', p)); t += rnd(115, 170); } },
-      finch(a, p) { // a house finch: a long bright warble that falls, ending in a burr
-        let t = 0, f = rnd(3800, 4800); for (let i = 0; i < 9; i++) { const hi = f * rnd(0.95, 1.2), lo = f * rnd(0.72, 0.9); later(t, () => tone([hi, lo, hi * 0.95], [0, 0.04, 0.078], a, 'sine', p)); t += rnd(78, 105); f *= 0.975; }
-        later(t, () => tone([f * 0.75, f * 0.5], [0, 0.2], a * 0.8, 'triangle', p));
-      },
-      mocking(a, p) { // a mockingbird: each phrase said three times, then another
-        const hi = rnd(2400, 4200), lo = hi * rnd(0.55, 0.8), up = Math.random() < 0.5; let t = 0;
-        for (let i = 0; i < 3; i++) { later(t, () => tone(up ? [lo, hi, lo * 1.1] : [hi, lo, hi * 0.9], [0, 0.1, 0.22], a, 'sine', p)); t += 290; }
-        later(t + 120, () => { const h2 = rnd(1800, 3400); for (let k = 0; k < 3; k++) later(k * 220, () => tone([h2, h2 * 1.5], [0, 0.13], a, 'sine', p)); });
-      },
-      dove(a, p) { // the mourning dove, at dawn and dusk: coo-OO, oo, oo
-        tone([480, 620, 500], [0, 0.22, 0.56], a * 1.4, 'sine', p);
-        later(760, () => tone([540, 500, 440], [0, 0.3, 0.72], a * 1.3, 'sine', p));
-        later(1660, () => tone([520, 480, 420], [0, 0.3, 0.68], a * 1.2, 'sine', p));
-      },
-      hummer(a, p) { for (let i = 0; i < 5; i++) later(i * 120, () => tone([6400, 7600], [0, 0.04], a * 0.5, 'sine', p)); },
+    /** One sparrow, somewhere you could look for it. */
+    function chirp(x, z, times = 1) {
+      if (!ctx || !loadVoices()) return;
+      const d = Math.hypot(x - camera.position.x, z - camera.position.z), lvl = 0.05 / (1 + d * d * 0.003);
+      if (lvl < 0.002) return;
+      let t = ctx.currentTime + 0.01;
+      for (let i = 0; i < times; i++) {
+        const b = pick(voices.sparrow), s = ctx.createBufferSource(), g = ctx.createGain(), p = ctx.createStereoPanner();
+        s.buffer = b; s.playbackRate.value = rnd(0.94, 1.08); g.gain.value = lvl * rnd(0.8, 1.1); p.pan.value = panOf(x, z) * 0.7;
+        s.connect(g).connect(p).connect(outBus); s.start(t); t += b.duration / s.playbackRate.value + rnd(0.12, 0.5);
+      }
+    }
+    /** A baby, for a few moments, in the church's own acoustic. */
+    function cry(x, y, z, secs) {
+      if (!ctx || !loadVoices()) return;
+      const d = Math.hypot(x - camera.position.x, y - camera.position.y, z - camera.position.z), inChurch = !!sky.heardIndoors, lvl = (inChurch ? 0.13 : 0.02) / (1 + d * d * 0.004);
+      const s = ctx.createBufferSource(), g = ctx.createGain(), p = ctx.createStereoPanner(), wet = ctx.createGain(), t = ctx.currentTime + 0.02, b = voices.baby, from = rnd(0, Math.max(0, b.duration - secs - 0.1));
+      s.buffer = b; p.pan.value = panOf(x, z) * 0.6; wet.gain.value = 3.5;
+      g.gain.setValueAtTime(0, t); g.gain.linearRampToValueAtTime(lvl, t + 0.25); g.gain.setValueAtTime(lvl, t + Math.max(0.3, secs - 0.9)); g.gain.linearRampToValueAtTime(0.0001, t + secs);
+      s.connect(g).connect(p); p.connect(dryIn); p.connect(wet).connect(roomIn);
+      s.start(t, from, secs + 0.05);
+    }
+
+    // ── the train: its weight on the rails as it goes by, the same from inside; the bell at a crossing, and the horn ──
+    let railBed = null, rideBed = null, bellT = 0;
+    function rail(speed, x, z, dt, aboard, gate) {
+      if (!ctx) return;
+      if (!railBed) {
+        const nb = noiseBuf(ctx, 5, (d, n, sr) => { let b = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; b = (b + w * 0.05) / 1.05; const clack = (i % Math.floor(sr * 0.62)) < sr * 0.03 ? 0.6 : 0; d[i] = b * 2.4 * (1 + clack); } });
+        const f = ctx.createBiquadFilter(), g = ctx.createGain(), p = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = 340; g.gain.value = 0;
+        loopOf(ctx, nb).connect(f).connect(g).connect(p).connect(outBus); railBed = { g, p, f };
+      }
+      const d = Math.hypot(x - camera.position.x, z - camera.position.z), k = Math.min(1, Math.abs(speed) / 18);
+      railBed.g.gain.setTargetAtTime(aboard ? 0 : k * 0.16 / (1 + d * d / 3500), ctx.currentTime, 0.3);
+      railBed.p.pan.setTargetAtTime(panOf(x, z) * 0.6, ctx.currentTime, 0.3);
+      bellT -= dt;
+      if (gate && bellT < 0) {
+        bellT = 0.62; const gd = Math.hypot(gate.x - camera.position.x, gate.z - camera.position.z), lvl = 0.018 / (1 + gd * gd * 0.002);
+        if (lvl > 0.001 && !sky.heardIndoors) { const o = ctx.createOscillator(), g = ctx.createGain(), t = ctx.currentTime + 0.01; o.type = 'triangle'; o.frequency.value = 880; g.gain.setValueAtTime(lvl, t); g.gain.exponentialRampToValueAtTime(0.0002, t + 0.5); o.connect(g).connect(outBus); o.start(t); o.stop(t + 0.52); }
+      }
+    }
+    function horn(x, z) {
+      if (!ctx) return;
+      const d = Math.hypot(x - camera.position.x, z - camera.position.z), lvl = 0.03 / (1 + d * d / 90000); if (lvl < 0.0015) return;
+      const f = ctx.createBiquadFilter(), g = ctx.createGain(), p = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = 1500; p.pan.value = panOf(x, z) * 0.6;
+      let t = ctx.currentTime + 0.02; const t0 = t, end = [];
+      g.gain.setValueAtTime(0, t);
+      for (const len of [1.3, 1.3, 0.5, 1.9]) { g.gain.linearRampToValueAtTime(lvl, t + 0.06); g.gain.setValueAtTime(lvl, t + len - 0.08); g.gain.linearRampToValueAtTime(0, t + len); t += len + 0.32; }
+      for (const hz of [311, 370, 415, 494]) { const o = ctx.createOscillator(); o.type = 'sawtooth'; o.frequency.value = hz; o.connect(f); o.start(t0); o.stop(t); end.push(o); }
+      f.connect(g).connect(p).connect(outBus);
+    }
+    /** What you hear from inside a moving bus or train: a low rumble rising with the speed. */
+    function riding(kind, speed) {
+      if (!ctx) return;
+      if (!rideBed) {
+        const nb = noiseBuf(ctx, 5, (d, n) => { let b = 0; for (let i = 0; i < n; i++) { b = (b + (Math.random() * 2 - 1) * 0.03) / 1.03; d[i] = b * 2.6; } });
+        const f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'lowpass'; f.frequency.value = 160; g.gain.value = 0;
+        loopOf(ctx, nb).connect(f).connect(g).connect(dryIn); rideBed = { f, g };
+      }
+      const k = Math.min(1, Math.abs(speed) / (kind === 'train' ? 22 : 12));
+      rideBed.g.gain.setTargetAtTime(kind ? (kind === 'train' ? 0.05 : 0.07) * (0.25 + k * 0.75) : 0, ctx.currentTime, 0.35);
+      rideBed.f.frequency.setTargetAtTime(110 + k * 220, ctx.currentTime, 0.4);
+    }
+
+    // ── birds you can actually see: sparrows and finches up in the trees and hopping on the ground, a crow or two, now and then a loose flock across the sky ──
+    const BIRDS = { low: 12, medium: 24, high: 34, ultra: 44 }[(root.Quality || {}).level] || 24, birds = [];
+    const birdGroup = new THREE.Group(); parent.add(birdGroup);
+    const bodyGeo = new THREE.SphereGeometry(0.5, 8, 6).scale(0.85, 0.85, 1.55), wingGeo = new THREE.PlaneGeometry(1, 0.62).translate(0.5, 0, 0).rotateX(-Math.PI / 2), birdMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.9, side: THREE.DoubleSide });
+    const mkBird = g => { const o = new THREE.InstancedMesh(g, birdMat, BIRDS); o.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(BIRDS * 3), 3); o.frustumCulled = false; o.count = 0; birdGroup.add(o); return o; };
+    const birdBody = mkBird(bodyGeo), birdWingL = mkBird(wingGeo), birdWingR = mkBird(wingGeo);
+    const treeCells = new Map();
+    const treesNear = (x, z) => {
+      if (!treeCells.size && root.WideData) for (const t of root.WideData.trees) { if (t[2] < 4.5) continue; const k = Math.floor(t[0] / 50) + ',' + Math.floor(t[1] / 50); let l = treeCells.get(k); if (!l) treeCells.set(k, l = []); l.push(t); }
+      const cx = Math.floor(x / 50), cz = Math.floor(z / 50), out = []; for (let a = -1; a <= 1; a++) for (let b = -1; b <= 1; b++) { const l = treeCells.get((cx + a) + ',' + (cz + b)); if (l) out.push(l); } return out;
     };
-    let nextBird = 3, nextPlane = rnd(40, 110);
+    const birdSpot = (b, x, z) => {
+      const cells = treesNear(x, z);
+      if (cells.length && Math.random() < 0.72) { const t = pick(pick(cells)), a = rnd(0, 6.28), r = t[3] * rnd(0.15, 0.6); return [t[0] + Math.cos(a) * r, t[2] * rnd(0.82, 0.98), t[1] + Math.sin(a) * r, 'perch']; }
+      for (let k = 0; k < 6; k++) { const a = rnd(0, 6.28), r = rnd(6, 55), gx = x + Math.cos(a) * r, gz = z + Math.sin(a) * r; if (!(deps.inHouse && deps.inHouse(gx, gz)) && !(root.Outdoors.onStreet && root.Outdoors.onStreet(gx, gz, null, 0.5))) return [gx, 0.05 + b.size * 0.42, gz, 'ground']; }
+      return [x, 14, z, 'fly'];
+    };
+    for (let i = 0; i < BIRDS; i++) { const u = Math.random(), crow = u < 0.08, pig = !crow && u < 0.26; birds.push({ x: 0, y: -50, z: 0, h: rnd(0, 6.28), size: crow ? 0.24 : pig ? 0.17 : 0.085, col: crow ? 0x141418 : pig ? pick([0x7a808a, 0x60666e, 0x8a8078]) : pick([0x6a5238, 0x7a6448, 0x54463a, 0x8a4a3a]), mode: 'none', t: 0, tx: 0, ty: 0, tz: 0, next: 'perch', flap: rnd(0, 6), hop: 0 }); }
+    let flockT = rnd(30, 80), flockUntil = 0, nextCall = rnd(6, 16);
+    const bm = new THREE.Matrix4(), bq = new THREE.Quaternion(), bq2 = new THREE.Quaternion(), bp = new THREE.Vector3(), bs = new THREE.Vector3(), bup = new THREE.Vector3(0, 1, 0), bz = new THREE.Vector3(0, 0, 1), bcol = new THREE.Color();
+    function updateBirds(dt, now, daylight, wet) {
+      const cx = camera.position.x, cz = camera.position.z, show = daylight > 0.14;
+      birdGroup.visible = show; if (!show) return;
+      flockT -= dt;
+      if (flockT < 0 && now > flockUntil && wet < 0.4) {
+        flockT = rnd(70, 170); flockUntil = now + 22;
+        const a = rnd(0, 6.28), ux = Math.sin(a), uz = Math.cos(a), off = rnd(-70, 70), alt = rnd(26, 48), sx = cx - ux * 170 + uz * off, sz = cz - uz * 170 - ux * off;
+        let k = 0; for (const b of birds) { if (b.size > 0.1 || k >= 9) continue; b.mode = 'flock'; b.x = sx + rnd(-9, 9); b.y = alt + rnd(-3, 3); b.z = sz + rnd(-9, 9); b.tx = sx + ux * 340 + rnd(-9, 9); b.ty = alt + rnd(-3, 3); b.tz = sz + uz * 340 + rnd(-9, 9); k++; }
+      }
+      let n = 0;
+      for (const b of birds) {
+        const far = Math.hypot(b.x - cx, b.z - cz);
+        if (b.mode === 'none' || (far > 150 && b.mode !== 'flock')) { const q = birdSpot(b, cx + rnd(-90, 90), cz + rnd(-90, 90)); b.x = q[0]; b.y = q[1]; b.z = q[2]; b.mode = q[3]; b.t = rnd(5, 60); }
+        const rainHide = wet > 0.5 && (b.flap % 1) < 0.7;
+        if (b.mode === 'perch' || b.mode === 'ground') {
+          b.t -= dt;
+          const startled = b.mode === 'ground' && Math.hypot(b.x - cx, b.z - cz) < 4.2;
+          if (b.mode === 'ground') { b.hop -= dt; if (b.hop < 0) { b.hop = rnd(0.5, 3); b.h += rnd(-1.2, 1.2); b.x += Math.sin(b.h) * rnd(0.06, 0.3); b.z += Math.cos(b.h) * rnd(0.06, 0.3); } }
+          if (b.t < 0 || startled) { const q = birdSpot(b, b.x + rnd(-40, 40), b.z + rnd(-40, 40)); b.tx = q[0]; b.ty = q[1]; b.tz = q[2]; b.next = q[3] === 'fly' ? 'perch' : q[3]; b.mode = 'fly'; b.sy = b.y; b.sx = b.x; b.sz = b.z; b.f = 0; b.dur = Math.max(0.8, Math.hypot(b.tx - b.x, b.tz - b.z) / rnd(7, 11)); }
+        } else if (b.mode === 'fly') {
+          b.f += dt / b.dur; const f = Math.min(1, b.f), e = f * f * (3 - 2 * f);
+          b.x = b.sx + (b.tx - b.sx) * e; b.z = b.sz + (b.tz - b.sz) * e; b.y = b.sy + (b.ty - b.sy) * e + Math.sin(f * Math.PI) * Math.min(4, b.dur * 1.5);
+          b.h = Math.atan2(b.tx - b.sx, b.tz - b.sz);
+          if (f >= 1) { b.mode = b.next; b.t = rnd(8, 70); }
+        } else if (b.mode === 'flock') {
+          const dx = b.tx - b.x, dz = b.tz - b.z, L = Math.hypot(dx, dz) || 1; b.h = Math.atan2(dx, dz); b.x += dx / L * 13 * dt; b.z += dz / L * 13 * dt; b.y += (b.ty - b.y) * dt * 0.2 + Math.sin(now * 2 + b.flap) * dt * 0.5;
+          if (L < 3) { b.mode = 'none'; continue; }
+        }
+        if (rainHide) continue;
+        const flying = b.mode === 'fly' || b.mode === 'flock', beat = flying ? Math.sin(now * (b.size > 0.15 ? 11 : 24) + b.flap) * 0.85 : 0, s = b.size;
+        bp.set(b.x, b.y, b.z); bq.setFromAxisAngle(bup, b.h); bs.set(s, s, s); bm.compose(bp, bq, bs); birdBody.setMatrixAt(n, bm);
+        bcol.setHex(b.col).convertSRGBToLinear(); birdBody.setColorAt(n, bcol); birdWingL.setColorAt(n, bcol); birdWingR.setColorAt(n, bcol);
+        // the wings out and beating when flying; folded along the back when not
+        const span = flying ? s * 1.5 : s * 0.05;
+        bq2.setFromAxisAngle(bz, beat); bq2.premultiply(bq); bs.set(span, s, s * 0.9); bm.compose(bp, bq2, bs); birdWingL.setMatrixAt(n, bm);
+        bq2.setFromAxisAngle(bz, Math.PI - beat); bq2.premultiply(bq); bm.compose(bp, bq2, bs); birdWingR.setMatrixAt(n, bm);
+        n++;
+      }
+      for (const o of [birdBody, birdWingL, birdWingR]) { o.count = n; o.instanceMatrix.needsUpdate = true; if (o.instanceColor) o.instanceColor.needsUpdate = true; }
+    }
+    function birdCalls(dt, inside, daylight, wet) {
+      nextCall -= dt; if (nextCall > 0) return;
+      const dawn = sky.dawnDusk || 0;
+      nextCall = rnd(14, 42) / (1 + dawn);
+      if (inside || daylight < 0.15 || wet > 0.5) return;
+      const near = birds.filter(b => (b.mode === 'perch' || b.mode === 'ground') && b.size < 0.12 && Math.hypot(b.x - camera.position.x, b.z - camera.position.z) < 70);
+      if (near.length) { const b = pick(near); chirp(b.x, b.z, Math.random() < 0.35 ? 2 + Math.floor(Math.random() * 2) : 1); }
+    }
 
     // ── sirens: a pair of voices, moving, with the pitch of whatever comes and goes ──
     /** kind: 'police' wail and yelp, 'fire' a deep mechanical wail and air horn, 'ems' yelp and hi-lo. Returns { update(x, z, vx, vz), stop() }. */
@@ -325,11 +413,11 @@
     // ── each frame ──
     const prevPhase = new Map(), lastStep = new Map();
     const self = {
-      footstep, siren, hiss, flying, launchPlane, butterflies, ladybugs,
+      footstep, siren, hiss, flying, launchPlane, butterflies, ladybugs, birds, chirp, cry, rail, horn, riding,
       get perches() { return perches; },
       update(dt, opts) {
         const now = performance.now() / 1000, indoors = sky.indoors, daylight = sky.daylight == null ? 1 : sky.daylight, wet = sky.wetness || 0;
-        if (opts.seeOut) updateFlies(dt, now, daylight, wet);
+        if (opts.seeOut) { updateFlies(dt, now, daylight, wet); updateBirds(dt, now, daylight, wet); }
         // the aeroplanes fly whether anyone is listening or not
         nextPlane -= dt;
         if (nextPlane < 0 && opts.explore) { nextPlane = rnd(150, 300); launchPlane(); }
@@ -356,12 +444,11 @@
         if (!opts.sound) { if (outBus) { outBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); sirenBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); } return; }
         if (!start()) return;
         // a church keeps the world out: inside, the beds stop and all that comes through the walls is a siren, dimly
-        const inside = !!sky.heardIndoors;
-        outBus.gain.setTargetAtTime(inside ? 0.025 : 1, ctx.currentTime, 0.6);
-        sirenBus.gain.setTargetAtTime(inside ? 0.2 : 1, ctx.currentTime, 0.6);
-        outFilter.frequency.setTargetAtTime(inside ? 520 : 18000, ctx.currentTime, 0.6);
+        const inside = !!sky.heardIndoors, aboard = !!opts.aboard;
+        outBus.gain.setTargetAtTime(inside ? 0.025 : aboard ? 0.3 : 1, ctx.currentTime, 0.6);
+        sirenBus.gain.setTargetAtTime(inside ? 0.2 : aboard ? 0.5 : 1, ctx.currentTime, 0.6);
+        outFilter.frequency.setTargetAtTime(inside ? 520 : aboard ? 1400 : 18000, ctx.currentTime, 0.6);
         hum.gain.setTargetAtTime(inside ? 0 : (0.004 + daylight * 0.005) * (1 - wet * 0.4), ctx.currentTime, 2);
-        crickets.gain.setTargetAtTime(inside ? 0 : Math.max(0, 1 - daylight * 2.4) * (1 - wet) * 0.18, ctx.currentTime, 3);
         // the road: the nearest moving vehicles
         if (!tyres) tyres = tyreBed(ctx);
         { let nx = 0, nz = 0, best = 0; for (const c of opts.cars || []) { if (Math.abs(c.speed || 0) < 0.5) continue; const dx = c.x - camera.position.x, dz = c.z - camera.position.z, e = Math.min(1, Math.abs(c.speed) / 10) * (c.heavy ? 1.5 : 1) / (1 + (dx * dx + dz * dz) * 0.02); if (e > best) { best = e; nx = c.x; nz = c.z; } }
@@ -377,16 +464,8 @@
           }
           prevPhase.set(f, s);
         }
-        // birds, most at dawn and evening, none in the rain or the dark
-        nextBird -= dt;
-        if (nextBird < 0) {
-          const dawn = sky.dawnDusk || 0;
-          nextBird = rnd(2, 8) / (1 + dawn * 1.6);
-          if (!inside && daylight > 0.12 && wet < 0.55) {
-            const a = rnd(0.012, 0.05) * (0.5 + daylight * 0.5), pan = rnd(-0.85, 0.85), r = Math.random();
-            if (dawn > 0.3 && r < 0.3) SONGS.dove(a, pan); else if (r < 0.34) SONGS.sparrow(a, pan); else if (r < 0.66) SONGS.finch(a, pan); else if (r < 0.93) SONGS.mocking(a, pan); else SONGS.hummer(a, pan);
-          }
-        }
+        // a sparrow now and then, and it is one you could find
+        birdCalls(dt, inside || aboard, daylight, wet);
       },
     };
     return self;

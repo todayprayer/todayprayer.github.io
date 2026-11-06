@@ -246,6 +246,73 @@
 
   // ─── streets ───────────────────────────────────────────────────────────────
 
+  // ─── where one street runs into another ────────────────────────────────────
+  // Each street is drawn from the map's centre line, so its edges would run straight across every junction unless they are told where to stop.
+  const SC = 30;
+  let streetGrid = null;
+  function streets() {
+    if (streetGrid) return streetGrid;
+    streetGrid = new Map();
+    for (const r of [...Data.roads, ...((root.WideData && root.WideData.roads) || [])]) {
+      if (/footway|path|cycleway|steps|pedestrian|track/.test(r.k)) continue;
+      const pad = r.w / 2 + 2;
+      for (let i = 0; i + 3 < r.p.length; i += 2) {
+        const ax = r.p[i], az = r.p[i + 1], bx = r.p[i + 2], bz = r.p[i + 3], n = Math.ceil(Math.hypot(bx - ax, bz - az) / 10) + 1, seg = { ax, az, bx, bz, r }, seen = new Set();
+        for (let k = 0; k <= n; k++) {
+          const x = ax + (bx - ax) * k / n, z = az + (bz - az) * k / n;
+          for (let g = Math.floor((x - pad) / SC); g <= Math.floor((x + pad) / SC); g++) for (let h = Math.floor((z - pad) / SC); h <= Math.floor((z + pad) / SC); h++) {
+            const q = g + ',' + h; if (seen.has(q)) continue; seen.add(q);
+            let l = streetGrid.get(q); if (!l) streetGrid.set(q, l = []); l.push(seg);
+          }
+        }
+      }
+    }
+    return streetGrid;
+  }
+  /** Is this point on the roadway of some street other than `self`? `pad` widens the streets; `ignore` passes over some. */
+  function onStreet(x, z, self, pad = 0, ignore) {
+    for (const s of streets().get(Math.floor(x / SC) + ',' + Math.floor(z / SC)) || []) {
+      if (s.r === self || (ignore && ignore(s.r))) continue;
+      const dx = s.bx - s.ax, dz = s.bz - s.az, t = Math.max(0, Math.min(1, ((x - s.ax) * dx + (z - s.az) * dz) / ((dx * dx + dz * dz) || 1)));
+      if (Math.hypot(x - s.ax - t * dx, z - s.az - t * dz) < s.r.w / 2 + pad) return true;
+    }
+    return false;
+  }
+  /** The stretches of a line `off` to the side of a street's centre that keep out of everything `blocked` says; each is a flat list of points, in the street's own direction. */
+  function clearRuns(p, off, blocked) {
+    const n = p.length / 2, runs = [], STEP = 1.2;
+    const side = i => { const a = Math.max(0, i - 1) * 2, b = Math.min(n - 1, i + 1) * 2, dx = p[b] - p[a], dz = p[b + 1] - p[a + 1], L = Math.hypot(dx, dz) || 1; return [p[i * 2] - dz / L * off, p[i * 2 + 1] + dx / L * off]; };
+    let run = null, A = side(0), wasClear = !blocked(A[0], A[1]);
+    if (wasClear) runs.push(run = [A[0], A[1]]);
+    for (let i = 0; i < n - 1; i++) {
+      const B = side(i + 1), steps = Math.max(1, Math.ceil(Math.hypot(B[0] - A[0], B[1] - A[1]) / STEP));
+      for (let k = 1; k <= steps; k++) {
+        const at = t => [A[0] + (B[0] - A[0]) * t, A[1] + (B[1] - A[1]) * t], here = at(k / steps), clear = !blocked(here[0], here[1]);
+        if (clear !== wasClear) {
+          // find the crossing to within a centimetre or two, so that the end sits on the other street's edge
+          let lo = (k - 1) / steps, hi = k / steps;
+          for (let b = 0; b < 6; b++) { const m = (lo + hi) / 2, q = at(m); if (!blocked(q[0], q[1]) === wasClear) lo = m; else hi = m; }
+          const q = at((lo + hi) / 2);
+          if (clear) runs.push(run = [q[0], q[1]]); else { run.push(q[0], q[1]); run = null; }
+          wasClear = clear;
+        }
+      }
+      if (run) run.push(B[0], B[1]);
+      A = B;
+    }
+    return runs.filter(r => r.length >= 4 && Math.hypot(r[r.length - 2] - r[0], r[r.length - 1] - r[1]) > 0.4);
+  }
+  /** A street's two double-yellow lines, which stop short of a cross street but carry on through its own next stretch. */
+  function yellowRuns(r) {
+    const other = o => o.w < 8 || (r.n && o.n === r.n);
+    return [0.09, -0.09].flatMap(off => clearRuns(r.p, off, (x, z) => onStreet(x, z, r, 1.5, other)));
+  }
+  /** One side of a street's curb, broken wherever a junction, a drive or a driveway apron opens through it. */
+  function curbRuns(r, side) {
+    const blocked = (x, z) => onStreet(x, z, r) || SITE.aprons.some(([a, b, c, d]) => x > a && x < c && z > b && z < d);
+    return clearRuns(r.p, side * (r.w / 2 + 0.08), blocked);
+  }
+
   function ribbonPts(p) { const pts = []; for (let i = 0; i < p.length; i += 2) pts.push([p[i], p[i + 1]]); return pts; }
   function ribbon(B, mat, p, w, y, off = 0, y1) {
     const pts = ribbonPts(p);
@@ -275,11 +342,13 @@
     for (const r of Data.roads) {
       if (r.w > 5) ribbon(B, walk, r.p, r.w + 5, -0.03);
       ribbon(B, road, r.p, r.w, -0.026);
-      if (r.w >= 11) { ribbon(B, yellow, r.p, 0.1, -0.022, 0.09); ribbon(B, yellow, r.p, 0.1, -0.022, -0.09); }
+      if (r.w >= 11) for (const run of yellowRuns(r)) ribbon(B, yellow, run, 0.1, -0.022);
       if (r.w > 5 && Q.houses >= 2) for (const side of [-1, 1]) {
-        const off = side * (r.w / 2 + 0.08), mat = /White Oak/.test(r.n) && r.p[0] < -72 && r.p[0] > -110 ? redCurb : curb;
-        ribbon(B, mat, r.p, 0.16, 0.13, off);
-        ribbon(B, mat, r.p, 0.02, -0.02, off - side * 0.08, 0.13);
+        const mat = /White Oak/.test(r.n) && r.p[0] < -72 && r.p[0] > -110 ? redCurb : curb;
+        for (const run of curbRuns(r, side)) {
+          ribbon(B, mat, run, 0.16, 0.13);
+          ribbon(B, mat, run, 0.02, -0.02, -side * 0.08, 0.13);
+        }
       }
     }
   }
@@ -330,10 +399,13 @@
     const postSign = (E, N, tex, ry) => {
       const [x, z] = Plan.world(E, N);
       B.cyl(steel, 0.03, 0.03, 2.6, x, 1.3, z, 8);
-      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.78), new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4, side: THREE.DoubleSide }));
+      const m = new THREE.Mesh(new THREE.PlaneGeometry(0.78, 0.78), new THREE.MeshStandardMaterial({ map: tex, transparent: true, alphaTest: 0.4 }));
       m.position.set(x, 2.45, z); m.rotation.y = ry; group.add(m);
+      // from behind, bare metal in the same outline, not the words backwards
+      const back = new THREE.Mesh(m.geometry, new THREE.MeshStandardMaterial({ map: tex, color: 0x2a2c2e, emissive: 0x3c3e40, metalness: 0.4, roughness: 0.6, transparent: true, alphaTest: 0.4 }));
+      back.position.set(x, 2.45, z); back.rotation.y = ry + Math.PI; group.add(back);
     };
-    postSign(-3, -21, stop, -Math.PI / 2); postSign(-13.5, -33, stop, 0); postSign(-3, 72, hump, -Math.PI / 2);
+    postSign(0.1, -21, stop, -Math.PI / 2); postSign(-15.4, -35.4, stop, 0); postSign(-3, 72, hump, -Math.PI / 2);
     { const [x, z] = Plan.world(-1, 80), red = M(0xb5a33a, { roughness: 0.5, metalness: 0.2 });
       B.cyl(red, 0.09, 0.11, 0.6, x, 0.3, z, 10); B.cyl(red, 0.07, 0.09, 0.15, x, 0.66, z, 10); B.box(red, 0.34, 0.1, 0.1, x, 0.42, z); }
     // the tall wood fences along the lot's north neighbour and over White Oak
@@ -555,6 +627,9 @@
     const bark = Tex.mat('bark', { rough: 1, normal: 1 });
     const meshes = {};
     const dummy = new THREE.Object3D();
+    const TC = 200, spread = root.WideData && root.WideData.bounds ? (root.WideData.bounds[2] - root.WideData.bounds[0]) * (root.WideData.bounds[3] - root.WideData.bounds[1]) : 1e7;
+    // room for the most that can be in sight: the far ones are thinned by half, but a leafy block can be twice as thick as the town
+    const inSight = n => Math.min(n, Math.ceil(n * Math.PI * 2300 * 2300 / spread * 1.4) + 200);
     for (const [name, sp] of Object.entries(SPECIES)) {
       const items = list.filter(t => t.sp === name);
       if (!items.length) continue;
@@ -567,12 +642,14 @@
       const shape = (rr, i) => { const c = sp.crown(rr, Math.round(i * sp.cards / cards)); return c; };
       const near = foliageGeometry(cards, shape), far = foliageGeometry(Math.max(8, Math.round(cards * 0.32)), (rr, i) => { const c = sp.crown(rr, Math.round(i * sp.cards / Math.max(8, Math.round(cards * 0.32)))); if (c[5]) { c[5].multiplyScalar(1.7); c[6].multiplyScalar(1.7); } else c[3] *= 1.9; return c; });
       const woodG = woodGeometry(...sp.wood);
-      const mk = (g, m) => { const o = new THREE.InstancedMesh(g, m, items.length); o.frustumCulled = false; o.count = 0; group.add(o); return o; };
-      const set = { items, nearL: mk(near, leaves), farL: mk(far, leaves), wood: mk(woodG, bark) };
+      const room = inSight(items.length);
+      const mk = (g, m) => { const o = new THREE.InstancedMesh(g, m, room); o.frustumCulled = false; o.count = 0; group.add(o); return o; };
+      const cells = new Map(); for (const t of items) { const k = Math.floor(t.x / TC) + ',' + Math.floor(t.z / TC); let l = cells.get(k); if (!l) cells.set(k, l = []); l.push(t); }
+      const set = { items, cells, room, nearL: mk(near, leaves), farL: mk(far, leaves), wood: mk(woodG, bark) };
       set.nearL.customDepthMaterial = leafDepth; set.nearL.castShadow = true; set.wood.castShadow = true;
       meshes[name] = set;
       const col = new THREE.Color();
-      for (const m of [set.nearL, set.farL]) m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(items.length * 3), 3);
+      for (const m of [set.nearL, set.farL]) m.instanceColor = new THREE.InstancedBufferAttribute(new Float32Array(room * 3), 3);
       void col;
     }
     const color = new THREE.Color();
@@ -581,9 +658,10 @@
     function refresh(x, z, far) {
       for (const set of Object.values(meshes)) {
         let n = 0, f = 0, w = 0;
-        for (const t of set.items) {
+        const room = set.room, ca = Math.floor((x - far) / TC), cb = Math.floor((x + far) / TC), da = Math.floor((z - far) / TC), db = Math.floor((z + far) / TC);
+        for (let g = ca; g <= cb; g++) for (let h = da; h <= db; h++) for (const t of set.cells.get(g + ',' + h) || []) {
           const d = Math.hypot(t.x - x, t.z - z);
-          if (d > far || (d > 650 && (Math.round(t.x * 3) & 1))) continue;      // far off, half of them will do
+          if (d > far || (d > 650 && (Math.round(t.x * 3) & 1)) || f >= room) continue;      // far off, half of them will do
           dummy.position.set(t.x, 0, t.z); dummy.rotation.set(0, (t.x * 13.7 + t.z * 7.1) % 6.283, 0);
           const wide = t.wide || 0.86 + ((t.x * 3.1 + t.z) % 1 + 1) % 1 * 0.3;
           dummy.scale.set(t.h * wide, t.h, t.h * wide); dummy.updateMatrix();
@@ -592,9 +670,10 @@
           if (d < 240) { if (t.wide) { dummy.scale.set(t.h * 0.62, t.h, t.h * 0.62); dummy.updateMatrix(); } set.wood.setMatrixAt(w++, dummy.matrix); }
         }
         set.nearL.count = n; set.farL.count = f; set.wood.count = w;
-        set.nearL.instanceMatrix.needsUpdate = set.farL.instanceMatrix.needsUpdate = set.wood.instanceMatrix.needsUpdate = true;
-        if (set.nearL.instanceColor) set.nearL.instanceColor.needsUpdate = true;
-        if (set.farL.instanceColor) set.farL.instanceColor.needsUpdate = true;
+        // send the graphics card only what is in use: the buffers are big, and this happens every few steps
+        const send = (attr, k, size) => { if (k) { attr.updateRange.offset = 0; attr.updateRange.count = k * size; attr.needsUpdate = true; } };
+        send(set.nearL.instanceMatrix, n, 16); send(set.farL.instanceMatrix, f, 16); send(set.wood.instanceMatrix, w, 16);
+        send(set.nearL.instanceColor, n, 3); send(set.farL.instanceColor, f, 3);
       }
     }
     let lastFar = 0;
@@ -644,7 +723,7 @@
     gg.setIndex([0, 1, 2, 0, 2, 3]);
     const ground = new THREE.Mesh(gg, groundM); ground.renderOrder = -9; ground.frustumCulled = false; group.add(ground);
     // beyond the photograph, a plain ground into the haze
-    const far = new THREE.Mesh(new THREE.PlaneGeometry(9000, 9000), new THREE.MeshStandardMaterial({ color: 0x5c6242, roughness: 1, depthWrite: false }));
+    const far = new THREE.Mesh(new THREE.PlaneGeometry(40000, 40000), new THREE.MeshStandardMaterial({ color: 0x5c6242, roughness: 1, depthWrite: false }));
     far.rotation.x = -Math.PI / 2; far.position.y = -0.06; far.renderOrder = -10; far.frustumCulled = false; group.add(far);
 
     const inHouse = buildHouses(B, W);
@@ -659,5 +738,5 @@
     return { group, inHouse, trees, casters, statue, treeFar: 620, wetMats: wet, update(camera, t, walking) { trees.update(camera, t, this.treeFar); statue.update(camera, walking); } };
   }
 
-  root.Outdoors = { build, wings, groundMat };
+  root.Outdoors = { build, wings, groundMat, onStreet, curbRuns, yellowRuns };
 })(typeof self !== 'undefined' ? self : this);
