@@ -56,3 +56,6 @@
 !latin/serve/*.js
 !latin/serve/aerial/
 !latin/serve/aerial/*.js
+# The laser and aerial tiles the game loads as you walk: USGS 3DEP and USDA NAIP, public domain.
+!latin/serve/tiles/
+!latin/serve/tiles/*.js

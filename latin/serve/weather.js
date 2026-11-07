@@ -191,7 +191,7 @@
       if (sound.ctx || !ctx) return;
       sound.ctx = ctx;
       const bed = rainBed(ctx);
-      bed.out.connect(ctx.destination);
+      bed.out.connect(ctx.mix.rain);
       sound.gain = bed.gain; sound.filter = bed.filter;
       sound.gain.gain.value = 0;
     }

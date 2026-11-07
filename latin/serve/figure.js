@@ -55,7 +55,7 @@
     onAltar: { R: [-0.17, 0.12, 0.42], L: [0.17, 0.12, 0.42] },
     overOblata: { R: [-0.1, 0.22, 0.5], L: [0.1, 0.22, 0.5] },
     holdChalice: { R: [-0.06, 0.25, 0.4], L: [0.06, 0.22, 0.38] },
-    fingers: { R: [-0.04, 0.2, 0.42], L: [0.04, 0.2, 0.42] },
+    fingers: { R: [-0.04, 0.04, 0.42], L: [0.04, 0.04, 0.42] },
     elevate: { R: [-0.05, 0.98, 0.16], L: [0.05, 0.98, 0.16] },
     book: { R: [-0.14, 0.22, 0.48], L: [0.14, 0.22, 0.48] },
     bellsLow: { R: [-0.2, 0.06, 0.2] },
@@ -491,8 +491,9 @@
         const a = h.both.carry === 'book' ? ARMS.book : ARMS.carry;
         return { R: [a.R[0], a.R[1] + out * 0.3, a.R[2] + out], L: [a.L[0], a.L[1] + out * 0.3, a.L[2] + out] };
       }
-      const R = h.R ? [ARMS.holdR[0], ARMS.holdR[1], ARMS.holdR[2] + (this.out && this.outHand !== 'L' ? out : 0)] : null;
-      const L = h.L ? [ARMS.holdL[0], ARMS.holdL[1], ARMS.holdL[2] + (this.out && this.outHand === 'L' ? out : 0)] : null;
+      const down = out && this.kind === 'priest' ? 0.16 : 0;      // he holds it out down to a server's height, not at his face
+      const R = h.R ? [ARMS.holdR[0], ARMS.holdR[1] - (this.outHand !== 'L' ? down : 0), ARMS.holdR[2] + (this.out && this.outHand !== 'L' ? out : 0)] : null;
+      const L = h.L ? [ARMS.holdL[0], ARMS.holdL[1] - (this.outHand === 'L' ? down : 0), ARMS.holdL[2] + (this.out && this.outHand === 'L' ? out : 0)] : null;
       if (R && L) return { R, L };
       if (R) return { R, L: ARMS.flatL };
       if (L) return { R: ARMS.flatR, L };

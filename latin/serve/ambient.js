@@ -10,7 +10,7 @@
   const pick = l => l[Math.floor(Math.random() * l.length)];
 
   function build(scene, deps) {
-    const { audio, camera, figures, sky, statue, parent } = deps;
+    const { audio, stepLevel, camera, figures, sky, statue, parent } = deps;
     let ctx = null, outBus = null, sirenBus = null, outFilter = null, roomIn = null, dryIn = null, hum = null, stepsBuf = [], lastStepBuf = null, voices = null;
 
     // ── the bus, and a room for the church ──
@@ -20,14 +20,14 @@
       ctx = a;
       outFilter = a.createBiquadFilter(); outFilter.type = 'lowpass'; outFilter.frequency.value = 18000; outFilter.Q.value = 0.3;
       outBus = a.createGain(); outBus.gain.value = 1;
-      outBus.connect(outFilter).connect(a.destination);
+      outBus.connect(outFilter).connect(a.mix.outdoors);
       sirenBus = a.createGain(); sirenBus.gain.value = 1; sirenBus.connect(outFilter);
       // a stone room: a short, soft tail of about a second and a half
       const sr = a.sampleRate, len = Math.floor(sr * 1.5), ir = a.createBuffer(2, len, sr);
       for (let ch = 0; ch < 2; ch++) { const d = ir.getChannelData(ch); let lp = 0; for (let i = 0; i < len; i++) { const t = i / len; lp += ((Math.random() * 2 - 1) - lp) * (0.5 - t * 0.42); d[i] = lp * Math.pow(1 - t, 3.2) * (i < sr * 0.004 ? 0 : 1); } }
       const conv = a.createConvolver(); conv.buffer = ir;
-      roomIn = a.createGain(); roomIn.gain.value = 0.07; roomIn.connect(conv).connect(a.destination);
-      dryIn = a.createGain(); dryIn.gain.value = 1; dryIn.connect(a.destination);
+      roomIn = a.createGain(); roomIn.gain.value = 0.07; roomIn.connect(conv).connect(a.mix.master);
+      dryIn = a.createGain(); dryIn.gain.value = 1; dryIn.connect(a.mix.master);
       stepsBuf = loadSteps(a);
       hum = cityHum(a);
       return ctx;
@@ -54,7 +54,7 @@
       // never the same recording twice running
       const s = ctx.createBufferSource(); let buf = pick(stepsBuf); if (buf === lastStepBuf) buf = stepsBuf[(stepsBuf.indexOf(buf) + 1) % stepsBuf.length];
       lastStepBuf = buf; s.buffer = buf; s.playbackRate.value = rnd(0.97, 1.03);
-      const g = ctx.createGain(); g.gain.value = gain * rnd(0.92, 1.04);
+      const g = ctx.createGain(); g.gain.value = gain * rnd(0.92, 1.04) * stepLevel();
       const p = ctx.createStereoPanner(); p.pan.value = you ? 0 : panOf(x, z) * 0.4;
       s.connect(g).connect(p);
       p.connect(dryIn); if (indoors) p.connect(roomIn);
@@ -416,7 +416,7 @@
       footstep, siren, hiss, flying, launchPlane, butterflies, ladybugs, birds, chirp, cry, rail, horn, riding,
       get perches() { return perches; },
       update(dt, opts) {
-        const now = performance.now() / 1000, indoors = sky.indoors, daylight = sky.daylight == null ? 1 : sky.daylight, wet = sky.wetness || 0;
+        const now = opts.now, indoors = sky.indoors, daylight = sky.daylight == null ? 1 : sky.daylight, wet = sky.wetness || 0;
         if (opts.seeOut) { updateFlies(dt, now, daylight, wet); updateBirds(dt, now, daylight, wet); }
         // the aeroplanes fly whether anyone is listening or not
         nextPlane -= dt;

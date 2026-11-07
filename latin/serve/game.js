@@ -36,6 +36,7 @@
     communion: true, confiteor: true, gloria: true, creed: true, sermon: 'random', railCloth: 'none',
     bellMinorElevation: true, bellDomineNonSum: true, sacristyVersicle: 'procedamus',
     english: true, sound: true, labels: true, reminders: true, syllables: 4,
+    volume: 1, volBells: 1, volSteps: 1, volOutdoors: 1, volRain: 1,
   };
   const params = new URLSearchParams(location.search);
   let opts = Object.assign({}, OPTS, store.get('opts', {}));
@@ -77,7 +78,7 @@
   // a little sky for the paint and glass of every vehicle to reflect
   const TRANSIT_DEPS = () => ({ cars: CARS.cars, focus: () => { const f = walkerOut; return f ? [f.x, f.z] : [0, 20]; }, ahead: CARS.ahead, amb: AMB, nearestRoad: WIDE.nearestRoad });
   { const pm = new THREE.PMREMGenerator(renderer), sc = new THREE.Scene(), sph = new THREE.Mesh(new THREE.SphereGeometry(20, 24, 12), new THREE.ShaderMaterial({ side: THREE.BackSide, vertexShader: 'varying vec3 v; void main() { v = position; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }', fragmentShader: 'varying vec3 v; void main() { float h = normalize(v).y; vec3 sky = mix(vec3(0.82, 0.88, 0.95), vec3(0.28, 0.48, 0.82), pow(max(h, 0.0), 0.5)), ground = mix(vec3(0.34, 0.33, 0.3), vec3(0.14, 0.14, 0.13), min(1.0, -h * 2.0)); gl_FragColor = vec4(h > 0.0 ? sky : ground, 1.0); }' })); sc.add(sph); Traffic.setEnv(pm.fromScene(sc, 0.02).texture); pm.dispose(); }
-  const AMB = Ambient.build(scene, { audio: () => audio(), camera, figures: () => Object.values(FIG), sky: SKY, statue: OUT3D.statue, parent: OUT3D.group, inHouse: OUT3D.inHouse });
+  const AMB = Ambient.build(scene, { audio: () => audio(), stepLevel: () => opts.volSteps, camera, figures: () => Object.values(FIG), sky: SKY, statue: OUT3D.statue, parent: OUT3D.group, inHouse: OUT3D.inHouse });
   const Ride = {
     on: false, kind: '', v: null, car: null, lx: 0, lz: 0, seated: true, inside: null, seat: null,
     /** What you are riding in, for where to put you: the bus, or this coach of the train. */
@@ -644,11 +645,34 @@
   const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold']);
 
   // ─── sound: small synthesized bells ────────────────────────────────────────
-  let actx = null;
+  let actx = null, hushed = false, frozen = false;
   function audio() {
     if (!opts.sound) return null;
-    try { actx = actx || new (window.AudioContext || window.webkitAudioContext)(); if (actx.state === 'suspended') actx.resume(); } catch (e) { return null; }
+    try {
+      if (!actx) {
+        actx = new (window.AudioContext || window.webkitAudioContext)();
+        // everything you hear comes through here: the volumes in Options, and silence when the Mass is stopped
+        const m = actx.mix = { master: actx.createGain(), bells: actx.createGain(), outdoors: actx.createGain(), rain: actx.createGain() };
+        for (const k of ['bells', 'outdoors', 'rain']) m[k].connect(m.master);
+        m.master.connect(actx.destination);
+        m.master.gain.value = hushed ? 0 : opts.volume; m.bells.gain.value = opts.volBells; m.outdoors.gain.value = opts.volOutdoors; m.rain.gain.value = opts.volRain;
+      }
+      if (actx.state === 'suspended' && !frozen) actx.resume();
+    } catch (e) { return null; }
     return inDemo() ? null : actx;      // the Mass behind the title plays in silence
+  }
+  function setLevels() {
+    if (!actx) return;
+    const m = actx.mix, t = actx.currentTime;
+    m.master.gain.setTargetAtTime(hushed ? 0 : opts.volume, t, 0.02);
+    m.bells.gain.setTargetAtTime(opts.volBells, t, 0.02); m.outdoors.gain.setTargetAtTime(opts.volOutdoors, t, 0.02); m.rain.gain.setTargetAtTime(opts.volRain, t, 0.02);
+  }
+  /** quiet: nothing to be heard, though the world may go on. stop: the sound itself stops where it is, and picks up from there. */
+  function setStill(quiet, stop) {
+    if (quiet !== hushed) { hushed = quiet; setLevels(); }
+    if (actx && stop && actx.state === 'running') actx.suspend();
+    if (actx && frozen && !stop && opts.sound) actx.resume();
+    frozen = stop;
   }
   const inDemo = () => !!director && director.kind === 'demo';
   function chime(kind) {
@@ -660,7 +684,7 @@
       o.frequency.value = f * m * (1 + (Math.random() - 0.5) * 0.004);
       gn.gain.setValueAtTime(0, t0); gn.gain.linearRampToValueAtTime(g * level, t0 + 0.005);
       gn.gain.exponentialRampToValueAtTime(0.0001, t0 + len);
-      o.connect(gn).connect(a.destination); o.start(t0); o.stop(t0 + len + 0.1);
+      o.connect(gn).connect(a.mix.bells); o.start(t0); o.stop(t0 + len + 0.1);
     }
   }
 
@@ -686,9 +710,11 @@
     },
     holder(p) { const l = this.loc[p]; return l && l.startsWith('hand:') ? l.slice(5) : null; },
     held(role) { return Object.keys(this.loc).filter(p => this.loc[p] === 'hand:' + role); },
+    /** It has left this person's hands: if they were holding out nothing else, the arm comes back. */
+    notOut(who, p) { if (who && this.out[who] && this.out[who].delete(p) && !this.out[who].size) FIG[who].out = false; },
     attach(p, role) {
       const prev = this.holder(p);
-      if (prev && this.out[prev]) this.out[prev].delete(p);
+      this.notOut(prev, p);
       this.loc[p] = 'hand:' + role;
       const pr = PROPS[p], mine = this.held(role).filter(q => q !== p);
       const used = new Set(mine.map(q => this.slot[q]));
@@ -704,7 +730,7 @@
     },
     place(p, where) {
       const prev = this.holder(p);
-      if (prev && this.out[prev]) this.out[prev].delete(p);
+      this.notOut(prev, p);
       this.loc[p] = where; this.slot[p] = null;
       if (p === 'towel') PROPS.towel.obj.userData.setDraped(where === 'bowl' || where === 'cred.towel');
       if (p === 'veil') PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
@@ -779,20 +805,20 @@
   const SPOT_TEXT = {
     sacA1: 'your place in the sacristy', sacA2: 'your place in the sacristy',
     sacP: 'the priest’s place in the sacristy', thrA2: 'the door into the church, by the holy-water font', thrA1: 'the door into the church, behind A2',
-    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_low: 'down the steps, below the priest', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
+    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_tabA: 'out in front of the chair, on your way round to the table', w_tabA2: 'out in front of the chair, on your way round to the table', w_tabB: 'past the chair, on your way round', w_tabB2: 'past the chair, on your way round', w_tabC: 'the far side of the column', w_tabC2: 'the far side of the column', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
     w_rail: 'the end of the altar rail', w_gos: 'the gates, on the Gospel side', w_gosIn: 'through the gates', w_epi: 'the gates, on the Epistle side', w_epiIn: 'through the gates',
     cfR: 'the priest’s right at the foot of the altar (close formation)', cfL: 'the priest’s left at the foot of the altar (close formation)',
     cfL2: 'a step out to the side on the Gospel side, giving the priest room',
     xE: 'your place on the Epistle side (extended formation)', xG: 'your place on the Gospel side (extended formation)',
     mid: 'the middle, at the foot of the altar', midR: 'the middle at the foot of the altar, right of centre', midL: 'the middle at the foot of the altar, left of centre',
     ftE: 'the foot of the steps on the Epistle side', topE: 'the top step at the Epistle corner', topG: 'the top step at the Gospel corner',
-    st2G: 'the second step on the Gospel side, facing the priest', veilTop: 'the top step beside the priest', veilG: 'the top step at the priest’s left',
+    st2G: 'the second step on the Gospel side, facing the priest', veilTop: 'the top step, on the priest’s Epistle side', veilG: 'the top step at the priest’s left',
     gradE: 'the Epistle end of the altar, by the gradine', plateTop: 'the top step, right of centre',
     elR: 'the edge of the top step at the priest’s right', elL: 'the edge of the top step at the priest’s left',
     comR: 'the edge of the top step for Communion', comL: 'the edge of the top step for Communion', comS: 'the edge of the top step, at the centre',
-    abl1: 'the top step, half way across', cruWait1: 'the foot of the steps at the Epistle corner', cruWait2: 'the foot of the steps at the Epistle corner',
-    cruWaitS: 'the foot of the steps at the Epistle corner', cruA1: 'the second step at the Epistle corner', cruA2: 'the second step at the Epistle corner',
-    cruS: 'the second step at the Epistle corner', cruA3: 'the second step, outside A1', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
+    abl1: 'the top step, half way across', cruWait1: 'the side of the steps, by the table', cruWait2: 'the side of the steps, by the table, beside A1',
+    cruWaitS: 'the side of the steps, by the table', cruA1: 'the second step at the Epistle end', cruA2: 'the second step at the Epistle end',
+    'P.cruet': 'where the priest will stand, at the end of the top step', cruS: 'the second step at the Epistle end', ablA1: 'the second step at the Epistle end', ablS: 'the second step at the Epistle end', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
     sed: 'the sedilia (the priest’s chair)', stoolE: 'your stool', stoolG: 'your stool', 'K.E': 'your place on the choir bench', 'K.G': 'your place on the choir bench', comKE: 'the top step, beside the servers', comKG: 'the top step, beside the servers',
     gateE: 'the Epistle-side gate', gateG: 'the Gospel-side gate', midRail: 'the middle, by the gates',
     clothE: 'the rail cloth on the Epistle side', clothG: 'the rail cloth on the Gospel side',
@@ -1029,8 +1055,11 @@
         case 'stand': case 'rise': return this.step(f.stand());
         case 'gen':
           if (role === this.player && Math.abs(f.x) < 0.8) Player.genSinceSide = true;
+          await this.step(f.turnTo(Math.PI));      // always to the altar, whoever you were just dealing with
           return this.step(f.genuflect());
-        case 'genhold': return this.step(f.genHold());
+        case 'genhold':
+          await this.step(f.turnTo(Math.PI));
+          return this.step(f.genHold());
         case 'sit': {      // a seat faces the way it faces: you turn as you sit
           const seat = role === this.player ? Player.lastFace : null;
           if (seat != null) f.turnTo(seat);
@@ -1659,6 +1688,11 @@
       if (this.faceT > 3 && !this.faceSlipped) { this.faceSlipped = true; d.mistake('You were facing the wrong way', 'Face ' + this.faceWord() + '.', this.beat); }
     },
 
+    /** To the table you go round on the floor; coming down from the altar with the cruets is another matter. */
+    tableLeg(from, id) {
+      return /^(w_tab|cred|cruWait|cruOut)/.test(id) && C.heightAt(from[0], from[1]) <= C.LAYOUT.step + 0.01;
+    },
+
     /** At every moment of the Mass you have a place, or a way to the next: leaving it is a major slip, staying away a failure, and going up to the altar unbidden worse. */
     checkPlace(d, f, c, dt) {
       if (!this.anchor) this.anchor = [f.x, f.z];
@@ -1672,6 +1706,11 @@
       const closing = off < (this.lastOff == null ? off : this.lastOff) - 1e-4;     // coming back is always allowed
       this.lastOff = off;
       const canFail = d.o.failing !== false;
+      if (going && !c.crossed && this.tableLeg(this.legFrom, c.args[0]) && Nav.onSteps(f.x, f.z) && C.heightAt(f.x, f.z) > 0.01
+        && Math.hypot(f.x - this.legFrom[0], f.z - this.legFrom[1]) > 0.45 && Math.hypot(f.x - target[0], f.z - target[1]) > 0.45) {
+        c.crossed = true;
+        d.mistake('You crossed the altar steps', 'The altar steps are for the altar: go round on the floor.', this.beat);
+      }
       const inAltar = (x, z) => Math.abs(x) < 2.65 && z < 0.9 && z > -2.3;      // the first step is where you kneel: above it is the altar's
       const entitled = going ? inAltar(target[0], target[1]) || inAltar(this.legFrom[0], this.legFrom[1]) : inAltar(this.anchor[0], this.anchor[1]);
       if (inAltar(f.x, f.z) && !entitled && off > 1.2) {     // on your way across the end of the steps is no offence; off it is
@@ -2129,9 +2168,11 @@
         goArrow.rotation.set(Math.PI, 0, 0);
         // the circle is a guide, not a rule: near enough is there; and a point on the way is cleared once you are past it
         const away = Math.hypot(f.x - s[0], f.z - s[1]), isPoint = /^w_/.test(c.args[0]), nx = this.nextPoint;
-        const past = isPoint && nx && Math.hypot(f.x - nx[0], f.z - nx[1]) < Math.hypot(s[0] - nx[0], s[1] - nx[1]);
+        const roundTable = /^w_tab/.test(c.args[0]);     // the way round the chair and the column: cut this corner and the next arrow points across the steps
+        const past = isPoint && !roundTable && nx && Math.hypot(f.x - nx[0], f.z - nx[1]) < Math.hypot(s[0] - nx[0], s[1] - nx[1]);
         const handsOn = /^(el|com|cru|top|veil|st2|plate|abl|grad|cred|sed|pr\d|cr\d)/.test(c.args[0]);     // beside the priest or at the table you must be within reach
-        if (f.posture === 'stand' && (away < (isPoint ? 1.1 : handsOn ? 0.55 : 0.9) || past)) this.done();
+        const atFoot = /^(mid[LR]?|x[EG])$/.test(c.args[0]);     // the foot of the altar is on the floor: from here the servers cross, and the other one's way is the step above; and you kneel head on, not on the corner
+        if (f.posture === 'stand' && (away < (roundTable ? 0.45 : isPoint ? 1.1 : atFoot ? 0.4 : handsOn ? 0.55 : 0.9) || past)) this.done();
       }
       // nobody waits: what you have not done when its moment has passed is missed
       if (c && !this.autoing && !UI.paused) {
@@ -2452,7 +2493,7 @@
       if (!this.hum) {
         const o = a.createOscillator(), gain = a.createGain(), filter = a.createBiquadFilter();
         o.type = 'sawtooth'; filter.type = 'lowpass'; filter.frequency.value = 420; gain.gain.value = 0;
-        o.connect(filter); filter.connect(gain); gain.connect(a.destination); o.start();
+        o.connect(filter); filter.connect(gain); gain.connect(a.mix.master); o.start();
         this.hum = { o, gain, a };
       }
       const s = Math.abs(speed) / CART.TOP;
@@ -2465,7 +2506,7 @@
       const o = a.createOscillator(), g = a.createGain();
       o.type = 'triangle'; o.frequency.setValueAtTime(90, a.currentTime); o.frequency.exponentialRampToValueAtTime(38, a.currentTime + 0.16);
       g.gain.setValueAtTime(Math.min(0.5, 0.1 + hard * 0.05), a.currentTime); g.gain.exponentialRampToValueAtTime(0.001, a.currentTime + 0.2);
-      o.connect(g); g.connect(a.destination); o.start(); o.stop(a.currentTime + 0.22);
+      o.connect(g); g.connect(a.mix.master); o.start(); o.stop(a.currentTime + 0.22);
     },
     setRegion() {
       const f = FIG.A1; let r = Plan.regionAt(f.x, f.z);
@@ -2547,22 +2588,27 @@
       }
       return false;
     },
-    clear(ax, az, bx, bz, people) {
+    /** Is this on the altar steps? */
+    onSteps: (x, z) => Math.abs(x) < C.LAYOUT.steps[0][0] + 0.12 && z < C.LAYOUT.steps[0][1] + 0.12,
+    clear(ax, az, bx, bz, people, off) {
       const L = Math.hypot(bx - ax, bz - az), n = Math.max(1, Math.ceil(L / 0.1));
       for (let i = 0; i <= n; i++) {
         const x = ax + (bx - ax) * i / n, z = az + (bz - az) * i / n;
-        if (this.solid(x, z)) return false;
+        if (this.solid(x, z) || (off && off(x, z))) return false;
         if (people) for (const o of people) if (Math.hypot(x - o.x, z - o.z) < 0.5) return false;
       }
       return true;
     },
     /** The way from a to b: null if the straight line will do, else the corners to go by. */
     route(ax, az, bx, bz, people) {
-      if (this.clear(ax, az, bx, bz, people)) return null;
+      // the altar steps are for the altar: from the floor (or the first step, where you kneel) to the floor, you walk round them
+      const low = (x, z) => C.heightAt(x, z) <= C.LAYOUT.step + 0.01;
+      const off = low(ax, az) && low(bx, bz) ? (x, z) => this.onSteps(x, z) && Math.hypot(x - ax, z - az) > 0.45 && Math.hypot(x - bx, z - bz) > 0.45 : null;
+      if (this.clear(ax, az, bx, bz, people, off)) return null;
       const { G, x0, z0, nx, nz } = this, id = (i, j) => i + j * nx;
       const cell = (x, z) => [Math.round((x - x0) / G), Math.round((z - z0) / G)];
       const pos = (i, j) => [x0 + i * G, z0 + j * G];
-      const open = (i, j) => { if (i < 0 || j < 0 || i >= nx || j >= nz) return false; const [x, z] = pos(i, j); if (this.solid(x, z)) return false; return !people || people.every(o => Math.hypot(x - o.x, z - o.z) > 0.5); };
+      const open = (i, j) => { if (i < 0 || j < 0 || i >= nx || j >= nz) return false; const [x, z] = pos(i, j); if (this.solid(x, z) || (off && off(x, z))) return false; return !people || people.every(o => Math.hypot(x - o.x, z - o.z) > 0.5); };
       const [si, sj] = cell(ax, az), [ti, tj] = cell(bx, bz), came = new Map([[id(si, sj), -1]]), q = [[si, sj]];
       let end = null;
       for (let h = 0; h < q.length && h < 6000; h++) {
@@ -2581,7 +2627,7 @@
       const out = []; let from = [ax, az], i = 0;
       while (i < path.length) {
         let far = i;
-        for (let k = path.length - 1; k > i; k--) if (this.clear(from[0], from[1], path[k][0], path[k][1], people)) { far = k; break; }
+        for (let k = path.length - 1; k > i; k--) if (this.clear(from[0], from[1], path[k][0], path[k][1], people, off)) { far = k; break; }
         out.push(path[far]); from = path[far]; i = far + 1;
       }
       return out;
@@ -3022,6 +3068,8 @@
     ['English captions', 'english', [[true, 'Show'], [false, 'Hide']]],
     ['Sound', 'sound', [[true, 'On'], [false, 'Off']]],
   ];
+  const VOLUME_UI = [['All sound', 'volume'], ['Bells', 'volBells'], ['Footsteps', 'volSteps'], ['Outdoors: traffic, birds, trains, sirens', 'volOutdoors'], ['Rain', 'volRain']];
+  const percent = v => Math.round(v * 100) + '%';
   function renderOptions() {
     const body = $('#options-body');
     fill(body, ...OPTION_UI.filter(([, , , when]) => !when || when()).map(([label, key, choices]) =>
@@ -3029,6 +3077,12 @@
         h('div', { class: 'seg' }, choices.map(([v, text]) => h('button', {
           'aria-pressed': String(opts[key] === v), onclick: () => { setOpt(key, v); if (key === 'weather') SKY.setMode(v); renderOptions(); },
         }, text))))),
+      ...(opts.sound ? VOLUME_UI : []).map(([label, key]) => {
+        const val = h('span', null, percent(opts[key]));
+        return h('div', { class: 'opt' }, h('div', { class: 'opt-label' }, label + ' ', val),
+          h('input', { type: 'range', min: 0, max: 1, step: 0.05, value: opts[key], 'aria-label': label,
+            oninput: e => { setOpt(key, +e.target.value); val.textContent = percent(opts[key]); setLevels(); } }));
+      }),
       h('div', { class: 'opt' }, h('div', { class: 'opt-label' }, 'Speed of the Mass ', h('span', { id: 'speed-val' }, opts.speed + '×')),
         h('input', { type: 'range', min: 0.5, max: 4, step: 0.25, value: opts.speed, 'aria-label': 'Speed',
           oninput: e => { setOpt('speed', +e.target.value); $('#speed-val').textContent = opts.speed + '×'; if (director && director.kind !== 'demo') director.o.speed = opts.speed; } })));
@@ -3081,7 +3135,7 @@
   // ─── the loop ──────────────────────────────────────────────────────────────
   let last = performance.now();
   const TURBO = +params.get('turbo') || 0;     // tests: many fixed steps per frame
-  let frameNo = 0;
+  let frameNo = 0, worldTime = performance.now() / 1000;      // the clock of what sways and flutters: it stops when everything stops
   if (TURBO) {
     // each step is its own task, so awaited animations resume between steps as they would at 60 fps
     const mc = new MessageChannel();
@@ -3100,19 +3154,23 @@
   function step(real) {
     if (window.__serve.onStep) window.__serve.onStep(real);
     const line = director && director.line;
+    // behind the pause menu everything stops; a Mass stopped on its time bar is silent, though the street goes on
+    setStill(UI.paused || !!line && (line.preparing || !line.playing || line.scrubbing || line.seeking), UI.paused);
     if (line && line.preparing) return;
+    if (UI.paused) { Input.update(); updateActs(real); Grab.update(); Bar.paint(); return; }
+    worldTime += real;
     const speed = director ? (director.kind === 'demo' ? 1 : director.o.speed) : 1;
-    const sim = UI.paused || window.__serve.frozen != null || (director && director.failed) ? 0 : real * speed;    // the Mass does not stop for anyone's answer
+    const sim = window.__serve.frozen != null || (director && director.failed) ? 0 : real * speed;    // the Mass does not stop for anyone's answer
     Input.update();
     if (line) line.advance(real);
     else if (director) { director.tick(sim); director.pollConditions(); }
     Player.update(real);
-    if (!UI.paused) RAIL.update(real);
+    RAIL.update(real);
     Explore.update(real);
     const me = director && director.player ? FIG[director.player] : null;
     if (!line) for (const f of Object.values(FIG)) {
       // your own figure keeps moving while the Mass waits for your answer
-      f.update((f === me && sim === 0 && !UI.paused) || (Explore.active && !UI.paused) ? real : sim, C.heightAt);
+      f.update((f === me && sim === 0) || Explore.active ? real : sim, C.heightAt);
       if (f.manualWalk && f.posture === 'stand') {
         const s = Math.sin(f.phase);
         f.legs.R.hip.rotation.x = -0.4 * s; f.legs.L.hip.rotation.x = 0.4 * s;
@@ -3131,7 +3189,7 @@
     Sun.update(focus, seeOut && !SKY.indoors);
     OUT3D.group.visible = seeOut; CARS.group.visible = seeOut; SITE3D.outGroup.visible = seeOut;
     if (seeOut) {
-      CARS.update(real); OUT3D.update(camera, performance.now() / 1000, Explore.active); WIDE.update(camera, Explore.active, performance.now() / 1000, { night: SKY.night }); CART.update(real);
+      CARS.update(real); OUT3D.update(camera, worldTime, Explore.active); WIDE.update(camera, Explore.active, worldTime, { night: SKY.night }); CART.update(real);
       // the hands stay on the wheel
       if (CART.driving) { const g = CART.grips(CART.driving), f = FIG.A1; f.pose.R = g.R; f.pose.L = g.L; }
     }
@@ -3142,8 +3200,8 @@
     Traffic.setNight(SKY.night);
     TRANSIT.update(real, { explore: Explore.active, night: SKY.night });
     { const part = director && director.beats && director.beats[director.index] ? director.beats[director.index].part : null;
-      PEOPLE.update(UI.paused ? 0 : real, { explore: Explore.active, mass: !!director && !Explore.active, part, night: SKY.night, wet: SKY.wetness || 0 }); }
-    AMB.update(real, { cars: CARS.cars, sound: sounding, seeOut, aboard: Ride.on, explore: Explore.active, me: me || (Explore.active ? FIG.A1 : null), indoorsAt: (x, z) => /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered/i.test(Plan.regionAt(x, z)) });
+      PEOPLE.update(real, { explore: Explore.active, mass: !!director && !Explore.active, part, night: SKY.night, wet: SKY.wetness || 0 }); }
+    AMB.update(real, { now: worldTime, cars: CARS.cars, sound: sounding, seeOut, aboard: Ride.on, explore: Explore.active, me: me || (Explore.active ? FIG.A1 : null), indoorsAt: (x, z) => /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium|arcade|covered/i.test(Plan.regionAt(x, z)) });
     if (director && director.player) {
       const f = FIG[director.player];
       youRing.position.set(f.x, f.y + 0.012, f.z);
