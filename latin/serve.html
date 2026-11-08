@@ -109,6 +109,8 @@ body.touch.typing #acts button[data-act="body"] { display: block; }
 #respond textarea { width: 100%; background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 10px; color: var(--ink); font: 19px/1.35 var(--serif); padding: 10px 12px; resize: none; }
 #respond .fb { min-height: 20px; font-size: 14px; color: var(--muted); margin: 6px 0; font-family: var(--serif); }
 #respond .fb .bad { color: var(--bad); font-family: var(--sans); }
+#respond .ghost { position: relative; max-height: 5.4em; overflow: hidden; color: rgba(243, 237, 226, .42); font: 19px/1.35 var(--serif); padding: 0 12px; margin-bottom: 8px; }
+#respond .ghost .typed-ok { color: var(--gold); }
 .ask-row { display: flex; justify-content: flex-end; gap: 8px; }
 
 #remind { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: max-content; max-width: min(720px, calc(100% - 32px)); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; background: var(--panel); border: 1px solid rgba(143,211,255,.45); border-radius: 12px; padding: 6px 12px; font-size: 14px; pointer-events: none; }

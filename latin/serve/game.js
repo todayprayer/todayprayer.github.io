@@ -32,15 +32,17 @@
     set(k, v) { try { localStorage.setItem('serve.' + k, JSON.stringify(v)); } catch (e) { /* private window */ } },
   };
   const OPTS = {
-    servers: 2, role: 'A1', respond: 'choose', mode: 'coach', speed: 1.25, quality: 'auto', weather: 'auto', camera: 'follow',
+    servers: 2, role: 'A1', respond: 'type', typeHelp: 'easy', mode: 'coach', speed: 1.25, quality: 'auto', weather: 'auto', camera: 'follow',
     communion: true, confiteor: true, gloria: true, creed: true, sermon: 'random', railCloth: 'none',
     bellMinorElevation: true, bellDomineNonSum: true, sacristyVersicle: 'procedamus',
     english: true, sound: true, labels: true, reminders: true, syllables: 4,
     volume: 1, volBells: 1, volSteps: 1, volOutdoors: 1, volRain: 1,
   };
   const params = new URLSearchParams(location.search);
-  let opts = Object.assign({}, OPTS, store.get('opts', {}));
+  const saved = store.get('opts', {});
+  let opts = Object.assign({}, OPTS, saved);
   delete opts.failing; delete opts.turn;      // no longer choices: anyone who once chose them gets what everyone gets
+  if (!('typeHelp' in saved)) opts.respond = OPTS.respond;      // every option is saved together, so an old "choose" was no choice: typing, the easy way, is where everyone now starts
   const setOpt = (k, v) => { opts[k] = v; store.set('opts', opts); };
 
   // A full Mass at 1× runs about five minutes. Walking and kneeling keep their natural speed; what is
@@ -2821,10 +2823,20 @@
         const expire = () => finish(false, null);
         if (mode === 'type') {
           // like speaking: you have as long to begin as anyone choosing, and after that every letter keeps you going. Stop, and you have stopped.
-          const said = Mass.words(t.la), expected = said.map(w => soundOf(w.raw));
-          const input = h('textarea', { rows: 2, placeholder: 'Start typing…', spellcheck: 'false', autocapitalize: 'off', 'aria-label': 'What you say' });
+          const said = Mass.words(t.la), expected = said.map(w => soundOf(w.raw)), easy = opts.typeHelp === 'easy';
+          const input = h('textarea', { rows: 2, placeholder: easy ? 'Type the line above…' : 'Start typing…', spellcheck: 'false', autocapitalize: 'off', 'aria-label': 'What you say' });
           const fb = h('div', { class: 'fb' }), okSoFar = h('span', { class: 'typed-ok' }), rest = h('span', { class: 'typed-rest' });
           fill(fb, okSoFar, rest);
+          // the easy way: the whole line before you in grey, and what you have said of it turning gold
+          const line = said.map(w => w.raw).join(' '), ghostOk = h('span', { class: 'typed-ok' }), ghostRest = h('span', null, line);
+          const ghost = easy ? h('div', { class: 'ghost', 'aria-hidden': 'true' }, ghostOk, ghostRest) : null;
+          const showGhost = f => {
+            const w = said[f.word], upTo = said.slice(0, f.word).map(x => x.raw).join(' ').length + (f.word ? 1 : 0)
+              + (w && f.partial ? Math.round(f.partial / Math.max(1, expected[f.word].length) * w.raw.length) : 0);
+            ghostOk.textContent = line.slice(0, Math.min(line.length, upTo)); ghostRest.textContent = line.slice(Math.min(line.length, upTo));
+            const lh = parseFloat(getComputedStyle(ghost).lineHeight) || 26;      // a long prayer scrolls, keeping your place in view
+            ghost.scrollTop = Math.max(0, ghostOk.offsetTop + ghostOk.offsetHeight - 2 * lh);
+          };
           // each letter is worth its share of the time the line takes to say, at four syllables a second
           const perLetter = syllables(t.la) / (opts.syllables || 4) / Math.max(1, expected.join('').length);
           const a = { limit, left: limit, perLetter, hearing: !!hearing, chosen: null, progress: 0, input, text: t.la, near: new Set(), muddled: 0, offLine: false,
@@ -2842,6 +2854,7 @@
             a.near = f.near; a.muddled = f.muddled; a.offLine = f.lost;
             input.classList.toggle('off-line', f.lost);
             okSoFar.textContent = said.map(w => w.raw).join(' ').slice(0, Math.round(f.n / Math.max(1, f.total) * t.la.length));
+            if (ghost) showGhost(f);
             if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; if (a.onType) a.onType(f.n); }      // only getting further along the line keeps you going
             if (f.done) { if (a.hearing) a.chosen = 0; else a.pick(); }
           });
@@ -2851,7 +2864,7 @@
             if (!e.key.startsWith('Arrow') && e.key !== 'Control' && e.key !== 'Escape') e.stopPropagation();      // you can still turn and walk while you speak
           });
           const hint = h('button', { class: 'btn', tabindex: -1, onmousedown: e => e.preventDefault(), onclick: () => { rest.textContent = '   ' + Mass.initials(t.la); } }, 'First letters');
-          fill(el, timer, h('div', { class: 'ask-title' }, title), opts.english ? h('div', { class: 'ask-en' }, t.en) : null, input, fb, h('div', { class: 'ask-row' }, hint));
+          fill(el, timer, h('div', { class: 'ask-title' }, title), opts.english ? h('div', { class: 'ask-en' }, t.en) : null, ghost, input, easy ? null : fb, easy ? null : h('div', { class: 'ask-row' }, hint));
           this.asking = a;
           this.remind(Player.cur, Player.beat);
           if (!hearing) setTimeout(() => input.focus(), 30);
@@ -2967,7 +2980,7 @@
     });
     if (muddled > room) lost = true;
     const total = expected.join('').length, n = expected.slice(0, i).join('').length + partial;
-    return { n, total, done: i >= expected.length && !lost, lost, near, muddled };
+    return { n, total, done: i >= expected.length && !lost, lost, near, muddled, word: i, partial };
   }
 
   function distractors(t, ref) {
@@ -3050,6 +3063,7 @@
   const OPTION_UI = [
     ['Servers', 'servers', [[1, 'One server'], [2, 'Two servers']]],
     ['Responses', 'respond', [['choose', 'Choose from four'], ['type', 'Type the Latin']]],
+    ['Typing', 'typeHelp', [['easy', 'Easy: the line shown in grey'], ['memory', 'From memory']], () => opts.respond === 'type'],
     ['Help (the Mass never waits for you, either way)', 'mode', [['coach', 'Circles on the floor and warnings'], ['strict', 'None']]],
     ['Typing: syllables you must keep up per second', 'syllables', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], () => opts.respond === 'type'],
     ['Reminders at the top: which button, and why', 'reminders', [[true, 'On'], [false, 'Off']]],
