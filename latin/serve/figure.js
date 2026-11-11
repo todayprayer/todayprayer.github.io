@@ -570,7 +570,7 @@
       // gestures
       let gHands = null, gSpine = null, gNeck = null;
       for (const g of this.gestures) {
-        g.t += dt;
+        g.t += g.idle ? dt : dt * (this.tempo || 1);      // a pause is a pause; what the hands do goes at this person's own pace
         if (g.idle || !g.keys.length) continue;
         const f = Math.min(1, g.t / g.dur);
         const ks = g.keys;

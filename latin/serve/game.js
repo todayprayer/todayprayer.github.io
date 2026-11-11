@@ -36,7 +36,7 @@
     communion: true, confiteor: true, gloria: true, creed: true, sermon: 'random', railCloth: 'none',
     bellMinorElevation: true, bellDomineNonSum: true, sacristyVersicle: 'procedamus',
     english: true, sound: true, labels: true, reminders: true, syllables: 4,
-    volume: 1, volBells: 1, volSteps: 1, volOutdoors: 1, volRain: 1,
+    volume: 1, volBells: 1, volSteps: 1, volOutdoors: 1, volRain: 1, testSkip: false,
   };
   const params = new URLSearchParams(location.search);
   const saved = store.get('opts', {});
@@ -48,6 +48,7 @@
   // A full Mass at 1× runs about five minutes. Walking and kneeling keep their natural speed; what is
   // compressed is the reading — the priest's texts and the responses (SAY_SCALE) — and, a little, the gestures (PACE).
   const PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
+  const SERVER_PAUSE = 0.35, SERVER_TEMPO = 0.75;      // the other server: a moment between one thing and the next, and hands at a person's pace, not the compressed gestures
 
   // ─── renderer, camera, world ───────────────────────────────────────────────
   const canvas = $('#stage');
@@ -119,8 +120,42 @@
       for (let d = 0.5; d < room; d += 0.5) if (OUT3D.inHouse(f.x + ax * d, f.z + az * d)) { room = d - 0.5; break; }
       return Math.min(room, arm);
     },
+    /** Where to look from while your hands are at a task within reach: you, the thing and where it goes in the picture, from above the shoulder of your working hand.
+     *  Chosen once as the task begins, from what stands still: never from your moving hands, or the view would chase them while you drag them. Null when there is none. */
+    taskView(f) {
+      const d = director, c = Player.cur;
+      if (!d || d.kind !== 'play' || f !== FIG[d.player]) return null;
+      if (Grab.active && this.taskFixed) return this.taskFixed;      // while you have hold of a hand the view never moves, even as one task gives way to the next
+      if (!(c && TASK_VIEW.has(c.verb))) return null;
+      if (this.taskCue === c && this.taskFixed && Math.hypot(f.x - this.taskFrom[0], f.z - this.taskFrom[1]) < 0.35) return this.taskFixed;
+      this.taskCue = c; this.taskFrom = [f.x, f.z]; this.taskFixed = null;
+      const mine = p => Props.holder(p) === d.player;      // in your hands it goes where they go: they are framed already
+      const at = p => (!p || mine(p) || !(Props.loc[p] || C.PLACES[p]) ? null : C.PLACES[p] && !Props.loc[p] ? V(C.PLACES[p][0], C.PLACES[p][1], C.PLACES[p][2]) : Props.worldPos(p));
+      const [a0, a1] = c.args, things = [];
+      switch (c.verb) {
+        case 'put': things.push(at(a1)); break;
+        case 'light': case 'snuff': things.push(at('sc')); break;
+        case 'give': case 'offer': case 'hold': case 'pour': things.push(at(a0), Math.hypot(FIG.P.x - f.x, FIG.P.z - f.z) < 2 ? V(FIG.P.x, FIG.P.y + 1.1, FIG.P.z) : null); break;
+        case 'fold': things.push(V(f.x + Math.sin(f.heading) * 0.35, f.y + 1.0, f.z + Math.cos(f.heading) * 0.35)); break;
+        default: things.push(at(a0));      // take
+      }
+      const near = things.filter(p => p && Number.isFinite(p.x) && Math.hypot(p.x - f.x, p.z - f.z) < 2.2);
+      if (!near.length) return null;      // the thing is not near yet
+      const ps = [V(f.x + Math.sin(f.heading) * 0.3, f.y + 0.95, f.z + Math.cos(f.heading) * 0.3), ...near, ...near];      // the things count twice: it is them you need to see, close
+      const mid = ps.reduce((s, p) => s.add(p), V()).multiplyScalar(1 / ps.length);
+      if (Math.hypot(mid.x - f.x, mid.z - f.z) > 1.4) return null;
+      const r = Math.max(0.3, ...ps.map(p => p.distanceTo(mid)));
+      let ux = mid.x - f.x, uz = mid.z - f.z, ul = Math.hypot(ux, uz);
+      if (ul < 0.1) { ux = Math.sin(f.heading); uz = Math.cos(f.heading); ul = 1; }
+      ux /= ul; uz /= ul;
+      const hR = f.handWorld('R'), hL = f.handWorld('L'), side = (hR.x - hL.x) * uz - (hR.z - hL.z) * ux >= 0 ? 1 : -1, px = uz * side, pz = -ux * side;      // the right-hand side, whatever the arms are doing
+      const D = Math.max(0.8, Math.min(2.0, r / Math.tan(camera.fov * Math.PI / 360 * 0.85) + 0.3)), down = 1.1;
+      const bx = -ux * Math.cos(down) + px * 0.6, bz = -uz * Math.cos(down) + pz * 0.6, bl = Math.hypot(bx, bz, Math.sin(down));
+      this.taskFixed = { goal: V(mid.x + bx / bl * D, mid.y + Math.sin(down) / bl * D, mid.z + bz / bl * D), look: mid };
+      return this.taskFixed;
+    },
     /** Is someone at this place within view of the fixed camera? */
-    atAltar(x, z) { return Math.abs(x) < 5.9 && z < 7.3; },
+    atAltar(x, z) { return Math.abs(x) < 5.9 && z < C.LAYOUT.rail + 1.5; },
     update(dt, f, always) {
       if (Ride.on) {
         const c = Ride.frame, co = Math.cos(c.h), si = Math.sin(c.h), eye = Ride.inside.floor + (Ride.seated ? 1.12 : 1.58);
@@ -181,13 +216,25 @@
           this.goal.set(this.goal.x + (gx - this.goal.x) * w, this.goal.y + (gy - this.goal.y) * w, this.goal.z + (gz - this.goal.z) * w);
           this.look.set(this.look.x + (gx - ax * ca * 6 - this.look.x) * w, this.look.y + (gy + sa * 6 - this.look.y) * w, this.look.z + (gz - az * ca * 6 - this.look.z) * w);
         }
+        // your hands at work: from above your shoulder, so that you see what you hold and where it goes; it glides there and back. A drag of your own comes first
+        const task = always && !this.offset && !this.pitch ? this.taskView(f) : null;
+        if (task && !Grab.active) {      // from one task's view to the next it glides too; but the moment you take hold of a hand, it stops where it is
+          if (!this.taskGoal || this.snap || !this.taskW) { this.taskGoal = task.goal.clone(); this.taskLook = task.look.clone(); }
+          else { const k = 1 - Math.exp(-dt * 5); this.taskGoal.lerp(task.goal, k); this.taskLook.lerp(task.look, k); }
+        }
+        if (this.snap) this.taskW = task ? 1 : 0;
+        else if (!Grab.active) this.taskW = Math.max(0, Math.min(1, (this.taskW || 0) + (task ? dt : -dt) * 2.2));
+        if (this.taskW > 0 && this.taskGoal) {
+          const w = this.taskW * this.taskW * (3 - 2 * this.taskW);
+          this.goal.lerp(this.taskGoal, w); this.look.lerp(this.taskLook, w);
+        }
       }
       const s = this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? 2.6 : 9));
       camera.position.lerp(this.goal, s);
       this.lookNow.lerp(this.look, this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? (this.offset || this.pitch ? 18 : 2.6) : 11)));
       camera.lookAt(this.lookNow);
       let near = this.near0 || (this.near0 = camera.near);
-      if (!this.fixed && always) {
+      if (!this.fixed && always && !this.taskW) {      // over your shoulder at a task the camera is not on the arm behind you, and nothing of yours may be cut away
         const ax = Math.sin(this.yaw), az = Math.cos(this.yaw), d = Math.min(this.armBase, this.armRoom);
         for (const [cx, cz] of C.LAYOUT.columns) {
           const along = (cx - f.x) * ax + (cz - f.z) * az, across = (cx - f.x) * az - (cz - f.z) * ax;
@@ -589,7 +636,8 @@
         this.showZones(lipsAt, z);
         tip = z ? 'Kiss: ' + z.label : a.swinging ? 'Turning' : dy > 25 ? 'Bow the head' : 'Head';
       } else {
-        const zones = this.zones(f);
+        // a kiss is to your own lips: nothing on the table behind you may come between, however it lies on the screen
+        const kissing = Player.cur && Player.cur.verb === 'kiss' && Player.cur.args[0] !== 'hand', zones = this.zones(f).filter(z => !kissing || z.kind === 'self');
         this.trace(a, f);
         const z = this.meant(zones) || this.pick(zones);
         a.zone = z;
@@ -644,6 +692,7 @@
     return before.join(';') + '>' + list[i];
   }
   const BODY_VERBS = new Set(['kneel', 'stand', 'sit', 'gen', 'genhold', 'rise', 'bow', 'up', 'nod', 'small', 'strike', 'turn', 'faceto']);
+  const TASK_VIEW = new Set(['take', 'put', 'fold', 'give', 'offer', 'hold', 'pour', 'light', 'snuff']);      // tasks the camera comes in close for
   const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold']);
 
   // ─── sound: small synthesized bells ────────────────────────────────────────
@@ -807,7 +856,7 @@
   const SPOT_TEXT = {
     sacA1: 'your place in the sacristy', sacA2: 'your place in the sacristy',
     sacP: 'the priest’s place in the sacristy', thrA2: 'the door into the church, by the holy-water font', thrA1: 'the door into the church, behind A2',
-    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_tabA: 'out in front of the chair, on your way round to the table', w_tabA2: 'out in front of the chair, on your way round to the table', w_tabB: 'past the chair, on your way round', w_tabB2: 'past the chair, on your way round', w_tabC: 'the far side of the column', w_tabC2: 'the far side of the column', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
+    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_tabA: 'between the column and the sedilia, on your way round to the table', w_tabA2: 'out in front of the chairs, on your way round to the table', w_tabB: 'behind the chairs, on your way round', w_tabB2: 'past the last chair, by the wall', w_tabC: 'through the frame, towards the table', w_tabC2: 'past the frame, towards the table', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
     w_rail: 'the end of the altar rail', w_gos: 'the gates, on the Gospel side', w_gosIn: 'through the gates', w_epi: 'the gates, on the Epistle side', w_epiIn: 'through the gates',
     cfR: 'the priest’s right at the foot of the altar (close formation)', cfL: 'the priest’s left at the foot of the altar (close formation)',
     cfL2: 'a step out to the side on the Gospel side, giving the priest room',
@@ -821,7 +870,7 @@
     abl1: 'the top step, half way across', cruWait1: 'the side of the steps, by the table', cruWait2: 'the side of the steps, by the table, beside A1',
     cruWaitS: 'the side of the steps, by the table', cruA1: 'the second step at the Epistle end', cruA2: 'the second step at the Epistle end',
     'P.cruet': 'where the priest will stand, at the end of the top step', cruS: 'the second step at the Epistle end', ablA1: 'the second step at the Epistle end', ablS: 'the second step at the Epistle end', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
-    sed: 'the sedilia (the priest’s chair)', stoolE: 'your stool', stoolG: 'your stool', 'K.E': 'your place on the choir bench', 'K.G': 'your place on the choir bench', comKE: 'the top step, beside the servers', comKG: 'the top step, beside the servers',
+    sed: 'the sedilia (the priest’s chair)', stoolE: 'your chair, beside the sedilia', stoolG: 'your chair, in the corner by the lectern', 'K.E': 'your place on the choir bench', 'K.G': 'your place on the choir bench', comKE: 'the top step, beside the servers', comKG: 'the top step, beside the servers',
     gateE: 'the Epistle-side gate', gateG: 'the Gospel-side gate', midRail: 'the middle, by the gates',
     clothE: 'the rail cloth on the Epistle side', clothG: 'the rail cloth on the Gospel side',
     cornerG: 'round the Gospel end of the altar', floorG: 'the Gospel end of the altar', cornerE: 'round the Epistle end',
@@ -1003,8 +1052,11 @@
 
     async track(role, list, beat) {
       if (role === this.player) return Player.track(this, list, beat);
+      const server = role === 'A1' || role === 'A2';
       for (let i = 0; i < list.length; i++) {
-        if (this.player && (role === 'A1' || role === 'A2')) { const k = togetherKey(list, i); if (k) (beat.togetherAt = beat.togetherAt || {})[k] = Player.t; }
+        // a server is a person: a moment to take in what comes next before doing it, not the instant the last thing ends
+        if (server && i && !/^(via|sync|signal|waitsig|wait|pace) /.test(list[i]) && !/^via /.test(list[i - 1])) await this.step(this.sleep(SERVER_PAUSE));
+        if (this.player && server) { const k = togetherKey(list, i); if (k) (beat.togetherAt = beat.togetherAt || {})[k] = Player.t; }
         await this.exec(role, list[i], beat);
       }
     }
@@ -1769,7 +1821,9 @@
         const s = spot(c.args[0]), f = FIG[this.d.player];
         if (Math.hypot(f.x - s[0], f.z - s[1]) > 3) return 'You did not keep with the priest.';
       }
-      if (/^(take|put|give|offer|hold)$/.test(c.verb) && /^(wine|water|pitcher|bowl|towel|missal|paten|biretta)$/.test(a0)) return 'The priest was left without ' + (PROP_TEXT[a0] || a0) + '.';
+      // only where the priest is kept waiting on you: handing to him, or taking back what he holds out. Late at the credence is a slip, and the Mass goes on
+      const his = /^(wine|water|pitcher|bowl|towel|missal|paten|biretta)$/.test(a0);
+      if (his && (/^(give|offer|hold)$/.test(c.verb) || (c.verb === 'take' && Props.holder(a0) === 'P'))) return 'The priest was left without ' + (PROP_TEXT[a0] || a0) + '.';
       if (c.verb === 'pour') return 'The priest was left waiting for the water to be poured.';
       if (c.verb === 'ring' && part === 'Consecration') return 'The bell was not rung at the Consecration.';
       return null;
@@ -1814,11 +1868,11 @@
         this.anchor = window.__serve.autoplay ? [s[0], s[1]] : [f.x, f.z];      // your place is where you came to stand
         this.lastOff = null; this.straying = false;
       }
-      // together with the other server: a moment behind is human; a couple of seconds is a slip
+      // together with the other server: a moment behind is human; a second is a slip
       if (perfect && c.together && !window.__serve.autoplay) {
         const at = c.beat.togetherAt && c.beat.togetherAt[c.together], byHand = Grab.active || Grab.justLet;
         // by hand, what counts is when you began; and arriving side by side for a genuflection, you may still have to turn to the altar
-        if (at != null && (byHand ? Grab.startedAt : this.t) - at > (byHand ? 3 : 1.6) + (c.need - 1) * 0.8 + (c.together.startsWith('sync ') ? 1.4 : 0)) {
+        if (at != null && (byHand ? Grab.startedAt : this.t) - at > (byHand ? 2 : 1) + (c.need - 1) * 0.6 + (c.together.startsWith('sync ') ? 1 : 0)) {
           c.mistakes++;
           this.d.mistake('You were behind the other server', 'Move together with him: ' + describe(c.cmd)[0].toLowerCase() + '.', c.beat);
         }
@@ -2137,7 +2191,20 @@
       if (going && !this.autoing && f.posture === 'stand' && !UI.paused && mayMove) {
         {
           const sp = WALK * d.o.speed * dt * (going < 0 ? BACK : 1);      // the same pace as everyone else in this Mass
-          const wx = Math.sin(f.heading) * going, wz = Math.cos(f.heading) * going;
+          const way = Input.steer(f, dt), wx = Math.sin(way) * going, wz = Math.cos(way) * going;
+          // how a server does not move: backwards, beyond a step; or away from your place when nothing asks you to walk.
+          // Walking on to the very spot you were going to is no fault, however the cue had already counted you there; nor is a step closer for a task in your hands
+          if (!(d.o.casual || d.o.choir || d.o.priest)) {
+            if (this.moveCue !== c) {
+              const s = this.lastGo && spot(this.lastGo);
+              this.moveCue = c; this.backed = 0; this.backSlip = this.shuffleSlip = false;
+              this.moveBase = s ? [s[0], s[1]] : [f.x, f.z]; this.moveRoom = Math.hypot(f.x - this.moveBase[0], f.z - this.moveBase[1]) + 0.7;
+            }
+            if (going < 0 && !(c && c.verb === 'go' && c.args[1] === 'back')) this.backed += sp;
+            if (this.backed > 0.6 && !this.backSlip) { this.backSlip = true; d.mistake('You walked backwards', 'Turn and walk the way you are going: a single step back at most.', this.beat); }
+            const away = Math.hypot(f.x + wx * sp - this.moveBase[0], f.z + wz * sp - this.moveBase[1]);
+            if (!(c && (c.verb === 'go' || USE_FIT.has(c.verb))) && away > this.moveRoom && !this.shuffleSlip) { this.shuffleSlip = true; d.mistake('You moved about when you should have kept still', c ? describe(c.cmd)[0] : 'Stay where you are until your next cue.', this.beat); }
+          }
           const hit = Figure.blockedAt(f, f.x + wx * sp, f.z + wz * sp);
           if (hit) {
             // a glancing touch slides past; walking square into someone is a bump
@@ -2170,7 +2237,7 @@
         goArrow.rotation.set(Math.PI, 0, 0);
         // the circle is a guide, not a rule: near enough is there; and a point on the way is cleared once you are past it
         const away = Math.hypot(f.x - s[0], f.z - s[1]), isPoint = /^w_/.test(c.args[0]), nx = this.nextPoint;
-        const roundTable = /^w_tab/.test(c.args[0]);     // the way round the chair and the column: cut this corner and the next arrow points across the steps
+        const roundTable = /^w_(tab|c[EG]$)/.test(c.args[0]);     // the way round the chair and the column, and the lower lane where the servers cross: cut these corners and you are on the steps, or in the other's way
         const past = isPoint && !roundTable && nx && Math.hypot(f.x - nx[0], f.z - nx[1]) < Math.hypot(s[0] - nx[0], s[1] - nx[1]);
         const handsOn = /^(el|com|cru|top|veil|st2|plate|abl|grad|cred|sed|pr\d|cr\d)/.test(c.args[0]);     // beside the priest or at the table you must be within reach
         const atFoot = /^(mid[LR]?|x[EG])$/.test(c.args[0]);     // the foot of the altar is on the floor: from here the servers cross, and the other one's way is the step above; and you kneel head on, not on the corner
@@ -2213,7 +2280,8 @@
   const SOLID = [
     [-C.LAYOUT.mensa.x + 0.02, C.LAYOUT.wallBack, C.LAYOUT.mensa.x - 0.02, C.LAYOUT.mensa.z1 - 0.02],
     [C.LAYOUT.credence.x0 - 0.12, C.LAYOUT.credence.z0, C.LAYOUT.credence.x1 + 0.1, C.LAYOUT.credence.z1 + 0.1],
-    [C.LAYOUT.sedilia.x - 0.35, C.LAYOUT.sedilia.z - 0.35, C.LAYOUT.sedilia.x + 0.35, C.LAYOUT.sedilia.z + 0.35],
+    [C.LAYOUT.sedilia.x - 0.3, C.LAYOUT.sedilia.z - 0.3, C.LAYOUT.sedilia.x + 0.3, C.LAYOUT.sedilia.z + 0.3],
+    ...C.LAYOUT.chairs.map(([x, z]) => [x - 0.23, z - 0.23, x + 0.23, z + 0.23]),
     ...C.LAYOUT.columns.map(([x, z]) => [x - 0.28, z - 0.28, x + 0.28, z + 0.28]),
     [C.LAYOUT.lectern[0] - 0.25, C.LAYOUT.lectern[1] - 0.2, C.LAYOUT.lectern[0] + 0.25, C.LAYOUT.lectern[1] + 0.25],
     [2.32, -2.3, 2.88, -1.5], [-2.88, -2.3, -2.32, -1.5],
@@ -2540,7 +2608,7 @@
       if (going && f.posture === 'stand') {
         const indoors = /sacristy|servers|sanctuary|nave|narthex|parish hall$|auditorium/i.test(this.region);
         const sp = (indoors ? 1.7 : 3.1) * (this.runHeld ? 2 : 1) * (going < 0 ? BACK : 1) * dt;
-        const [ox, oz] = collide(f.x, f.z, f.x + Math.sin(f.heading) * going * sp, f.z + Math.cos(f.heading) * going * sp);
+        const way = Input.steer(f, dt), [ox, oz] = collide(f.x, f.z, f.x + Math.sin(way) * going * sp, f.z + Math.cos(way) * going * sp);
         f.x = ox; f.z = oz;
         f.phase += dt * (indoors ? 6.5 : 9) * (this.runHeld ? 1.5 : 1) * going;
         f.walkingManual = 0.12;
@@ -2644,7 +2712,8 @@
       const d = door.d;
       const cx = d.axis === 'x' ? d.c : d.at, cz = d.axis === 'x' ? d.at : d.c;
       let near = false;
-      for (const f of Object.values(FIG)) if (f.root.visible && Math.hypot(f.x - cx, f.z - cz) < 1.5) { near = true; break; }
+      // only someone on their feet goes through a door: sitting or kneeling beside one, as in choir by the changing room, leaves it shut
+      for (const f of Object.values(FIG)) if (f.root.visible && f.posture === 'stand' && Math.hypot(f.x - cx, f.z - cz) < 1.5) { near = true; break; }
       if (!near && PEOPLE.nearDoor(cx, cz)) near = true;
       door.open += ((near ? 1 : 0) - door.open) * Math.min(1, dt * 7);
       for (const it of door.items) it.pivot.rotation.y = -door.open * 1.5 * it.dir;
@@ -2668,7 +2737,14 @@
       f.heading = wrap(f.heading + by);
       return by;
     },
-    /** ↑ forward, ↓ back, always straight along the way you face: +1, -1 or 0. */
+    /** Walking with the camera dragged round: you go the way it looks, and turn to face there as you go while it holds still, until it is behind you again. The heading to walk along. */
+    steer(f, dt) {
+      if (Cam.fixed || !Cam.offset) return f.heading;
+      const by = Math.sign(Cam.offset) * Math.min(Math.abs(Cam.offset), 6 * dt);
+      f.heading = wrap(f.heading + by); Cam.offset = wrap(Cam.offset - by);
+      return wrap(f.heading + Cam.offset);
+    },
+    /** ↑ forward, ↓ back, along the way you face (or the camera looks: see steer): +1, -1 or 0. */
     walk() { return (this.held('ArrowUp') ? 1 : 0) - (this.held('ArrowDown') ? 1 : 0); },
     key(k, isDown) {
       const now = performance.now();
@@ -2827,18 +2903,20 @@
           const input = h('textarea', { rows: 2, placeholder: easy ? 'Type the line above…' : 'Start typing…', spellcheck: 'false', autocapitalize: 'off', 'aria-label': 'What you say' });
           const fb = h('div', { class: 'fb' }), okSoFar = h('span', { class: 'typed-ok' }), rest = h('span', { class: 'typed-rest' });
           fill(fb, okSoFar, rest);
-          // the easy way: the whole line before you in grey, and what you have said of it turning gold
-          const line = said.map(w => w.raw).join(' '), ghostOk = h('span', { class: 'typed-ok' }), ghostRest = h('span', null, line);
-          const ghost = easy ? h('div', { class: 'ghost', 'aria-hidden': 'true' }, ghostOk, ghostRest) : null;
+          // the easy way: the whole line is there in the box in grey, and what you type takes its place.
+          // The box only takes the keys; what you see is drawn behind it, your letters and then the rest of the line from where you have got to
+          const line = said.map(w => w.raw).join(' '), mine = h('span'), caret = h('span', { class: 'caret' }), ghostRest = h('span', { class: 'typed-rest' }, line);
+          const ghost = easy ? h('div', { class: 'ghost', 'aria-hidden': 'true' }, mine, caret, ghostRest) : null;
           const showGhost = f => {
             const w = said[f.word], upTo = said.slice(0, f.word).map(x => x.raw).join(' ').length + (f.word ? 1 : 0)
               + (w && f.partial ? Math.round(f.partial / Math.max(1, expected[f.word].length) * w.raw.length) : 0);
-            ghostOk.textContent = line.slice(0, Math.min(line.length, upTo)); ghostRest.textContent = line.slice(Math.min(line.length, upTo));
-            const lh = parseFloat(getComputedStyle(ghost).lineHeight) || 26;      // a long prayer scrolls, keeping your place in view
-            ghost.scrollTop = Math.max(0, ghostOk.offsetTop + ghostOk.offsetHeight - 2 * lh);
+            mine.textContent = input.value; ghostRest.textContent = line.slice(Math.min(line.length, upTo));
+            ghost.classList.toggle('off-line', f.lost);
+            const lh = parseFloat(getComputedStyle(ghost).lineHeight) || 26;      // a long prayer scrolls, keeping the line you are on in view
+            ghost.scrollTop = Math.max(0, caret.offsetTop - lh);
           };
-          // each letter is worth its share of the time the line takes to say, at four syllables a second
-          const perLetter = syllables(t.la) / (opts.syllables || 4) / Math.max(1, expected.join('').length);
+          // each letter is worth its share of the time the line takes to say, at four syllables a second; a whole long prayer, like the Confiteor, at half that
+          const perLetter = syllables(t.la) / ((opts.syllables || 4) * (t.la.length > 150 ? 0.5 : 1)) / Math.max(1, expected.join('').length);
           const a = { limit, left: limit, perLetter, hearing: !!hearing, chosen: null, progress: 0, input, text: t.la, near: new Set(), muddled: 0, offLine: false,
             // going wrong and going quiet are different things, and you should be told which
             expire: () => a.offLine ? finish(false, input.value.trim()) : finish(false, null, a.progress > 0) };
@@ -2849,22 +2927,24 @@
             else if (a.near.size) this.toast('Near enough. It is “' + [...a.near].map(i => said[i].raw.replace(/[^\p{L}]/gu, '')).join('”, “') + '”.');
             finish(true, input.value);
           };
-          input.addEventListener('input', () => {
-            const f = followLine(expected, input.value);
+          const judge = typed => {
+            const f = followLine(expected, typed);
             a.near = f.near; a.muddled = f.muddled; a.offLine = f.lost;
             input.classList.toggle('off-line', f.lost);
             okSoFar.textContent = said.map(w => w.raw).join(' ').slice(0, Math.round(f.n / Math.max(1, f.total) * t.la.length));
             if (ghost) showGhost(f);
             if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; if (a.onType) a.onType(f.n); }      // only getting further along the line keeps you going
             if (f.done) { if (a.hearing) a.chosen = 0; else a.pick(); }
-          });
+          };
+          input.addEventListener('input', () => judge(input.value));
           input.addEventListener('keydown', e => {
-            if (e.key === 'Enter') e.preventDefault();
+            // the line ends at its last letter; Enter (or a space) says you have finished a last word you did not quite get right
+            if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) judge(input.value + ' '); }
             if (e.key === ' ' && Player.cur && Player.cur.verb === 'cross') { e.preventDefault(); e.stopPropagation(); audio(); Player.act('cross'); return; }
             if (!e.key.startsWith('Arrow') && e.key !== 'Control' && e.key !== 'Escape') e.stopPropagation();      // you can still turn and walk while you speak
           });
           const hint = h('button', { class: 'btn', tabindex: -1, onmousedown: e => e.preventDefault(), onclick: () => { rest.textContent = '   ' + Mass.initials(t.la); } }, 'First letters');
-          fill(el, timer, h('div', { class: 'ask-title' }, title), opts.english ? h('div', { class: 'ask-en' }, t.en) : null, ghost, input, easy ? null : fb, easy ? null : h('div', { class: 'ask-row' }, hint));
+          fill(el, timer, h('div', { class: 'ask-title' }, title), opts.english ? h('div', { class: 'ask-en' }, t.en) : null, easy ? h('div', { class: 'typebox' }, input, ghost) : input, easy ? null : fb, easy ? null : h('div', { class: 'ask-row' }, hint));
           this.asking = a;
           this.remind(Player.cur, Player.beat);
           if (!hearing) setTimeout(() => input.focus(), 30);
@@ -2968,7 +3048,7 @@
         const w = expected[j], whole = apart(key, w), fits = last ? apart(key, w, true) <= letGo(w.length) && key.length <= w.length + letGo(w.length) : whole <= letGo(w.length);
         if (!fits) continue;
         muddled += j - i;
-        const endsLine = last && j === expected.length - 1 && whole <= letGo(w.length) && key.length >= w.length - 1;
+        const endsLine = last && j === expected.length - 1 && whole <= letGo(w.length) && key.length >= w.length;      // all of the last word: not a letter short of it
         if (!last || endsLine) { if (whole) near.add(j); i = j + 1; partial = 0; } else { i = j; partial = Math.min(key.length, w.length); }
         return;
       }
@@ -3027,6 +3107,7 @@
     resetWorld(o);
     director = new Director(kind, o);
     if (director.player) FIG[director.player].isPlayer = true;
+    for (const r of ['A1', 'A2']) FIG[r].tempo = r === director.player ? 1 : SERVER_TEMPO;
     if (o.choir) FIG.K.sit();
     $('#mistakes').textContent = o.failing === false ? '0' : '0 / ' + SLIP_LIMIT;
     document.body.classList.toggle('no-score', !!o.casual);
@@ -3039,7 +3120,24 @@
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
     $('#timebar').hidden = kind !== 'watch';
     if (kind === 'watch') { director.line = new Timeline(director); director.line.prepare(); }
+    else if (o.skipTo) skipTo(director, o.skipTo);
     else director.run();
+  }
+  /** Testing: the Mass runs on unseen and unheard, as it does to lay out a watched Mass, to the start of beat k, and you take it up from there. */
+  async function skipTo(d, k) {
+    const ahead = new Director('watch', d.o);
+    ahead.beats = d.beats; ahead.quiet = true;
+    const line = ahead.line = new Timeline(ahead);
+    director = ahead;      // meanwhile the screen waits, as it does while a watched Mass is laid out
+    UI.toast('Going on to ' + d.beats[k].part + '…');
+    ahead.run();
+    await nextTask();
+    while (!line.saves[k] && !ahead.stopped && !ahead.ended && !ahead.broke) { line.stepOnce(); await nextTask(); }      // a step at a time, as prepare does, so that what is awaited resumes between steps
+    if (director !== ahead) return;      // something else was started meanwhile
+    ahead.stop();
+    director = d; Player.d = d;
+    if (!line.saves[k]) { UI.toast('The Mass did not reach ' + d.beats[k].part + ': starting from the beginning.'); return d.run(); }
+    line.d = d; line.restore(k);
   }
   function startDemo() { begin('demo', Object.assign({}, opts, { servers: 2, speed: 1.25, communion: true, sermon: 'random' })); UI.show('title'); }
   function toTitle() { startDemo(); }
@@ -3048,7 +3146,19 @@
   let playAs = {};
   function startChoir(side, from) { playAs = { choir: side, failing: false, confiteor: true, fromExplore: !!from }; beginPlay(); }
   function startPriest(from, casual) { playAs = { priest: true, failing: false, casual: !!casual, fromExplore: !!from }; beginPlay(); }
-  function beginPlay() { audio(); begin('play', Object.assign({}, opts, playAs)); document.body.classList.toggle('typing', opts.respond === 'type'); UI.show('hud'); }
+  function beginPlay(o) {
+    audio();
+    if (!o && opts.testSkip) return askSkip(Object.assign({}, opts, playAs));
+    begin('play', o || Object.assign({}, opts, playAs)); document.body.classList.toggle('typing', opts.respond === 'type'); UI.show('hud');
+  }
+  /** Testing: which part to start from. The same seed, so the Mass laid out here is the one you get. */
+  function askSkip(o) {
+    o.seed = o.seed || (Date.now() % 9973) + 1;
+    const beats = C.build(Object.assign({}, o, { wholePrayer: o.respond === 'type' })), parts = [];
+    beats.forEach((b, i) => { if (!i || b.part !== beats[i - 1].part) parts.push([b.part, i]); });
+    fill($('#skipto-body'), ...parts.map(([part, i]) => h('button', { class: 'btn', onclick: () => { $('#skipto').hidden = true; beginPlay(Object.assign(o, { skipTo: i })); } }, part)));
+    $('#skipto').hidden = false;
+  }
   /** Coming to serve: with two servers, you have to say which you are. */
   function startPlay() {
     audio();
@@ -3081,6 +3191,7 @@
     ['Detail (takes effect when the page reloads)', 'quality', [['auto', 'Auto (' + window.Quality.level + ')'], ['low', 'Low'], ['medium', 'Medium'], ['high', 'High'], ['ultra', 'Ultra']]],
     ['English captions', 'english', [[true, 'Show'], [false, 'Hide']]],
     ['Sound', 'sound', [[true, 'On'], [false, 'Off']]],
+    ['Testing: choose a part to start from', 'testSkip', [[false, 'Off'], [true, 'On']]],
   ];
   const VOLUME_UI = [['All sound', 'volume'], ['Bells', 'volBells'], ['Footsteps', 'volSteps'], ['Outdoors: traffic, birds, trains, sirens', 'volOutdoors'], ['Rain', 'volRain']];
   const percent = v => Math.round(v * 100) + '%';
@@ -3280,7 +3391,7 @@
   $('#btn-quit').addEventListener('click', toTitle);
   $('#btn-walk-on').addEventListener('click', () => { const f = FIG[director.player]; Explore.start([f.x, f.z, f.heading]); });
   $('#btn-again').addEventListener('click', () => { if (playAs.choir || playAs.priest) beginPlay(); else startPlay(); });
-  $('#btn-fail-restart').addEventListener('click', beginPlay);      // the same Mass again: you are still who you were
+  $('#btn-fail-restart').addEventListener('click', () => beginPlay());      // the same Mass again: you are still who you were
   for (const b of $$('[data-role]')) b.addEventListener('click', () => { setOpt('role', b.dataset.role); $('#which').hidden = true; beginPlay(); });
   $('#btn-which-back').addEventListener('click', () => { $('#which').hidden = true; });
   $('#btn-fail-title').addEventListener('click', () => { $('#failed').hidden = true; toTitle(); });

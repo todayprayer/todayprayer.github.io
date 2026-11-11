@@ -26,7 +26,7 @@
   // ─── The chapel ────────────────────────────────────────────────────────────
 
   const LAYOUT = {
-    wallBack: -2.3, wallSide: 5.2, rail: 5.8, gateHalf: 1.0,    // the rail's sides run 2.6 m back to the wall: room for four to kneel
+    wallBack: -2.3, wallSide: 5.2, rail: 3.55, gateHalf: 1.0,    // the rail's sides run 2.6 m back to the wall: room for four to kneel
     step: 0.15,
     steps: [                                      // [xHalf, zFront, height]: lowest, second, top step (footpace)
       [2.65, 1.15, 0.15], [2.3, 0.8, 0.30], [1.95, 0.45, 0.45],
@@ -34,11 +34,14 @@
     mensa: { x: 1.35, z0: -1.45, z1: -0.6, top: 1.45 },
     gradine: { z0: -1.75, z1: -1.45, top: 1.62 },
     credence: { x0: 2.95, x1: 3.65, z0: -2.3, z1: -1.88, top: 0.92 },   // small, against the back wall, just right of the altar
-    sedilia: { x: 2.95, z: 2.25 },        // directly in front of the Epistle-side column
+    sedilia: { x: 3.65, z: 1.3 },        // directly in front of the Epistle frame's inner side: the first of three side by side, all facing across to the Gospel side
     benches: { E: [5.03, -1.62], G: [-5.03, -1.62] },   // choir benches, one end touching the back wall
-    columns: [[2.95, 1.35], [-2.95, 1.35]],     // the two big columns, at the corners of the altar steps
-    lectern: [-3.4, 4.3],                       // well forward of the steps
-    camera: { pos: [0, 3.0, 7.4], look: [0, 0.75, -0.2] },
+    columns: [[2.5, 0.75], [-2.5, 0.75]],     // the two big columns, standing on the corners of the altar steps, flush with the panelled front wall
+    // the servers' chairs [x, z, facing]: the two beside the sedilia; and two behind the Gospel frame, on the lectern's side. All face across
+    chairs: [[3.65, 1.85, -Math.PI / 2], [3.65, 2.4, -Math.PI / 2], [-4.3, 0.15, Math.PI / 2], [-4.3, -0.4, Math.PI / 2]],
+    frameSide: [3.5, 3.8], frame: [3.8, 5.0],      // each side, a walkway past the column; then the frame: its inner side, and the opening up to its outer side, which runs into the wall
+    lectern: [-3.4, 2.45],                      // well forward of the steps, inside the rail
+    camera: { pos: [0, 3.0, 5.15], look: [0, 0.75, -0.2] },
     communicants: [2.0, 1.45, -1.45, -2.0],        // kneeling at the rail, served Epistle → Gospel
   };
 
@@ -49,7 +52,7 @@
     return h;
   }
 
-  const xE = [1.95, 0.97], xG = [-1.95, 0.97];      // extended formation: on the first step, in from its corner, a little way inside the columns
+  const xE = [1.75, 0.97], xG = [-1.75, 0.97];      // extended formation: on the first step, in from its corner, a little way inside the columns
   const commX = LAYOUT.communicants;
 
   /** Named places to stand: [x, z, heading]. Priest's places start with "P.". */
@@ -57,15 +60,15 @@
     // the sacristy, facing the cross over the vesting table on its far wall
     'sacP': [-10.8, 7.0, N], 'sacA1': [-11.4, 6.35, N], 'sacA2': [-10.2, 6.35, N],
     // the threshold of the door from the sacristy hall into the church, with the font beside it
-    'thrA2': [-9.4, 3.95, E], 'thrA1': [-10.0, 3.65, E], 'P.thr': [-10.45, 4.25, E],
+    'thrA2': [-9.4, 1.7, E], 'thrA1': [-10.0, 1.4, E], 'P.thr': [-10.45, 2.0, E],
     // the way between (w_ marks a point on the way that the player is walked through; it has no heading)
-    'w_sac': [-10.8, 5.5], 'w_hall': [-10.8, 3.95], 'w_thr': [-9.4, 3.95],
+    'w_sac': [-10.8, 5.5], 'w_hall': [-10.8, 3.95], 'w_thr': [-9.4, 1.7],
     'w_cE': [1.0, 2.0], 'w_cG': [-1.0, 2.0],      // the lower lane when the servers change sides: they pass, not meet
     'w_stG': [-1.0, 0.45], 'w_stE': [1.0, 0.45],     // up at the corners: nobody crosses the top step behind the priest
-    'w_tabA': [2.25, 2.85], 'w_tabB': [3.55, 2.85], 'w_tabC': [3.55, 1.0],      // to the table on the floor: out in front of the chair, round it and the column, and back along the side
-    'w_tabA2': [2.25, 3.35], 'w_tabB2': [4.0, 3.35], 'w_tabC2': [4.0, 1.0],      // A2's way, outside A1's: they go side by side and never want the same point
-    'w_door': [-8.2, 3.95], 'w_rail': [-6.45, 6.95], 'w_gos': [-0.32, 6.95], 'w_gosIn': [-0.32, 5.0],
-    'w_epi': [0.32, 6.95], 'w_epiIn': [0.32, 5.0], 'w_mid': [0, 7.0], 'w_midIn': [0, 5.1],
+    'w_tabA': [3.05, 1.45], 'w_tabB': [3.05, 0.75], 'w_tabC': [3.05, 0.2],      // A1's way to the table: down the walkway between the column and the frame, past the front of the chairs
+    'w_tabA2': [4.4, 2.95], 'w_tabB2': [4.4, 0.75], 'w_tabC2': [4.6, -1.45],      // A2's: round in front of the chairs, in through the frame, and down by the wall: the two never want the same way
+    'w_door': [-8.2, 1.7], 'w_rail': [-6.45, LAYOUT.rail + 1.15], 'w_gos': [-0.32, LAYOUT.rail + 1.15], 'w_gosIn': [-0.32, LAYOUT.rail - 0.8],
+    'w_epi': [0.32, LAYOUT.rail + 1.15], 'w_epiIn': [0.32, LAYOUT.rail - 0.8], 'w_mid': [0, LAYOUT.rail + 1.2], 'w_midIn': [0, LAYOUT.rail - 0.7],
 
     // close formation: beside the priest at the foot of the altar
     'P.foot': [0, 1.6, A], 'P.step': [0, 1.0, A], 'P.kneel': [0, 1.0, A],
@@ -77,7 +80,8 @@
     // crossing the middle at the foot of the altar
     'mid': [0, 1.45, A], 'midR': [0.38, 1.45, A], 'midL': [-0.38, 1.45, A],
     'ftE': [1.55, 1.45, A], 'ftG': [-1.55, 1.45, A],
-    'cornerE': [3.55, 1.6, A], 'cornerG': [-3.55, 1.6, A],
+    'cornerE': [3.1, 1.6, A], 'cornerG': [-3.1, 1.6, A],      // before the frames
+    'w_frE': [3.05, 1.1], 'w_frG': [-4.4, 1.1],      // on the way to the chairs: the walkway before the Epistle ones, the opening of the Gospel frame
     'floorG': [-2.9, -0.3, E],
 
     // on the altar steps
@@ -99,11 +103,11 @@
 
     // side furniture
     'cred': [3.3, -1.4, A], 'cred1': [3.08, -1.4, A], 'cred2': [3.55, -1.4, A],
-    'sed': [2.4, 2.65, E],
-    'stoolE': [4.62, -1.62, G], 'stoolG': [-4.62, -1.62, E],
+    'sed': [3.0, 1.3, E],
+    'stoolE': [3.65, 1.85, G], 'stoolG': [-4.3, 0.15, E],      // the servers' chairs: beside the sedilia, and behind the Gospel frame
     'K.E': [4.62, -1.1, G], 'K.G': [-4.62, -1.1, E], 'comKE': [0.98, 0.22, A], 'comKG': [-0.98, 0.22, A],      // someone in choir: a place on the bench, and on the top step for Communion
-    'gateE': [0.6, 5.4, N], 'gateG': [-0.6, 5.4, N], 'midRail': [0, 5.4, A],
-    'clothE': [2.3, 5.42, N], 'clothG': [-2.3, 5.42, N],
+    'gateE': [0.6, LAYOUT.rail - 0.4, N], 'gateG': [-0.6, LAYOUT.rail - 0.4, N], 'midRail': [0, LAYOUT.rail - 0.4, A],
+    'clothE': [2.3, LAYOUT.rail - 0.38, N], 'clothG': [-2.3, LAYOUT.rail - 0.38, N],
 
     // the priest at the altar
     'P.mid': [0, -0.22, A], 'P.epi': [0.95, -0.22, A], 'P.gos': [-0.95, -0.22, A],
@@ -112,11 +116,11 @@
     'P.lect': [LAYOUT.lectern[0], LAYOUT.lectern[1] - 0.42, N], 'P.lectVia': [-1.6, 2.2, G],
   };
   commX.forEach((x, i) => {
-    SPOTS['P.r' + (i + 1)] = [x, 5.42, N];
-    SPOTS['pr' + (i + 1)] = [x - 0.45, 5.38, N];     // paten: at the priest's right (SV p. 22)
-    SPOTS['cr' + (i + 1)] = [x + 0.6, 5.3, N];      // Sanctus candle: at his left, further off
-    SPOTS['C' + (i + 1) + '.out'] = [x, 7.95, A];
-    SPOTS['C' + (i + 1) + '.rail'] = [x, 6.15, A];
+    SPOTS['P.r' + (i + 1)] = [x, LAYOUT.rail - 0.38, N];
+    SPOTS['pr' + (i + 1)] = [x - 0.45, LAYOUT.rail - 0.42, N];     // paten: at the priest's right (SV p. 22)
+    SPOTS['cr' + (i + 1)] = [x + 0.6, LAYOUT.rail - 0.5, N];      // Sanctus candle: at his left, further off
+    SPOTS['C' + (i + 1) + '.out'] = [x, LAYOUT.rail + 2.15, A];
+    SPOTS['C' + (i + 1) + '.rail'] = [x, LAYOUT.rail + 0.35, A];
   });
 
   /** Where things rest: [x, y, z, rotY]. */
@@ -129,8 +133,8 @@
     'altar.C': [0, 1.45, -0.95, 0], 'altar.veil': [0.72, 1.45, -1.25, 0],
     'altar.veilG': [-0.42, 1.45, -1.0, 0], 'altar.burseG': [-0.72, 1.45, -1.1, 0],
     'altar.paten': [0.38, 1.45, -0.78, 0], 'gradine.sc': [1.1, 1.62, -1.6, 0],
-    'sed.chair': [3.0, 0.5, 2.25, -PI / 2], 'tab': [0, 1.55, -1.55, 0],
-    'font': [-9.15, 1.05, 4.63, 0], 'sbell': [-9.7, 1.75, 4.62, 0],      // both on the right of the door as you face it, clear of its swing
+    'sed.chair': [3.7, 0.5, 1.3, -PI / 2], 'tab': [0, 1.55, -1.55, 0],
+    'font': [-9.15, 1.05, 2.38, 0], 'sbell': [-9.7, 1.75, 2.37, 0],      // both on the right of the door as you face it, clear of its swing
   };
 
   /** Each prop's starting place, as set up before Mass (SV pp. 1–3). */
@@ -305,12 +309,12 @@
     part = 'Closing the gates';
     if (two) {
       B({ P: 'g placeChalice; go P.epi; g openBook; say T.setup; go P.mid; nod',
-          A1: 'go sed; put biretta sed.chair; signal chairDone; go gateE; sync gates; close gateE; go cfR; face altar',
+          A1: 'via w_frE; go sed; put biretta sed.chair; signal chairDone; via w_frE; go gateE; sync gates; close gateE; go cfR; face altar',
           A2: 'waitsig chairDone; turn cw people; go gateG; sync gates; close gateG; go cfL2; face altar',
           cite: 'SV pp. 6–7: A1 takes the biretta to the chair, then both close the gates together' });
     } else {
       B({ P: 'g placeChalice; go P.epi; g openBook; say T.setup; go P.mid; nod',
-          one: 'kiss biretta; go sed; put biretta sed.chair; go gateE; close gateE; go midRail; gen; go gateG; close gateG; go cfL; face altar',
+          one: 'kiss biretta; via w_frE; go sed; put biretta sed.chair; via w_frE; go gateE; close gateE; go midRail; gen; go gateG; close gateG; go cfL; face altar',
           cite: 'SV p. 27: chair, Epistle gate, genuflect, Gospel gate; stay on the Gospel side' });
     }
     B({ P: 'go P.step; face altar', note: 'Remain standing until the priest comes down.', cite: 'SV p. 7: A2 stands diagonally aside — the priest swings out wide' });
@@ -410,7 +414,7 @@
     if (sermon) {
       part = 'Sermon';
       B({ P: 'g maniple; say T.maniple',
-          A1: 'go sed; take biretta; kiss biretta; go cfR; face altar',
+          A1: 'via w_frE; go sed; take biretta; kiss biretta; via w_frE; go cfR; face altar',
           A2: 'go cfL2; face altar',
           note: 'He folds his maniple over the Missal: he will preach. Get the biretta and meet him at the foot of the altar.',
           noteA1: 'He folds his maniple: he will preach. Get the biretta and meet him at the foot of the altar.',
@@ -420,12 +424,12 @@
       B({ P: 'gen; go P.foot back', S: 'gen', note: 'Genuflect with the priest.' });
       B({ P: 'need biretta; g donBiretta', A1: 'give biretta P; kiss hand', cite: 'SV p. 34 (change 2025-12-20)' });
       B({ P: 'via P.lectVia; go P.lect; say T.sermon; g doffBiretta; go P.lectVia; go P.foot; face altar',
-          A1: 'go stoolE; sit', A2: 'go stoolG; sit', note: 'Proceed to your seat.', cite: 'SV p. 14' });
-      B({ S: 'stand', A1: 'go cfR; face altar', A2: 'go cfL; face altar', note: 'Stand and close formation.' });
+          A1: 'via w_frE; go stoolE; sit', A2: 'via w_frG; go stoolG; sit', note: 'Proceed to your seat.', cite: 'SV p. 14' });
+      B({ S: 'stand', A1: 'via w_frE; go cfR; face altar', A2: 'via w_frG; go cfL; face altar', note: 'Stand and close formation.' });
       B({ P: 'offer biretta', A1: 'kiss hand; take biretta; kiss biretta; face altar', cite: 'SV p. 34' });
       B({ P: 'go P.step; gen', S: 'genhold', note: 'Genuflect with him — and stay down while he ascends.' });
       B({ P: 'wait 1.2; go P.mid slow; go P.gos; g unManiple; go P.mid', S: 'pinch' });
-      B({ S: 'rise', A1: 'go sed; put biretta sed.chair; go xE; kneel', A2: 'go xG; kneel', one: 'rise; go sed; put biretta sed.chair; go xE; kneel',
+      B({ S: 'rise', A1: 'via w_frE; go sed; put biretta sed.chair; via w_frE; go xE; kneel', A2: 'go xG; kneel', one: 'rise; via w_frE; go sed; put biretta sed.chair; via w_frE; go xE; kneel',
           note: 'Back to extended formation, and kneel.' });
     } else {
       B({ P: 'say T.sermonNone', S: 'face altar; kneel', note: 'No sermon from the lectern: kneel at once in extended formation.', cite: 'SV p. 14' });
@@ -543,8 +547,8 @@
       B({ P: `g ${lift}`, A1: 'lift; ring 1', A2: 'lift', one: 'lift; ring 1', note: two ? '…lift the back of the chasuble (A1 with the left hand, A2 with the right) and ring at the elevation…' : '…lift the chasuble with your left hand and ring at the elevation…', cite: 'SV pp. 17, 36' });
       B({ P: `g ${lower}; gen`, S: 'drop', A1: 'ring 1', note: '…and once more as he genuflects.' });
     }
-    B({ A1: two ? 'stand; turn ccw people; go midR; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
-        A2: 'stand; turn cw people; go midL; gen; go xG; kneel',
+    B({ A1: two ? 'stand; turn ccw people; go midR; sync footGen; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
+        A2: 'stand; turn cw people; go midL; sync footGen; gen; go xG; kneel',
         P: 'say T.unde',
         note: 'Turn inwards, go down, genuflect, and back to extended formation.', cite: 'SV p. 17' });
     B({ P: 'strike 1; say T.nobisQuoque' });
@@ -644,8 +648,8 @@
     } else {
       B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten; turn ccw altar; g putPaten', note: 'Hand the paten back, held still just below his elbow.', cite: '' });
       B({ P: 'say T.reposition; g closeTabernacle; signal tabClosed',
-          A1: two ? 'stand; turn ccw people; go midR; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
-          A2: 'stand; turn cw people; go midL; gen; go xG; kneel',
+          A1: two ? 'stand; turn ccw people; go midR; sync footGen; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
+          A2: 'stand; turn cw people; go midL; sync footGen; gen; go xG; kneel',
           note: 'Not carrying the paten, genuflect before going back to your place.', cite: 'SV p. 22' });
     }
 
@@ -667,7 +671,7 @@
       B({ A1: 'go plateTop; take paten; go cred1; put paten cred.paten', note: 'A1 retrieves the paten.', cite: 'SV p. 23' });
       B({ A1: `${fromTable}; go midR; sync bookGen; gen; wait 0.8; via w_stG; go topG; take missal`, A2: `${fromTable2}; go midL; sync bookGen; gen; via w_cE; via w_stE; go topE; take veil`,
           note: 'Genuflect together; A1 to the Gospel side for the Missal (drag it with the left hand), A2 to the Epistle side for the veil — cross outward.', cite: 'SV p. 24' });
-      B({ A1: 'go midL; sync bookGen2; gen; wait 0.8; via w_stE; go topE; put missal altar.E', A2: 'go midR; sync bookGen2; gen; via w_cG; via w_stG; go veilG; put veil altar.veilG; take burse; hold burse',
+      B({ A1: 'go midL; sync bookGen2; gen; wait 0.8; via w_stE; go topE; put missal altar.E', A2: 'via w_cE; go midR; sync bookGen2; gen; via w_cG; via w_stG; go veilG; put veil altar.veilG; take burse; hold burse',      // down by the corner and in from the floor: never standing in A1's way up
           note: 'Genuflect in sync; A1 takes the Missal to the Epistle side; A2 lays the veil down on the Gospel side, takes the burse and holds it open, the left hand concealing the opening.', cite: 'SV p. 24' });
       B({ P: 'g foldCorporal', A2: 'wait 0.6; put burse altar.burseG; take veil; hold veil', note: 'Hold the veil low on either side so he can take it from the top.', cite: 'SV p. 24' });
       B({ P: 'take veil; g veilChalice', A2: 'take burse; give burse P', note: 'Then present the burse with your left hand.' });
@@ -746,7 +750,7 @@
     part = 'Return to the sacristy';
     B({ P: 'stand; gen; go P.mid slow', S: 'pinch', note: 'Stay kneeling and help him up the steps; stand only once he reaches the top.', cite: 'SV p. 41' });
     B({ S: 'stand', P: 'g takeChalice' });
-    B({ A1: 'go sed; take biretta; go cfR; face altar', A2: 'go cfL; face altar', one: 'go sed; take biretta; go cfR; face altar', P: 'go P.step; go P.foot; face altar',
+    B({ A1: 'via w_frE; go sed; take biretta; via w_frE; go cfR; face altar', A2: 'go cfL; face altar', one: 'via w_frE; go sed; take biretta; via w_frE; go cfR; face altar', P: 'go P.step; go P.foot; face altar',
         note: 'Get the biretta from the sedilia.', noteA2: 'Go to the foot of the altar, on the priest’s left.', cite: 'SV p. 25' });
     B({ P: 'gen', S: 'gen', note: 'Genuflect with the priest.' });
     B({ A1: 'kiss biretta; give biretta P; kiss hand', P: 'need biretta; g donBiretta', note: 'Kiss the biretta, hand it to him, then kiss his hand.', cite: 'SV p. 25 (change 2025-12-20)' });

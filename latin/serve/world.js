@@ -233,14 +233,21 @@
     box(0.55, 0.08, 0.55, M(0x3a0a0e), chair, 0, 0.46, 0);
     box(0.08, 1.1, 0.6, chairWood, chair, 0.28, 0.75, 0);
     for (const [x, z] of [[-0.24, -0.24], [-0.24, 0.24], [0.24, -0.24], [0.24, 0.24]]) box(0.06, 0.44, 0.06, chairWood, chair, x, 0.22, z);
+    // the servers' chairs: plainer and lower-backed than the sedilia, their backs away from the way they face
+    for (const [x, z, facing] of L.chairs) {
+      const c = new THREE.Group(); c.position.set(x, 0, z); c.rotation.y = facing; room.add(c);
+      box(0.44, 0.05, 0.42, M(0x3a0a0e), c, 0, 0.45, 0); box(0.44, 0.5, 0.04, chairWood, c, 0, 0.72, -0.2);
+      for (const [a, b] of [[-0.19, -0.18], [0.19, -0.18], [-0.19, 0.18], [0.19, 0.18]]) box(0.04, 0.44, 0.04, chairWood, c, a, 0.22, b);
+    }
     // the two big columns at the corners of the altar steps: round oak shafts, moulded base and capital
     const columnM = M(0x927a5c, { map: oak(), roughness: 0.42 }), beamBottom = wallH - 0.62;
     for (const [x, z] of L.columns) {
-      const shaftH = beamBottom - 0.34 - 0.3;
-      cyl(0.22, 0.26, shaftH, columnM, room, x, 0.3 + shaftH / 2, z, 28);
-      box(0.72, 0.16, 0.72, columnM, room, x, 0.08, z);
-      cyl(0.31, 0.34, 0.14, columnM, room, x, 0.23, z, 28);
-      const capY = 0.3 + shaftH;
+      const y0 = L.steps[0][2];      // they stand on the corners of the lowest step
+      const shaftH = beamBottom - 0.34 - 0.3 - y0;
+      cyl(0.22, 0.26, shaftH, columnM, room, x, y0 + 0.3 + shaftH / 2, z, 28);
+      box(0.56, 0.16, 0.56, columnM, room, x, y0 + 0.08, z);
+      cyl(0.26, 0.28, 0.14, columnM, room, x, y0 + 0.23, z, 28);
+      const capY = y0 + 0.3 + shaftH;
       cyl(0.25, 0.22, 0.05, columnM, room, x, capY + 0.025, z, 24);
       cyl(0.34, 0.24, 0.16, columnM, room, x, capY + 0.13, z, 24);
       for (const [a, b] of [[1, 1], [1, -1], [-1, 1], [-1, -1]]) {                  // the scrolls at the corners

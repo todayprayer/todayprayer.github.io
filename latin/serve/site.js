@@ -154,11 +154,11 @@
     for (const s of [-1, 1]) {
       S.box(naveCeil, slopeLen, 0.06, CH.backWall - CH.front + 0.3, s * nv.x / 2, (nv.e + nv.r) / 2, (CH.front + CH.backWall) / 2, { rz: -s * slope });
       for (let i = 0; i < 8; i++) {
-        const z = 4.5 + i * 2.4;
+        const z = CH.front + 1.5 + i * 2.4;
         S.box(Tex.mat('oak', { color: 0x7d5534, rough: 0.5, normal: 0.3 }), slopeLen * 0.97, 0.34, 0.26, s * nv.x / 2, (nv.e + nv.r) / 2 - 0.16, z, { rz: -s * slope });
       }
     }
-    for (let i = 0; i < 8; i++) S.box(plaster, 0.24, 0.5, 0.2, 0, nv.r - 0.32, 4.5 + i * 2.4);      // the white strip at the ridge
+    for (let i = 0; i < 8; i++) S.box(plaster, 0.24, 0.5, 0.2, 0, nv.r - 0.32, CH.front + 1.5 + i * 2.4);      // the white strip at the ridge
 
     // gable walls above the eaves: the panelled front, and the wall over the narthex opening
     const gable = (mat, z, depth, y0, half, peak, ex = 0, shoulder = y0) => {
@@ -184,10 +184,14 @@
       S.box(trim, 0.34, CH.sanctuaryCeil, 0.14, s * 8.17, CH.sanctuaryCeil / 2, CH.front + 0.22);
       S.box(trim, 1.84, 0.34, 0.1, s * 7.08, 2.6, CH.front + 0.2);                                  // the head of the bay
       S.box(oakMat, 0.45, 3.3, 0.03, s * 5.64, 1.85, CH.front + 0.175, { tex: 1.6 });                // the plain panel
+      // the frame between the column and the side wall, a walkway left past the column: its two sides, its head, and nothing in the opening
+      S.box(trim, 0.34, CH.sanctuaryCeil - 0.01, 0.36, s * 3.65, CH.sanctuaryCeil / 2, CH.front);      // wrapped round the wall it stands on, never flush with it
+      S.box(trim, 0.34, CH.sanctuaryCeil - 0.01, 0.36, s * 5.15, CH.sanctuaryCeil / 2, CH.front);
+      S.box(trim, 1.16, CH.sanctuaryCeil - 2.76, 0.34, s * 4.4, (CH.sanctuaryCeil + 2.75) / 2, CH.front);
     }
     // the sanctuary's own ceiling, and the capitals of its columns
     S.rect(trim, [-CH.alcove, -2.6, CH.alcove, CH.front - 0.15], CH.sanctuaryCeil, CH.sanctuaryCeil + 0.06);
-        S.box(trim, 6.8, 0.24, 0.42, 0, CH.sanctuaryCeil - 0.12, 1.35);
+        S.box(trim, 6.8, 0.24, 0.42, 0, CH.sanctuaryCeil - 0.12, CH.front);      // over the columns, on the corners of the altar steps
     // the bays' low ceilings
     for (const s of [-1, 1]) S.rect(trim, [Math.min(s * CH.bay[0], s * CH.bay[1]), CH.bayBack, Math.max(s * CH.bay[0], s * CH.bay[1]), CH.front], 2.75, 2.85);
 
@@ -270,9 +274,9 @@
       const icon = new THREE.Mesh(new THREE.PlaneGeometry(0.8, 1.08), new THREE.MeshStandardMaterial({ map: tex, roughness: 0.55 }));
       icon.position.set(7.08, 1.75, IZ + 0.06); group.add(icon);
     }
-    S.box(M(0x35200f), 0.9, 0.12, 0.28, 7.08, 0.2, 2.62);          // the kneeler
-    S.box(M(0x35200f), 0.9, 0.82, 0.07, 7.08, 0.41, 2.32);
-    S.box(M(0x35200f), 0.95, 0.05, 0.2, 7.08, 0.85, 2.32);
+    S.box(M(0x35200f), 0.9, 0.12, 0.28, 7.08, 0.2, IZ + 0.45);     // the kneeler
+    S.box(M(0x35200f), 0.9, 0.82, 0.07, 7.08, 0.41, IZ + 0.15);
+    S.box(M(0x35200f), 0.95, 0.05, 0.2, 7.08, 0.85, IZ + 0.15);
     const votive = (x0, x1, z) => {                                // a round gilt stand: tiers of little lights, and a cross on top
       const x = (x0 + x1) / 2, gilt = M(0xb8923c, { metalness: 0.6, roughness: 0.4 });
       S.cyl(gilt, 0.2, 0.26, 0.05, x, 0.03, z, 18);
@@ -289,14 +293,15 @@
       S.cyl(gilt, 0.012, 0.012, 0.3, x, 1.24, z, 8);
       S.box(gilt, 0.018, 0.17, 0.018, x, 1.46, z); S.box(gilt, 0.11, 0.018, 0.018, x, 1.48, z);
     };
-    votive(7.75, 8.65, 3.4);                                       // the candles the laity light, right side
-    votive(-8.6, -7.7, 3.38);                                      // and by the sacristy-hall door
+    votive(5.75, 6.65, CH.front + 0.5);                            // the candles the laity light: at the back of the right-hand side of the rail, outside it, against the panelled wall, clear of those kneeling
+    votive(-6.65, -5.75, CH.front + 0.5);                          // and at the back of its left-hand side
     const fontStone = Tex.mat('concrete', { color: 0xc9c2b2, rough: 0.6, normal: 0.4 });
-    S.cyl(fontStone, 0.32, 0.42, 0.12, 7.5, 0.06, 4.1, 16);
-    S.cyl(fontStone, 0.16, 0.24, 0.7, 7.5, 0.47, 4.1, 16);
-    S.cyl(fontStone, 0.46, 0.2, 0.22, 7.5, 0.93, 4.1, 16);
-    S.cyl(M(0x35200f), 0.1, 0.47, 0.14, 7.5, 1.11, 4.1, 16);
-    S.cyl(M(0xd4ad48, { metalness: 0.6 }), 0.018, 0.018, 0.14, 7.5, 1.25, 4.1, 6);
+    const FZ = CH.front + 1.1;      // the font, before the bay
+    S.cyl(fontStone, 0.32, 0.42, 0.12, 7.5, 0.06, FZ, 16);
+    S.cyl(fontStone, 0.16, 0.24, 0.7, 7.5, 0.47, FZ, 16);
+    S.cyl(fontStone, 0.46, 0.2, 0.22, 7.5, 0.93, FZ, 16);
+    S.cyl(M(0x35200f), 0.1, 0.47, 0.14, 7.5, 1.11, FZ, 16);
+    S.cyl(M(0xd4ad48, { metalness: 0.6 }), 0.018, 0.018, 0.14, 7.5, 1.25, FZ, 6);
     // the hymn board on the right wall, as in the photograph of 1 Nov 2026
     { const tex = canvasTex(128, 200, (g, w, h) => {
         g.fillStyle = '#2d1c10'; g.fillRect(0, 0, w, h); g.fillStyle = '#efe9da'; g.font = '700 40px Georgia, serif'; g.textAlign = 'center';
@@ -307,11 +312,12 @@
       b.position.set(8.66, 2.15, 3.75); b.rotation.y = -Math.PI / 2; group.add(b);
     }
     // the left-hand bay: a statue on its pedestal and the gilded stand
-    S.box(M(0x38210f), 0.45, 0.95, 0.45, -7.25, 0.47, 2.45);
+    const SZ = CH.bayBack + 0.3;
+    S.box(M(0x38210f), 0.45, 0.95, 0.45, -7.25, 0.47, SZ);
     const figStone = M(0xcfc4ae, { roughness: 0.6 });
-    S.cyl(figStone, 0.1, 0.17, 0.85, -7.25, 1.37, 2.45, 12); S.cyl(figStone, 0.08, 0.09, 0.17, -7.25, 1.88, 2.45, 12);
+    S.cyl(figStone, 0.1, 0.17, 0.85, -7.25, 1.37, SZ, 12); S.cyl(figStone, 0.08, 0.09, 0.17, -7.25, 1.88, SZ, 12);
     const gilt = M(0xc9a23a, { metalness: 0.75, roughness: 0.35 });
-    S.cyl(gilt, 0.05, 0.16, 0.08, -6.42, 0.04, 2.47, 10); S.cyl(gilt, 0.03, 0.03, 1.0, -6.42, 0.55, 2.47, 8); S.cyl(gilt, 0.17, 0.05, 0.1, -6.42, 1.08, 2.47, 10);
+    S.cyl(gilt, 0.05, 0.16, 0.08, -6.42, 0.04, SZ + 0.02, 10); S.cyl(gilt, 0.03, 0.03, 1.0, -6.42, 0.55, SZ + 0.02, 8); S.cyl(gilt, 0.17, 0.05, 0.1, -6.42, 1.08, SZ + 0.02, 10);
 
     // confessionals against the side walls: a door either side of the curtained stall
     const confessional = (face, x0, x1, z0, z1) => {
