@@ -29,14 +29,14 @@
     wallBack: -2.3, wallSide: 5.2, rail: 3.55, gateHalf: 1.0,    // the rail's sides run 2.6 m back to the wall: room for four to kneel
     step: 0.15,
     steps: [                                      // [xHalf, zFront, height]: lowest, second, top step (footpace)
-      [2.65, 1.15, 0.15], [2.3, 0.8, 0.30], [1.95, 0.45, 0.45],
+      [2.6, 1.75, 0.15], [2.25, 1.4, 0.30], [1.9, 1.05, 0.45],      // the footpace runs well out before the altar, to the columns (photographs, Nov 2026)
     ],
-    mensa: { x: 1.35, z0: -1.45, z1: -0.6, top: 1.45 },
+    mensa: { x: 1.05, z0: -1.45, z1: -0.6, top: 1.45 },
     gradine: { z0: -1.75, z1: -1.45, top: 1.62 },
     credence: { x0: 2.95, x1: 3.65, z0: -2.3, z1: -1.88, top: 0.92 },   // small, against the back wall, just right of the altar
     sedilia: { x: 3.65, z: 1.3 },        // directly in front of the Epistle frame's inner side: the first of three side by side, all facing across to the Gospel side
     benches: { E: [5.03, -1.62], G: [-5.03, -1.62] },   // choir benches, one end touching the back wall
-    columns: [[2.5, 0.75], [-2.5, 0.75]],     // the two big columns, standing on the corners of the altar steps, flush with the panelled front wall
+    columns: [[1.6, 0.75], [-1.6, 0.75]],     // the two big columns, standing on the front corners of the footpace, flush with the panelled front wall
     // the servers' chairs [x, z, facing]: the two beside the sedilia; and two behind the Gospel frame, on the lectern's side. All face across
     chairs: [[3.65, 1.85, -Math.PI / 2], [3.65, 2.4, -Math.PI / 2], [-4.3, 0.15, Math.PI / 2], [-4.3, -0.4, Math.PI / 2]],
     frameSide: [3.5, 3.8], frame: [3.8, 5.0],      // each side, a walkway past the column; then the frame: its inner side, and the opening up to its outer side, which runs into the wall
@@ -52,7 +52,7 @@
     return h;
   }
 
-  const xE = [1.75, 0.97], xG = [-1.75, 0.97];      // extended formation: on the first step, in from its corner, a little way inside the columns
+  const xE = [1.75, 1.57], xG = [-1.75, 1.57];      // extended formation: on the first step, in from its corner, a little way inside the columns
   const commX = LAYOUT.communicants;
 
   /** Named places to stand: [x, z, heading]. Priest's places start with "P.". */
@@ -60,38 +60,38 @@
     // the sacristy, facing the cross over the vesting table on its far wall
     'sacP': [-10.8, 7.0, N], 'sacA1': [-11.4, 6.35, N], 'sacA2': [-10.2, 6.35, N],
     // the threshold of the door from the sacristy hall into the church, with the font beside it
-    'thrA2': [-9.4, 1.7, E], 'thrA1': [-10.0, 1.4, E], 'P.thr': [-10.45, 2.0, E],
+    'thrA2': [-9.4, 3.95, E], 'thrA1': [-10.0, 3.65, E], 'P.thr': [-10.45, 4.25, E],
     // the way between (w_ marks a point on the way that the player is walked through; it has no heading)
-    'w_sac': [-10.8, 5.5], 'w_hall': [-10.8, 3.95], 'w_thr': [-9.4, 1.7],
-    'w_cE': [1.0, 2.0], 'w_cG': [-1.0, 2.0],      // the lower lane when the servers change sides: they pass, not meet
-    'w_stG': [-1.0, 0.45], 'w_stE': [1.0, 0.45],     // up at the corners: nobody crosses the top step behind the priest
+    'w_sac': [-10.8, 5.5], 'w_hall': [-10.8, 3.95], 'w_thr': [-9.4, 3.95],
+    'w_cE': [1.0, 2.31], 'w_cG': [-1.0, 2.31],      // the lower lane when the servers change sides: they pass, not meet
+    'w_stG': [-1.0, 1.05], 'w_stE': [1.0, 1.05],     // up at the corners: nobody crosses the top step behind the priest
     'w_tabA': [3.05, 1.45], 'w_tabB': [3.05, 0.75], 'w_tabC': [3.05, 0.2],      // A1's way to the table: down the walkway between the column and the frame, past the front of the chairs
     'w_tabA2': [4.4, 2.95], 'w_tabB2': [4.4, 0.75], 'w_tabC2': [4.6, -1.45],      // A2's: round in front of the chairs, in through the frame, and down by the wall: the two never want the same way
-    'w_door': [-8.2, 1.7], 'w_rail': [-6.45, LAYOUT.rail + 1.15], 'w_gos': [-0.32, LAYOUT.rail + 1.15], 'w_gosIn': [-0.32, LAYOUT.rail - 0.8],
+    'w_door': [-8.2, 3.95], 'w_rail': [-6.45, LAYOUT.rail + 1.15], 'w_gos': [-0.32, LAYOUT.rail + 1.15], 'w_gosIn': [-0.32, LAYOUT.rail - 0.8],
     'w_epi': [0.32, LAYOUT.rail + 1.15], 'w_epiIn': [0.32, LAYOUT.rail - 0.8], 'w_mid': [0, LAYOUT.rail + 1.2], 'w_midIn': [0, LAYOUT.rail - 0.7],
 
     // close formation: beside the priest at the foot of the altar
-    'P.foot': [0, 1.6, A], 'P.step': [0, 1.0, A], 'P.kneel': [0, 1.0, A],
-    'cfR': [0.72, 1.75, A], 'cfL': [-0.72, 1.75, A], 'cfL2': [-0.95, 1.95, toward(-0.95, 1.95, 0, 1)],
+    'P.foot': [0, 2.05, A], 'P.step': [0, 1.6, A], 'P.kneel': [0, 1.6, A],
+    'cfR': [0.72, 2.14, A], 'cfL': [-0.72, 2.14, A], 'cfL2': [-0.95, 2.28, toward(-0.95, 2.28, 0, 1.6)],
 
     // extended formation: the servers' places near the columns
     'xE': [xE[0], xE[1], A], 'xG': [xG[0], xG[1], A],
 
     // crossing the middle at the foot of the altar
-    'mid': [0, 1.45, A], 'midR': [0.38, 1.45, A], 'midL': [-0.38, 1.45, A],
-    'ftE': [1.55, 1.45, A], 'ftG': [-1.55, 1.45, A],
+    'mid': [0, 1.95, A], 'midR': [0.38, 1.95, A], 'midL': [-0.38, 1.95, A],
+    'ftE': [1.55, 1.95, A], 'ftG': [-1.55, 1.95, A],
     'cornerE': [3.1, 1.6, A], 'cornerG': [-3.1, 1.6, A],      // before the frames
     'w_frE': [3.05, 1.1], 'w_frG': [-4.4, 1.1],      // on the way to the chairs: the walkway before the Epistle ones, the opening of the Gospel frame
     'floorG': [-2.9, -0.3, E],
 
     // on the altar steps
     'topE': [1.0, -0.12, A], 'topG': [-1.0, -0.12, A],
-    'st2G': [-1.15, 0.62, toward(-1.15, 0.62, -0.95, -0.22)],
+    'st2G': [-1.15, 1.22, toward(-1.15, 1.22, -0.95, -0.22)],
     'veilTop': [0.78, -0.1, A], 'veilG': [-0.62, -0.08, A],
     'gradE': [1.62, -1.12, toward(1.62, -1.12, 1.1, -1.6)],
     'plateTop': [0.6, -0.08, A],
-    'elR': [0.5, 0.28, A], 'elL': [-0.5, 0.28, A],
-    'comR': [0.32, 0.22, A], 'comL': [-0.32, 0.22, A], 'comS': [-0.1, 0.22, A],
+    'elR': [0.5, 0.65, A], 'elL': [-0.5, 0.65, A],
+    'comR': [0.32, 0.51, A], 'comL': [-0.32, 0.51, A], 'comS': [-0.1, 0.51, A],
     'abl1': [0.82, -0.2, G],
 
     // cruets and Lavabo: side by side on the floor beside the steps, by the table; then up on to the second step, in front of the priest
@@ -105,7 +105,7 @@
     'cred': [3.3, -1.4, A], 'cred1': [3.08, -1.4, A], 'cred2': [3.55, -1.4, A],
     'sed': [3.0, 1.3, E],
     'stoolE': [3.65, 1.85, G], 'stoolG': [-4.3, 0.15, E],      // the servers' chairs: beside the sedilia, and behind the Gospel frame
-    'K.E': [4.62, -1.1, G], 'K.G': [-4.62, -1.1, E], 'comKE': [0.98, 0.22, A], 'comKG': [-0.98, 0.22, A],      // someone in choir: a place on the bench, and on the top step for Communion
+    'K.E': [4.62, -1.1, G], 'K.G': [-4.62, -1.1, E], 'comKE': [0.98, 0.51, A], 'comKG': [-0.98, 0.51, A],      // someone in choir: a place on the bench, and on the top step for Communion
     'gateE': [0.6, LAYOUT.rail - 0.4, N], 'gateG': [-0.6, LAYOUT.rail - 0.4, N], 'midRail': [0, LAYOUT.rail - 0.4, A],
     'clothE': [2.3, LAYOUT.rail - 0.38, N], 'clothG': [-2.3, LAYOUT.rail - 0.38, N],
 
@@ -113,11 +113,11 @@
     'P.mid': [0, -0.22, A], 'P.epi': [0.95, -0.22, A], 'P.gos': [-0.95, -0.22, A],
     'P.gosBook': [-0.95, -0.22, -2.62], 'P.cruet': [1.5, -0.1, E],      // the Epistle end of the top step, facing the changing-room door
     'P.ablM': [0.2, -0.22, E], 'P.comm': [0, -0.15, N],
-    'P.lect': [LAYOUT.lectern[0], LAYOUT.lectern[1] - 0.42, N], 'P.lectVia': [-1.6, 2.2, G],
+    'P.lect': [LAYOUT.lectern[0], LAYOUT.lectern[1] - 0.42, N], 'P.lectVia': [-1.6, 2.44, G],
   };
   commX.forEach((x, i) => {
     SPOTS['P.r' + (i + 1)] = [x, LAYOUT.rail - 0.38, N];
-    SPOTS['pr' + (i + 1)] = [x - 0.45, LAYOUT.rail - 0.42, N];     // paten: at the priest's right (SV p. 22)
+    SPOTS['pr' + (i + 1)] = [x - 0.42, LAYOUT.rail - 0.27, N];     // paten: at the priest's right (SV p. 22), close up to the rail to reach under the chin
     SPOTS['cr' + (i + 1)] = [x + 0.6, LAYOUT.rail - 0.5, N];      // Sanctus candle: at his left, further off
     SPOTS['C' + (i + 1) + '.out'] = [x, LAYOUT.rail + 2.15, A];
     SPOTS['C' + (i + 1) + '.rail'] = [x, LAYOUT.rail + 0.35, A];
@@ -129,12 +129,12 @@
     'cred.sc': [3.04, 0.92, -2.2, 0], 'cred.bowl': [3.12, 0.92, -2.02, 0], 'cred.lighter': [3.24, 0.92, -2.2, 0],
     'cred.bells': [3.33, 0.92, -2.2, 0], 'cred.tray': [3.33, 0.92, -2.0, 0], 'cred.paten': [3.54, 0.92, -2.07, 0],
     'cred.towel': [3.1, 0.92, -1.96, 0],
-    'altar.E': [0.95, 1.45, -0.95, 0], 'altar.G': [-0.95, 1.45, -0.95, -0.52],
+    'altar.E': [0.8, 1.45, -0.95, 0], 'altar.G': [-0.8, 1.45, -0.95, -0.52],
     'altar.C': [0, 1.45, -0.95, 0], 'altar.veil': [0.72, 1.45, -1.25, 0],
     'altar.veilG': [-0.42, 1.45, -1.0, 0], 'altar.burseG': [-0.72, 1.45, -1.1, 0],
-    'altar.paten': [0.38, 1.45, -0.78, 0], 'gradine.sc': [1.1, 1.62, -1.6, 0],
+    'altar.paten': [0.38, 1.45, -0.78, 0], 'gradine.sc': [0.82, 1.62, -1.6, 0],
     'sed.chair': [3.7, 0.5, 1.3, -PI / 2], 'tab': [0, 1.55, -1.55, 0],
-    'font': [-9.15, 1.05, 2.38, 0], 'sbell': [-9.7, 1.75, 2.37, 0],      // both on the right of the door as you face it, clear of its swing
+    'font': [-9.15, 1.05, 4.63, 0], 'sbell': [-9.7, 1.75, 4.62, 0],      // both on the right of the door as you face it, clear of its swing
   };
 
   /** Each prop's starting place, as set up before Mass (SV pp. 1–3). */
@@ -517,8 +517,8 @@
     part = 'Orate, fratres';
     B({ P: 'g kissAltar; turn cw people; say offertory.3; turn cw altar; g handsOnAltar',
         note: 'He turns all the way round, pausing half way for “Orate, fratres”. Answer once he has finished turning.', cite: 'SV p. 16' });
-    B({ S: 'say offertory.4' });
-    B({ S: 'say offertory.5' });
+    if (o.wholePrayer) B({ S: 'say offertory.4-5' });
+    else { B({ S: 'say offertory.4' }); B({ S: 'say offertory.5' }); }
     B({ P: 'say offertory.6; say T.secret' });
     part = 'Preface and Sanctus';
     vr('preface.0', 'preface.1'); vr('preface.2', 'preface.3'); vr('preface.4', 'preface.5'); vr('preface.6', 'preface.7');
@@ -635,7 +635,8 @@
         const n = i + 1;
         if (n > 1) B({ P: `go P.r${n}; face people`, [two ? 'A2' : 'one']: `go pr${n}; face people`, A1: two ? `go cr${n}; face people` : undefined,
                        note: n === 3 ? 'Crossing the middle aisle: cover the rim of the paten with your left hand.' : '', cite: n === 3 ? 'SV p. 22' : '' });
-        B({ P: `g giveHost C${n}; say T.corpus`, ['C' + n]: 'receive', note: n === 1 ? 'Paten held at arm’s length, chin to chin.' : '', cite: '' });
+        B({ P: `g giveHost C${n}; say T.corpus`, ['C' + n]: 'receive', [two ? 'A2' : 'one']: `under paten C${n}`,
+          note: n === 1 ? 'Hold the paten under his chin; the priest gives him the Host.' : '', cite: '' });
       });
       B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten', note: 'Hand the paten back, held still just below his elbow.', cite: '' });
       B({ P: 'go P.mid; signal priestUp; face altar; g putPaten; say T.reposition; g closeTabernacle; signal tabClosed',
@@ -736,16 +737,17 @@
         note: 'As he comes down, close ranks with him at the foot of the altar and kneel.', cite: two ? 'SV p. 25' : 'SV p. 41' });
     for (let i = 0; i < 3; i++) {
       B({ P: 'say ave-salve.0-1' });
-      B({ S: 'say ave-salve.2' }); B({ S: 'say ave-salve.3' });
+      if (o.wholePrayer) B({ S: 'say ave-salve.2-3' });
+      else { B({ S: 'say ave-salve.2' }); B({ S: 'say ave-salve.3' }); }
     }
-    B({ P: 'say ave-salve.4-9', S: 'say ave-salve.4' });
-    for (let i = 5; i <= 9; i++) B({ S: `say ave-salve.${i}` });
+    if (o.wholePrayer) B({ P: 'say ave-salve.4-9', S: 'say ave-salve.4-9' });
+    else { B({ P: 'say ave-salve.4-9', S: 'say ave-salve.4' }); for (let i = 5; i <= 9; i++) B({ S: `say ave-salve.${i}` }); }
     vr('ave-salve.10', 'ave-salve.11');
     B({ P: 'say michael.0-5' });
     B({ S: 'say michael.6' });
-    B({ P: 'say michael.7-11', S: 'say michael.7' });
-    for (let i = 8; i <= 11; i++) B({ S: `say michael.${i}` });
-    for (let i = 0; i < 3; i++) B({ P: 'say michael.12', S: 'say michael.12' });
+    if (o.wholePrayer) B({ P: 'say michael.7-11', S: 'say michael.7-11' });
+    else { B({ P: 'say michael.7-11', S: 'say michael.7' }); for (let i = 8; i <= 11; i++) B({ S: `say michael.${i}` }); }
+    for (let i = 0; i < 3; i++) { B({ P: 'say michael.12' }); B({ S: 'say michael.13' }); }      // the priest: Cor Jesu sacratíssimum; you: miserére nobis
 
     part = 'Return to the sacristy';
     B({ P: 'stand; gen; go P.mid slow', S: 'pinch', note: 'Stay kneeling and help him up the steps; stand only once he reaches the top.', cite: 'SV p. 41' });

@@ -112,16 +112,16 @@
         box(0.05, 0.02, d, nosing, room, k * (xh - 0.015), h - 0.009, L.wallBack + d / 2, false);
       }
     }
-    // the carpet lies on the footpace, from the altar to the edge of the top step
+    // the carpet lies on the footpace, from the altar to the edge of the top step, a little wider than the altar
     const [topX, topZ, topH] = L.steps[2], rugFrom = L.mensa.z1 + 0.03;
-    const rugM = new THREE.Mesh(new THREE.PlaneGeometry(2 * topX - 0.08, topZ - rugFrom - 0.03), M(0xffffff, { map: rug(), roughness: 0.95 }));
+    const rugM = new THREE.Mesh(new THREE.PlaneGeometry(Math.min(2 * topX - 0.08, 2 * L.mensa.x + 0.4), topZ - rugFrom - 0.03), M(0xffffff, { map: rug(), roughness: 0.95 }));
     rugM.rotation.x = -Math.PI / 2; rugM.position.set(0, topH + 0.006, (rugFrom + topZ - 0.03) / 2); rugM.receiveShadow = true; room.add(rugM);
 
     // the altar: white with gilded columns, linen cloth with lace front
     const mz = L.mensa, alt = new THREE.Group(); room.add(alt);
     const mw = 2 * mz.x, md = mz.z1 - mz.z0, top = mz.top, base = 0.45;
     box(mw, top - base - 0.04, md, WHITE(), alt, 0, (top + base - 0.04) / 2, (mz.z0 + mz.z1) / 2);
-    for (const x of [-1.2, -0.76, 0.76, 1.2]) {
+    for (const x of [-0.84, -0.48, 0.48, 0.84]) {
       cyl(0.055, 0.055, top - base - 0.25, GOLD(), alt, x, (top + base) / 2 - 0.05, mz.z1 + 0.04);
       box(0.18, 0.08, 0.12, WHITE(), alt, x, base + 0.05, mz.z1 + 0.04);
       box(0.18, 0.08, 0.12, WHITE(), alt, x, top - 0.22, mz.z1 + 0.04);
@@ -138,14 +138,14 @@
     const gr = L.gradine;
     box(mw, gr.top - top, gr.z1 - gr.z0, WHITE(), alt, 0, (gr.top + top) / 2, (gr.z0 + gr.z1) / 2);
     const rz0 = L.wallBack + 0.24;
-    box(2.3, 0.2, 0.4, WHITE(), alt, 0, gr.top + 0.1, rz0);                        // the base it stands on
-    box(2.36, 0.025, 0.44, GOLD(), alt, 0, gr.top + 0.21, rz0);
+    box(1.9, 0.2, 0.4, WHITE(), alt, 0, gr.top + 0.1, rz0);                        // the base it stands on
+    box(1.94, 0.025, 0.44, GOLD(), alt, 0, gr.top + 0.21, rz0);
     for (const s of [-1, 1]) {                                                     // stepped wings
-      box(0.46, 0.3, 0.34, WHITE(), alt, s * 0.86, gr.top + 0.37, rz0);
-      box(0.5, 0.025, 0.38, GOLD(), alt, s * 0.86, gr.top + 0.53, rz0);
-      for (const x of [0.66, 1.06]) cyl(0.02, 0.02, 0.28, GOLD(), alt, s * x, gr.top + 0.37, rz0 + 0.18, 10);
-      lathe([[0, 0], [0.06, 0], [0.04, 0.04], [0.012, 0.09], [0.024, 0.13], [0, 0.17]], GOLD(), alt, s * 0.86, gr.top + 0.54, rz0, 12);
-      box(0.3, 0.18, 0.28, WHITE(), alt, s * 0.46, gr.top + 0.31, rz0);
+      box(0.38, 0.3, 0.34, WHITE(), alt, s * 0.71, gr.top + 0.37, rz0);
+      box(0.41, 0.025, 0.38, GOLD(), alt, s * 0.71, gr.top + 0.53, rz0);
+      for (const x of [0.54, 0.87]) cyl(0.02, 0.02, 0.28, GOLD(), alt, s * x, gr.top + 0.37, rz0 + 0.18, 10);
+      lathe([[0, 0], [0.06, 0], [0.04, 0.04], [0.012, 0.09], [0.024, 0.13], [0, 0.17]], GOLD(), alt, s * 0.71, gr.top + 0.54, rz0, 12);
+      box(0.25, 0.18, 0.28, WHITE(), alt, s * 0.4, gr.top + 0.31, rz0);
     }
     box(0.72, 0.72, 0.42, WHITE(), alt, 0, gr.top + 0.56, rz0);                    // the middle, up to the dome
     for (const x of [-0.31, -0.22, 0.22, 0.31]) cyl(0.022, 0.022, 0.66, GOLD(), alt, x, gr.top + 0.56, rz0 + 0.22, 10);
@@ -167,17 +167,17 @@
     box(0.05, 0.18, 0.04, M(0xe6d8bd), cru, 0, 0.18, 0.02);
     cyl(0.07, 0.1, 0.08, GOLD(), cru, 0, -0.24, 0);
     fx.candles = {};
-    for (const x of [-1.2, -0.85, -0.5, 0.5, 0.85, 1.2]) {
+    for (const x of [-0.86, -0.65, -0.44, 0.44, 0.65, 0.86]) {
       const g = new THREE.Group(); g.position.set(x, gr.top, -1.6); alt.add(g);
       lathe([[0.0, 0], [0.09, 0], [0.09, 0.03], [0.04, 0.08], [0.025, 0.2], [0.04, 0.24], [0.022, 0.42], [0.04, 0.47], [0.05, 0.5], [0, 0.5]], GOLD(), g, 0, 0, 0);
       cyl(0.022, 0.022, 0.38, M(0xf2ead6), g, 0, 0.69, 0);
       const flame = new THREE.Mesh(new THREE.SphereGeometry(0.018, 8, 6), new THREE.MeshBasicMaterial({ color: 0xffd27a }));
       flame.scale.set(1, 2, 1); flame.position.set(0, 0.9, 0); g.add(flame);
-      flame.visible = Math.abs(x) === 0.5;       // Low Mass: the two candles nearest the cross
+      flame.visible = Math.abs(x) === 0.44;       // Low Mass: the two candles nearest the cross
       fx.candles[x] = flame;
     }
     const cardMat = M(0xf7f2e4), frame = GOLD();
-    for (const [x, w, h] of [[0, 0.5, 0.36], [-1.15, 0.22, 0.28], [1.15, 0.22, 0.28]]) {
+    for (const [x, w, h] of [[0, 0.5, 0.36], [-0.82, 0.22, 0.28], [0.82, 0.22, 0.28]]) {
       const g = new THREE.Group(); g.position.set(x, top, -1.33); g.rotation.x = -0.18; alt.add(g);
       box(w + 0.04, h + 0.04, 0.02, frame, g, 0, h / 2 + 0.02, 0);
       box(w, h, 0.005, cardMat, g, 0, h / 2 + 0.02, 0.012);
@@ -185,7 +185,7 @@
     // flowers in white vases, on small dark stands either side of the altar
     { const standWood = M(0x2b1710, { roughness: 0.55 }), leaf = M(0x2f5a2c, { roughness: 0.75 }), petal = M(0xf4f0e2, { roughness: 0.7 });
       const pick = rng(11);
-      for (const x of [-2.6, 2.6]) {
+      for (const x of [-1.45, 1.45]) {
         const z = -1.9;
         box(0.42, 0.05, 0.42, standWood, room, x, 0.8, z);
         for (const [a, b] of [[-0.17, -0.17], [-0.17, 0.17], [0.17, -0.17], [0.17, 0.17]]) box(0.045, 0.78, 0.045, standWood, room, x + a, 0.39, z + b);
@@ -205,7 +205,7 @@
     }
 
     // sanctuary lamp (Gospel side)
-    const lamp = new THREE.Group(); lamp.position.set(-2.6, 2.4, L.wallBack + 0.3); room.add(lamp);
+    const lamp = new THREE.Group(); lamp.position.set(-1.35, 2.4, L.wallBack + 0.3); room.add(lamp);
     cyl(0.007, 0.007, 0.5, GOLD(), lamp, 0, 0.25, 0, 8);
     box(0.03, 0.03, 0.34, GOLD(), lamp, 0, 0.5, -0.15);                            // the arm
     box(0.12, 0.22, 0.02, GOLD(), lamp, 0, 0.5, -0.3);                             // and its plate on the wall
@@ -240,9 +240,9 @@
       for (const [a, b] of [[-0.19, -0.18], [0.19, -0.18], [-0.19, 0.18], [0.19, 0.18]]) box(0.04, 0.44, 0.04, chairWood, c, a, 0.22, b);
     }
     // the two big columns at the corners of the altar steps: round oak shafts, moulded base and capital
-    const columnM = M(0x927a5c, { map: oak(), roughness: 0.42 }), beamBottom = wallH - 0.62;
+    const columnM = M(0x927a5c, { map: oak(), roughness: 0.42 }), beamBottom = 3.1;
     for (const [x, z] of L.columns) {
-      const y0 = L.steps[0][2];      // they stand on the corners of the lowest step
+      const y0 = C.heightAt(x, z);      // they stand on the front corners of the footpace
       const shaftH = beamBottom - 0.34 - 0.3 - y0;
       cyl(0.22, 0.26, shaftH, columnM, room, x, y0 + 0.3 + shaftH / 2, z, 28);
       box(0.56, 0.16, 0.56, columnM, room, x, y0 + 0.08, z);
@@ -378,13 +378,49 @@
       g.userData.host = cyl(0.04, 0.04, 0.004, M(0xf6efd8), g, 0, 0.26, 0, 16); g.userData.host.visible = false;
     });
     make('veil', 'both', g => {
-      const drape = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.17, 0.24, 4, 1, true), M(0x0c3016, { side: THREE.DoubleSide, roughness: 0.6 }));
-      drape.rotation.y = Math.PI / 4; drape.position.y = 0.13; drape.castShadow = true; g.add(drape);
-      box(0.17, 0.01, 0.17, green, g, 0, 0.255, 0);
-      box(0.03, 0.002, 0.11, M(0xd4ad48, { metalness: 0.6 }), g, 0, 0.262, 0.02);
-      const folded = box(0.18, 0.025, 0.12, green, g, 0, 0.013, 0); folded.visible = false;
-      const flat = box(0.42, 0.01, 0.42, green, g, 0, 0.005, 0); flat.visible = false;
-      g.userData.setState = s => { drape.visible = s === 'draped'; g.children[1].visible = s === 'draped'; g.children[2].visible = s === 'draped' || s === 'flat'; folded.visible = s === 'folded'; flat.visible = s === 'flat' || s === 'held'; };
+      // the chalice veil is a square of silk, half a metre across, a cross worked on its front and a braid round its edge.
+      // One cloth, shaped by three things: how far it is draped over the chalice, and its two folds into thirds
+      const S = 0.5, N = 24, third = S / 6;
+      const silk = canvasTex(256, 256, (c, w, h) => {
+        c.fillStyle = '#0c3016'; c.fillRect(0, 0, w, h);
+        for (let y = 0; y < h; y += 2) { c.fillStyle = 'rgba(255,255,255,0.025)'; c.fillRect(0, y, w, 1); }
+        c.strokeStyle = '#c9a23a'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12);
+        c.fillStyle = '#d4ad48'; c.fillRect(w / 2 - 7, h * 0.62, 14, h * 0.3); c.fillRect(w / 2 - 26, h * 0.7, 52, 12);      // the cross, on the front fall
+      });
+      const geo = new THREE.PlaneGeometry(S, S, N, N); geo.rotateX(-Math.PI / 2);
+      const base = geo.attributes.position.array.slice();
+      const cloth = new THREE.Mesh(geo, M(0xffffff, { map: silk, side: THREE.DoubleSide, roughness: 0.55 }));
+      cloth.castShadow = true; cloth.receiveShadow = true; g.add(cloth);
+      const st = { drape: 1, f1: 0, f2: 0, lift: 0 }, smooth = t => t * t * (3 - 2 * t);
+      /** Where a point of the cloth (x, z across it, from its centre) lies now, in the veil's own frame. */
+      const shape = (x, z, out) => {
+        // laid flat, and folded: the left third over the middle, then the right third over both
+        let fx = x, fy = 0.004;
+        if (x < -third) { const d = x + third; fx = -third + d * Math.cos(st.f1); fy = -d * Math.sin(st.f1) + 0.004 + st.f1 / Math.PI * 0.004; }
+        else if (x > third) { const d = x - third; fx = third + d * Math.cos(st.f2); fy = d * Math.sin(st.f2) + 0.004 + st.f2 / Math.PI * 0.009; }
+        // over the chalice: flat on the pall, then falling all round, a little out from the cup
+        const r = Math.max(Math.abs(x), Math.abs(z)), pall = 0.066;
+        let dx = x, dz = z, dy = 0.258;
+        if (r > pall) { const e = r - pall, hz = pall + e * 0.17; dx = x * hz / r; dz = z * hz / r; dy = 0.258 - e * 1.33; }
+        dy -= 0.25 * st.lift;      // held up by the hands, it hangs from them rather than standing on a cup
+        const k = smooth(st.drape);
+        out.set(fx + (dx - fx) * k, fy + (dy - fy) * k, z + (dz - z) * k);
+        return out;
+      };
+      const p = new THREE.Vector3();
+      const apply = () => {
+        const a = geo.attributes.position;
+        for (let i = 0; i < a.count; i++) { shape(base[i * 3], base[i * 3 + 2], p); a.setXYZ(i, p.x, p.y, p.z); }
+        a.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
+      };
+      const STATES = { draped: { drape: 1, f1: 0, f2: 0, lift: 0 }, held: { drape: 0, f1: 0, f2: 0, lift: 0 }, flat: { drape: 0, f1: 0, f2: 0, lift: 0 }, folded: { drape: 0, f1: Math.PI, f2: Math.PI, lift: 0 } };
+      g.userData.setState = s => { Object.assign(st, STATES[s] || STATES.flat); apply(); };
+      /** Part way between shapes, as a hand moves it. */
+      g.userData.set = o => { Object.assign(st, o); apply(); };
+      g.userData.shape = () => Object.assign({}, st);
+      /** Where the middle of its left or right edge is now, in the world: where a hand takes hold of it. */
+      g.userData.edgeWorld = side => { g.updateMatrixWorld(true); return shape(side === 'L' ? -S / 2 : S / 2, 0, new THREE.Vector3()).applyMatrix4(g.matrixWorld); };
+      g.userData.pointWorld = (x, z) => { g.updateMatrixWorld(true); return shape(x, z, new THREE.Vector3()).applyMatrix4(g.matrixWorld); };
       g.userData.setState('draped');
     });
     make('burse', 'L', g => { box(0.2, 0.025, 0.2, green, g, 0, 0.012, 0); box(0.05, 0.003, 0.05, M(0xd4ad48, { metalness: 0.6 }), g, 0, 0.026, 0); });

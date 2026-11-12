@@ -187,13 +187,13 @@
       // the frame between the column and the side wall, a walkway left past the column: its two sides, its head, and nothing in the opening
       S.box(trim, 0.34, CH.sanctuaryCeil - 0.01, 0.36, s * 3.65, CH.sanctuaryCeil / 2, CH.front);      // wrapped round the wall it stands on, never flush with it
       S.box(trim, 0.34, CH.sanctuaryCeil - 0.01, 0.36, s * 5.15, CH.sanctuaryCeil / 2, CH.front);
-      S.box(trim, 1.16, CH.sanctuaryCeil - 2.76, 0.34, s * 4.4, (CH.sanctuaryCeil + 2.75) / 2, CH.front);
+      S.box(trim, 1.16, CH.sanctuaryCeil - 2.26, 0.34, s * 4.4, (CH.sanctuaryCeil + 2.25) / 2, CH.front);
     }
     // the sanctuary's own ceiling, and the capitals of its columns
     S.rect(trim, [-CH.alcove, -2.6, CH.alcove, CH.front - 0.15], CH.sanctuaryCeil, CH.sanctuaryCeil + 0.06);
         S.box(trim, 6.8, 0.24, 0.42, 0, CH.sanctuaryCeil - 0.12, CH.front);      // over the columns, on the corners of the altar steps
-    // the bays' low ceilings
-    for (const s of [-1, 1]) S.rect(trim, [Math.min(s * CH.bay[0], s * CH.bay[1]), CH.bayBack, Math.max(s * CH.bay[0], s * CH.bay[1]), CH.front], 2.75, 2.85);
+    // the Gospel bay's low ceiling
+    S.rect(trim, [-CH.bay[1], CH.bayBack, -CH.bay[0], CH.front], 2.75, 2.85);
 
     // ── windows, stations, lanterns ────────────────────────────────────────
     const stained = (seed) => canvasTex(128, 256, (g, w, h) => {
@@ -258,8 +258,8 @@
     S.box(M(0xbdb7a8), 0.32, 0.8, 0.32, -2.6, 0.4, 23.9); // holy-water stoups by the doors
     S.box(M(0xbdb7a8), 0.32, 0.8, 0.32, 2.6, 0.4, 23.9);
 
-    // the right-hand bay: Our Mother of Perpetual Help, her kneeler; the baptismal font before it
-    const IZ = CH.bayBack + 0.02;
+    // the right-hand bay: Our Mother of Perpetual Help on the face of the panelled wall, between its pilasters, and her kneeler
+    const IZ = CH.front + 0.17;
     { const tex = canvasTex(256, 340, (g, w, h) => {
         g.fillStyle = '#b48a2c'; g.fillRect(0, 0, w, h);
         g.fillStyle = '#1f2f63'; g.beginPath(); g.moveTo(w * 0.5, h * 0.1); g.quadraticCurveTo(w * 0.08, h * 0.2, w * 0.1, h); g.lineTo(w * 0.9, h); g.quadraticCurveTo(w * 0.92, h * 0.2, w * 0.5, h * 0.1); g.fill();
@@ -296,12 +296,12 @@
     votive(5.75, 6.65, CH.front + 0.5);                            // the candles the laity light: at the back of the right-hand side of the rail, outside it, against the panelled wall, clear of those kneeling
     votive(-6.65, -5.75, CH.front + 0.5);                          // and at the back of its left-hand side
     const fontStone = Tex.mat('concrete', { color: 0xc9c2b2, rough: 0.6, normal: 0.4 });
-    const FZ = CH.front + 1.1;      // the font, before the bay
-    S.cyl(fontStone, 0.32, 0.42, 0.12, 7.5, 0.06, FZ, 16);
-    S.cyl(fontStone, 0.16, 0.24, 0.7, 7.5, 0.47, FZ, 16);
-    S.cyl(fontStone, 0.46, 0.2, 0.22, 7.5, 0.93, FZ, 16);
-    S.cyl(M(0x35200f), 0.1, 0.47, 0.14, 7.5, 1.11, FZ, 16);
-    S.cyl(M(0xd4ad48, { metalness: 0.6 }), 0.018, 0.018, 0.14, 7.5, 1.25, FZ, 6);
+    const FX = 8.15, FZ = 2.75;      // the font, out by the side wall, towards the door outside, clear of those kneeling before the icon
+    S.cyl(fontStone, 0.32, 0.42, 0.12, FX, 0.06, FZ, 16);
+    S.cyl(fontStone, 0.16, 0.24, 0.7, FX, 0.47, FZ, 16);
+    S.cyl(fontStone, 0.46, 0.2, 0.22, FX, 0.93, FZ, 16);
+    S.cyl(M(0x35200f), 0.1, 0.47, 0.14, FX, 1.11, FZ, 16);
+    S.cyl(M(0xd4ad48, { metalness: 0.6 }), 0.018, 0.018, 0.14, FX, 1.25, FZ, 6);
     // the hymn board on the right wall, as in the photograph of 1 Nov 2026
     { const tex = canvasTex(128, 200, (g, w, h) => {
         g.fillStyle = '#2d1c10'; g.fillRect(0, 0, w, h); g.fillStyle = '#efe9da'; g.font = '700 40px Georgia, serif'; g.textAlign = 'center';
@@ -417,8 +417,8 @@
     S.cyl(M(0xb79a4a, { metalness: 0.7, roughness: 0.35 }), 0.09, 0.07, 0.16, 6.55, 0.94, -2.35, 10);   // thurible
     S.cyl(M(0xb79a4a, { metalness: 0.7, roughness: 0.35 }), 0.03, 0.09, 0.1, 6.55, 1.07, -2.35, 10);
     S.box(M(0xb79a4a, { metalness: 0.6 }), 0.14, 0.09, 0.09, 6.25, 0.9, -2.35);                         // incense boat
-    S.rect(M(0x2d1f12), [5.65, 0.5, 6.05, 1.7], 0.42, 0.47);
-    S.rect(M(0x2d1f12), [5.7, 0.55, 6.0, 1.65], 0, 0.42);
+    S.rect(M(0x2d1f12), [6.45, 0.15, 7.65, 0.55], 0.42, 0.47);      // the bench, along the wall towards the nave
+    S.rect(M(0x2d1f12), [6.5, 0.2, 7.6, 0.5], 0, 0.42);
 
     // ── outside the church ─────────────────────────────────────────────────
     // railings and fences

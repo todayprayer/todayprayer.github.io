@@ -10,8 +10,8 @@
   const LEVELS = {
     low: { dpr: 1, shadow: 1024, houses: 1, trees: 0.25, cars: 6, clouds: 3, rain: 700, cards: 0.5 },
     medium: { dpr: 1.5, shadow: 1536, houses: 2, trees: 0.55, cars: 12, clouds: 4, rain: 1400, cards: 0.75 },
-    high: { dpr: 2, shadow: 2048, houses: 3, trees: 1, cars: 22, clouds: 5, rain: 2600, cards: 1 },
-    ultra: { dpr: 2.5, shadow: 4096, houses: 3, trees: 1, cars: 36, clouds: 6, rain: 4500, cards: 1.4 },
+    high: { dpr: 2, ss: 1.5, shadow: 2048, houses: 3, trees: 1, cars: 22, clouds: 5, rain: 2600, cards: 1 },
+    ultra: { dpr: 2.5, ss: 2, shadow: 4096, houses: 3, trees: 1, cars: 36, clouds: 6, rain: 4500, cards: 1.4 },
   };
   function pick() {
     let want = 'auto';

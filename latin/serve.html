@@ -123,6 +123,9 @@ body.touch.typing #acts button[data-act="body"] { display: block; }
 #remind { position: absolute; left: 50%; top: 52px; transform: translateX(-50%); width: max-content; max-width: min(720px, calc(100% - 32px)); display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 4px 8px; background: var(--panel); border: 1px solid rgba(143,211,255,.45); border-radius: 12px; padding: 6px 12px; font-size: 14px; pointer-events: none; }
 .remind-btn { background: var(--hint); color: #10202b; border-radius: 6px; padding: 2px 8px; font-weight: 600; font-size: 13px; white-space: nowrap; }
 .remind-why { color: var(--muted); font-size: 13px; }
+#remind.next { opacity: .78; border-style: dashed; }
+#remind.next .remind-btn { background: transparent; color: var(--hint); border: 1px solid var(--hint); }
+#pause-slips { margin-top: 14px; max-height: 40vh; overflow: auto; }
 body.reminding #caption { top: 96px; }
 #btn-remind { pointer-events: auto; font-size: 12px; padding: 5px 8px; min-height: 0; display: none; }
 body:not(.touch)[data-mode="play"] #btn-remind { display: block; }
@@ -378,6 +381,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
       <button class="btn" id="btn-walk-on" hidden>Go back to walking around</button>
       <button class="btn" id="btn-quit">Back to the title</button>
     </div>
+    <div id="pause-slips"></div>
   </div>
 </div>
 

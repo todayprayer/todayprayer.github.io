@@ -258,7 +258,7 @@
     },
     {
       id: 'michael', title: 'Deus, refúgium · Sancte Míchaël', subtitle: 'Prayers after Low Mass, concluded',
-      note: 'Cor Jesu sacratíssimum is said three times.',
+      note: 'Cor Jesu sacratíssimum is said three times, the priest leading and the server and people answering.',
       lines: [
         { who: 'P', la: 'Orémus.', en: 'Let us pray.' },
         { who: 'P', la: 'Deus, refúgium nostrum et virtus, pópulum ad te clamántem propítius réspice;', en: 'O God, our refuge and our strength, look down in mercy on Thy people who cry to Thee;' },
@@ -275,7 +275,8 @@
         { who: 'A', cont: true, la: 'tuque, Princeps milítiæ cæléstis, sátanam aliósque spíritus malígnos,', en: 'and do thou, O Prince of the heavenly host, Satan and the other evil spirits,' },
         { who: 'A', cont: true, la: 'qui ad perditiónem animárum pervagántur in mundo, divína virtúte in inférnum detrúde. Amen.',
           en: 'who prowl about the world seeking the ruin of souls, by the power of God thrust down to hell. Amen.' },
-        { who: 'A', la: 'Cor Jesu sacratíssimum, miserére nobis.', en: 'Most Sacred Heart of Jesus, have mercy on us.' },
+        { who: 'P', la: 'Cor Jesu sacratíssimum,', en: 'Most Sacred Heart of Jesus,' },
+        { who: 'S', la: 'miserére nobis.', en: 'have mercy on us.' },
       ],
     },
   ];

@@ -15,10 +15,10 @@
     backWall: 22,                                 // the wall between nave and narthex
     alcove: 5.2,                                  // the sanctuary's side walls
     rail: 3.55, railX: 5.65,                                 // the rail's front runs this far either way, then returns to the outer side of the frame
-    bay: [6.15, 8.0], bayBack: -0.1,              // the recessed bay at each end of the panelled front: the big frames, their outer sides running into the side walls
-    hall: [-12.6, 0.9, -9, 4.75],                 // the sacristy hall, running north off the nave towards the parish hall; its door at the front corner of the nave
+    bay: [6.15, 8.0], bayBack: -0.1,              // the bay at each end of the panelled front: recessed on the Gospel side; on the Epistle side brought forward onto the wall's face, the changing room behind it
+    hall: [-12.6, 3.15, -9, 4.75],                // the sacristy hall, running north off the nave towards the parish hall
     sacristy: [-12.6, 5.05, -9, 8.25],
-    servers: [5.5, -2.6, 8.7, -0.4],              // the changing room behind the sanctuary's Epistle wall, its front behind the bay
+    servers: [5.5, -2.6, 8.7, 0.6],               // the square changing room behind the sanctuary's Epistle wall, up to the panelled front
     t: 0.3,                                       // wall thickness
     eave: 3.7, ridge: 6.9, ceilEave: 3.7, ceilRidge: 6.3,
     sanctuaryCeil: 4.1, roomCeil: 2.7,
@@ -26,10 +26,10 @@
 
   /** Doors stand in gaps in the walls. axis: the wall runs along x or z; at: its other coordinate; c: centre along it. */
   const DOORS = [
-    { id: 'hallNave', axis: 'z', at: -8.85, c: 1.7, w: 1.1, name: 'to the sacristy hall' },
+    { id: 'hallNave', axis: 'z', at: -8.85, c: 3.95, w: 1.1, name: 'to the sacristy hall' },
     { id: 'sacristy', axis: 'x', at: 4.9, c: -10.8, w: 0.95, name: 'to the sacristy' },
     { id: 'hallOut', axis: 'z', at: -12.75, c: 3.95, w: 1.0, name: 'outside, facing the parish hall', out: -1, color: 0x6a4322 },
-    { id: 'servers', axis: 'z', at: 5.35, c: -1.0, w: 0.95, name: 'to the changing room' },
+    { id: 'servers', axis: 'z', at: 5.35, c: 0.0, w: 0.95, name: 'to the changing room' },
     { id: 'serversOut', axis: 'x', at: -2.8, c: 7.1, w: 1.0, name: 'outside, at the back of the church', out: -1, color: 0x6a4322 },
     { id: 'sideOut', axis: 'z', at: 8.85, c: 5.0, w: 1.1, name: 'outside', out: 1, color: 0x8a5a2a },
     { id: 'entry', axis: 'x', at: 26, c: 0, w: 3.0, name: 'the entrance', glass: true, out: 1 },
@@ -59,10 +59,14 @@
     ...wall('x', -2.8, CH.north, CH.south, 0.4),
     // the wall behind the nave
     [-8.85, CH.backWall - 0.15, -2.2, CH.backWall + 0.15], [2.2, CH.backWall - 0.15, 8.85, CH.backWall + 0.15],
-    // the panelled front wall, with a recessed bay towards each end
+    // the panelled front wall: a recessed bay towards its Gospel end
     ...[-1, 1].flatMap(s => {
       const lo = v => Math.min(v, s * CH.alcove), hi = v => Math.max(v, s * CH.alcove);
       const [b0, b1] = CH.bay, f0 = CH.front - 0.15, f1 = CH.front + 0.15;
+      if (s > 0) return [      // the Epistle side: the wall runs unbroken, the bay standing on its face
+        [CH.alcove, f0, 8.85, f1, 'oak'],
+        [3.5, f0, 3.8, f1, 'oak'], [5.0, f0, CH.alcove, f1, 'oak'],
+      ];
       return [
         [Math.min(s * 8.85, s * b1), f0, Math.max(s * 8.85, s * b1), f1, 'oak'],
         [lo(s * b0), f0, hi(s * b0), f1, 'oak'],
@@ -76,11 +80,9 @@
     // the sanctuary's side walls; the changing-room door is in the Epistle one
     [-5.5, -2.6, -CH.alcove, CH.front - 0.15, 'oak'],
     ...wall('z', 5.35, -2.6, CH.front - 0.15).map(r => [...r, 'oak']),
-    // the changing room's wall towards the nave
-    [5.5, -0.4, 8.7, -0.1],
     // the sacristy hall and the sacristy, on the north side
-    [-12.9, 0.6, -9, 0.9],
-    ...wall('z', -12.75, 0.6, 8.55),
+    [-12.9, 2.85, -9, 3.15],
+    ...wall('z', -12.75, 2.85, 8.55),
     ...wall('x', 4.9, -12.6, -9),
     [-12.9, 8.25, -9, 8.55],
     // the parish hall: its outer walls, the hallway from the front door, and the auditorium behind
@@ -98,11 +100,11 @@
     [-12.55, 5.05, -11.35, 5.45],   // audio racks beside the door
     [4.85, -2.3, 5.2, -0.95, 'low'],       // the choir bench, its end against the back wall, Epistle side
     [-5.2, -2.3, -4.85, -0.95, 'low'],     // and its fellow on the Gospel side
-    [7.95, -2.0, 8.7, -0.5],        // changing room: cassocks on their rail
+    [7.95, -2.0, 8.7, 0.6],         // changing room: cassocks on their rail
     [5.65, -2.6, 6.85, -2.1],       // shelf of lighters and thurible
-    [5.65, -1.6, 6.05, -0.5, 'low'],       // bench
-    // the right-hand bay: Our Mother of Perpetual Help with her kneeler; the baptismal font before it
-    [6.63, 0.0, 7.53, 0.6, 'low'], [7.05, 1.4, 7.95, 2.3, 'low'],
+    [6.45, 0.15, 7.65, 0.55, 'low'],        // bench, along its front wall
+    // the right-hand bay: Our Mother of Perpetual Help with her kneeler, on the wall's face; the baptismal font out by the side wall, towards the door outside
+    [6.63, 0.92, 7.53, 1.52, 'low'], [7.7, 2.3, 8.6, 3.2, 'low'],
     [5.85, 0.91, 6.55, 1.59, 'low'],         // the candles the laity light, at the back of the right-hand side of the rail, outside it
     [8.0, 3.6, 8.7, 3.9],           // the hymn board's stand
     // the left-hand bay: statue and gilded stand; the laity's candles by the sacristy-hall door
@@ -178,7 +180,7 @@
   const SIGHT = [...WALLS, ...FURNITURE.filter(r => r[3] - r[1] < 8 && r[4] !== 'low')];
 
   const SOLIDS = [
-    ...WALLS, ...FURNITURE, [-12.9, -3, -9, 0.6],
+    ...WALLS, ...FURNITURE, [-12.9, -3, -9, 2.85],
     // the rail's left and right sides, running back from its front to the panelled wall
     [-CH.railX - 0.1, CH.front, -CH.railX + 0.1, CH.rail + 0.1], [CH.railX - 0.1, CH.front, CH.railX + 0.1, CH.rail + 0.1],
     ...[...SITE.fences, ...SITE.gardenFence, ...SITE.boundary].map(f => {

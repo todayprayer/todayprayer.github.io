@@ -32,7 +32,7 @@
     set(k, v) { try { localStorage.setItem('serve.' + k, JSON.stringify(v)); } catch (e) { /* private window */ } },
   };
   const OPTS = {
-    servers: 2, role: 'A1', respond: 'type', typeHelp: 'easy', mode: 'coach', speed: 1.25, quality: 'auto', weather: 'auto', camera: 'follow',
+    servers: 2, role: 'A1', respond: 'type', typeHelp: 'easy', mode: 'coach', speed: 1, pace: 'natural', quality: 'auto', weather: 'auto', camera: 'follow',
     communion: true, confiteor: true, gloria: true, creed: true, sermon: 'random', railCloth: 'none',
     bellMinorElevation: true, bellDomineNonSum: true, sacristyVersicle: 'procedamus',
     english: true, sound: true, labels: true, reminders: true, syllables: 4,
@@ -43,18 +43,47 @@
   let opts = Object.assign({}, OPTS, saved);
   delete opts.failing; delete opts.turn;      // no longer choices: anyone who once chose them gets what everyone gets
   if (!('typeHelp' in saved)) opts.respond = OPTS.respond;      // every option is saved together, so an old "choose" was no choice: typing, the easy way, is where everyone now starts
+  if (!('pace' in saved) && saved.speed === 1.25) opts.speed = 1;      // the old starting speed, saved along with everything else: not a choice either
   const setOpt = (k, v) => { opts[k] = v; store.set('opts', opts); };
 
-  // A full Mass at 1× runs about five minutes. Walking and kneeling keep their natural speed; what is
-  // compressed is the reading — the priest's texts and the responses (SAY_SCALE) — and, a little, the gestures (PACE).
-  const PACE = 1.5, SAY_SCALE = 0.3, WALK = 1.55, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
+  // What is compressed is the reading — the priest's texts and the responses (SAY_SCALE). Everything the body does goes at a person's
+  // pace at Mass: an unhurried walk, a genuflection of about two seconds, gestures at their written length. Nothing is sudden.
+  // Figure.slow (the Pace option) stretches the gestures, and GAPS is the breath taken before each thing you have to do, while the
+  // reminder of it is already showing: what is never sudden is the moment, not the walk. The speed of the Mass runs the whole clock.
+  const PACE = 1, SAY_SCALE = 0.3, WALK = 1.4, SLIP_LIMIT = 10, FACE_OFF = 1.2, TURN_RATE = 1.8, BACK = 0.7;
+  const PACES = { unhurried: 1.25, natural: 1, brisk: 0.8 };
+  const GAPS = { unhurried: 2.4, natural: 1.5, brisk: 0.7 };
+  const walk = () => WALK;      // how fast a server walks in this Mass, before its speed: a person's ordinary walk, whatever the pace
+  Figure.slow = PACES[opts.pace] || 1;
+  /** Facing the way asked. Where that is the altar, looking at the altar itself from off to one side of it (from the credence, say) is facing it too. */
+  const facesWay = (f, want, tol = FACE_OFF) => {
+    if (Math.abs(wrap(f.heading - want)) <= tol) return true;
+    if (Math.abs(wrap(want - Math.PI)) > 0.2) return false;
+    const m = C.LAYOUT.mensa;
+    return Math.abs(wrap(f.heading - Math.atan2(-f.x, (m.z0 + m.z1) / 2 - f.z))) <= tol;
+  };
   const SERVER_PAUSE = 0.35, SERVER_TEMPO = 0.75;      // the other server: a moment between one thing and the next, and hands at a person's pace, not the compressed gestures
 
   // ─── renderer, camera, world ───────────────────────────────────────────────
   const canvas = $('#stage');
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, logarithmicDepthBuffer: true, preserveDrawingBuffer: params.has('test') });
   Tex.setAnisotropy(Math.min(16, renderer.capabilities.getMaxAnisotropy()));
-  renderer.setPixelRatio(Math.min(window.Quality.dpr, window.devicePixelRatio || 1));
+  // at the higher levels a plain screen is drawn finer than its own pixels and scaled down, so thin edges (candles, fingers, lace) do not step;
+  // if that costs too much the picture eases back towards the screen's own resolution, never below it
+  const Sharp = {
+    floor: Math.min(window.Quality.dpr, window.devicePixelRatio || 1),
+    want: Math.min(window.Quality.dpr, Math.max(window.devicePixelRatio || 1, window.Quality.ss || 1)),
+    t: 0, n: 0, slow: 0,
+    watch(real) {
+      if (this.want <= this.floor) return;
+      this.t += real; this.n++;
+      if (this.t < 2) return;
+      const ms = this.t / this.n * 1000; this.t = 0; this.n = 0;
+      this.slow = ms > 24 ? this.slow + 1 : 0;
+      if (this.slow >= 2) { this.slow = 0; this.want = Math.max(this.floor, this.want - 0.25); renderer.setPixelRatio(this.want); resize(); }
+    },
+  };
+  renderer.setPixelRatio(Sharp.want);
   renderer.shadowMap.enabled = true;
   renderer.shadowMap.type = THREE.PCFSoftShadowMap;
   renderer.outputEncoding = THREE.sRGBEncoding;
@@ -201,11 +230,12 @@
         const d = Math.min(this.armBase, this.armRoom), k = Math.min(1, d / 2.2), high = room ? 2.25 : 2.3 + (arm - 3.2) * 0.25 + (CART.driving ? 0.45 : 0), ahead = (1 - k) * 0.6;
         this.goal.set(f.x + ax * d, f.y + 1.95 + (high - 1.95) * k, f.z + az * d);
         this.look.set(f.x - ax * ahead, f.y + 1.0 + 0.1 * k, f.z - az * ahead);
-        // seated or kneeling, with a wall close behind you: over your shoulder, looking out across the room rather than down at your own knees
-        if ((f.posture === 'sit' || f.posture === 'kneel') && !CART.driving && d < 1.6) {
-          const back = Math.min(d, 0.42);
-          this.goal.set(f.x + ax * back, f.y + 1.38, f.z + az * back);
-          this.look.set(f.x - ax * 6, f.y + 0.95, f.z - az * 6);
+        // seated or kneeling with a wall right at your back: up over your shoulder, above your head and to one side of it, never level
+        // behind it, looking down over you and on into the room. With any room at all behind you the usual view, which looks down over you, sees more
+        if ((f.posture === 'sit' || f.posture === 'kneel') && !CART.driving && d < 0.75) {
+          const back = Math.min(d, 0.35), sx = az, sz = -ax;      // high enough to keep your own head in the picture, to bow it
+          this.goal.set(f.x + ax * back + sx * 0.25, Math.min(f.y + 2.05, 2.55), f.z + az * back + sz * 0.25);
+          this.look.set(f.x - ax * 0.9, f.y + 0.55, f.z - az * 0.9);
         }
         // dragged up or down: it swings round your head, low to look up at the sky, high to look down on you
         if (this.pitch) {
@@ -350,6 +380,7 @@
       }
       for (const [role, o] of Object.entries(FIG)) {
         if (o === f || !o.root.visible || !close(o, role === 'P' ? 3.5 : REACH)) continue;
+        if (/^C\d+$/.test(role) && Props.holder('paten') === me && o.posture === 'kneel') add('chin:' + role, 'Under the chin', underChin(o), 'person', role);
         if (Math.hypot(o.x - f.x, o.z - f.z) < REACH) add('person:' + role, role === 'P' ? 'The priest' : role === 'A1' || role === 'A2' ? 'The other server' : 'A communicant', o.handWorld('R'), 'person', role);
         if (role === 'P') { add('alb', 'His alb', o.albHemWorld(), 'vest'); add('hem', 'His chasuble', o.hemWorld(), 'vest'); }
       }
@@ -528,6 +559,7 @@
           return z.at.distanceTo(t) < 0.55;      // on the right table is near enough
         }
         case 'give': case 'touch': return person(c.verb === 'give' ? a1 : a0);
+        case 'under': return z.id === 'chin:' + a1;
         case 'offer': case 'hold': case 'offerwater': return person();
         case 'pour': return person('P');
         case 'pinch': return z.id === 'alb' || person('P');
@@ -692,8 +724,13 @@
     return before.join(';') + '>' + list[i];
   }
   const BODY_VERBS = new Set(['kneel', 'stand', 'sit', 'gen', 'genhold', 'rise', 'bow', 'up', 'nod', 'small', 'strike', 'turn', 'faceto']);
-  const TASK_VIEW = new Set(['take', 'put', 'fold', 'give', 'offer', 'hold', 'pour', 'light', 'snuff']);      // tasks the camera comes in close for
-  const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold']);
+  const TASK_VIEW = new Set(['take', 'put', 'fold', 'give', 'offer', 'hold', 'pour', 'light', 'snuff', 'under']);      // tasks the camera comes in close for
+  const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold', 'under']);
+  /** Where the paten goes for a communicant kneeling at the rail: level, just under the chin and a little before it. */
+  function underChin(o) {
+    const v = o.headWorld();
+    return v.add(V(Math.sin(o.heading) * 0.12, -0.17, Math.cos(o.heading) * 0.12));
+  }
 
   // ─── sound: small synthesized bells ────────────────────────────────────────
   let actx = null, hushed = false, frozen = false;
@@ -775,16 +812,16 @@
       else if (slot === 'R' && (used.has('R') || used.has('both'))) slot = 'L';
       else if (slot === 'L' && (used.has('L') || used.has('both'))) slot = 'R';
       this.slot[p] = slot;
-      if (p === 'veil') PROPS.veil.obj.userData.setState(this.veilFolded ? 'folded' : 'held');
+      if (p === 'veil' && !this.keepVeil) PROPS.veil.obj.userData.setState(this.veilFolded ? 'folded' : 'held');
       if (p === 'towel') PROPS.towel.obj.userData.setDraped(slot === 'arm');
       this.syncHands(role); if (prev && prev !== role) this.syncHands(prev);
     },
-    place(p, where) {
+    place(p, where, keepShape) {
       const prev = this.holder(p);
       this.notOut(prev, p);
       this.loc[p] = where; this.slot[p] = null;
       if (p === 'towel') PROPS.towel.obj.userData.setDraped(where === 'bowl' || where === 'cred.towel');
-      if (p === 'veil') PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
+      if (p === 'veil' && !keepShape) PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
       if (prev) this.syncHands(prev);
     },
     syncHands(role) {
@@ -811,6 +848,7 @@
         if (l.startsWith('hand:') && !FIG[l.slice(5)].root.visible) { o.visible = false; continue; }
         if (PROPS[l] && !PROPS[l].obj.visible) { o.visible = false; continue; }
         if (p === 'biretta' && l === 'hand:P' && this.worn) { o.visible = false; continue; }
+        if (p === 'veil' && this.pinVeil) { o.position.copy(this.pinVeil.at); o.rotation.set(0, this.pinVeil.heading, 0); continue; }      // held still while it is folded
         if (l.startsWith('hand:')) {
           const role = l.slice(5), f = FIG[role], slot = this.slot[p] || 'R';
           let pos;
@@ -819,6 +857,9 @@
           else pos = f.handWorld(slot);
           if (p === 'missal') pos.y -= 0.12;
           if (p === 'tray' || p === 'bowl' || p === 'paten') pos.y -= 0.02;
+          if (p === 'paten') { const ahead = f.patenFor ? FIG[f.patenFor] : null, k = 0.09;      // held by its handle: the dish itself is out beyond the hand, towards whoever it is under
+            const dx = ahead ? underChin(ahead).x - pos.x : Math.sin(f.heading), dz = ahead ? underChin(ahead).z - pos.z : Math.cos(f.heading), l = Math.hypot(dx, dz) || 1;
+            pos.x += dx / l * k; pos.z += dz / l * k; }
           if (p === 'chalice' && slot === 'both') pos.y -= 0.12;
           o.position.copy(pos);
           o.rotation.set(this.tilt[p] || 0, f.heading + (p === 'missal' ? Math.PI : 0), 0, 'YXZ');
@@ -931,6 +972,7 @@
       case 'touch': return [`Touch ${a0 === 'P' ? 'the priest’s' : a0 + '’s'} fingers with the holy water`, 'Drag a hand to their fingers'];
       case 'tug': return ['Tug the sacristy bell', 'Drag a hand to the rope'];
       case 'fold': return ['Fold the veil in thirds', 'Drag a hand to the veil'];
+      case 'under': return ['Hold the paten under his chin', 'Drag the paten to his chin'];
       case 'say': return ['Answer', '1–4'];
       default: return [verb, ''];
     }
@@ -938,11 +980,11 @@
 
   const KEY_VERBS = new Set(['go', 'turn', 'faceto', 'kneel', 'stand', 'gen', 'genhold', 'rise', 'sit', 'bow', 'up', 'nod', 'cross', 'small', 'strike', 'kiss',
     'take', 'put', 'give', 'offer', 'hold', 'pinch', 'lift', 'drop', 'ring', 'pour', 'light', 'snuff', 'open', 'close', 'flip', 'unflip',
-    'dip', 'offerwater', 'touch', 'tug', 'fold', 'say']);
+    'dip', 'offerwater', 'touch', 'tug', 'fold', 'under', 'say']);
   const USE_AS = { take: 'take', put: 'put', give: 'give', offer: 'give', hold: 'give', light: 'candle', snuff: 'candle', open: 'gate', close: 'gate', flip: 'gate', unflip: 'gate',
-    dip: 'touch', offerwater: 'touch', touch: 'touch', fold: 'fold', sit: 'sit' };      // which button each of these things is done with
+    dip: 'touch', offerwater: 'touch', touch: 'touch', fold: 'fold', sit: 'sit', under: 'give' };      // which button each of these things is done with
   const PRIEST_HANDS = new Set(['take', 'put', 'give', 'offer', 'hold', 'offerwater', 'touch', 'dip', 'pour', 'open', 'close', 'flip', 'unflip', 'kiss', 'light', 'snuff', 'tug', 'fold', 'pinch', 'lift', 'drop', 'ring', 'sit']);      // as the priest: what happens by itself
-  const SPACE_VERBS = new Set(['take', 'put', 'give', 'offer', 'hold', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold', 'sit']);
+  const SPACE_VERBS = new Set(['take', 'put', 'give', 'offer', 'hold', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold', 'sit', 'under']);
 
   // ─── target positions and headings ────────────────────────────────────────
   const spot = n => C.SPOTS[n];
@@ -986,6 +1028,7 @@
       this.flags = new Set();
       this.results = { ok: 0, total: 0, mistakes: [] };
       this.hostFor = new Set();
+      this.patenSeen = new Set();       // the communicants whose paten has been looked at
       this.answered = {};
       this.steps = 0;                       // watching: how many fixed steps of time have gone by
       this.quiet = false;                   // watching: running on to a moment, unseen and unheard
@@ -1038,6 +1081,7 @@
             if (verb === 'sync') (this.syncNeed[args[0]] = this.syncNeed[args[0]] || new Set()).add(r);
           }
           this.answered = {};
+          if (i > from && this.leadIn(b)) { if (!this.quiet && !Player.cur) UI.remind(null); await this.step(this.sleep(GAPS[opts.pace] || GAPS.natural)); }
           Player.stage = this.player && b.tracks[this.player] ? 0 : Infinity; Player.owed = [];
           await Promise.all(Object.entries(b.tracks).map(([r, list]) => this.track(r, list, b)));
           for (const f of Object.values(FIG)) f.keepBehind = null;
@@ -1056,9 +1100,40 @@
       for (let i = 0; i < list.length; i++) {
         // a server is a person: a moment to take in what comes next before doing it, not the instant the last thing ends
         if (server && i && !/^(via|sync|signal|waitsig|wait|pace) /.test(list[i]) && !/^via /.test(list[i - 1])) await this.step(this.sleep(SERVER_PAUSE));
+        if (server) await this.keepStep(list, i, beat);
         if (this.player && server) { const k = togetherKey(list, i); if (k) (beat.togetherAt = beat.togetherAt || {})[k] = Player.t; }
         await this.exec(role, list[i], beat);
       }
+    }
+
+    /** Serving with you, the other server keeps step: what the two of you do together he does when you come to it, and the two of you set off together.
+     *  He waits only so long; then he goes on, and being behind him is your slip. */
+    async keepStep(list, i, beat) {
+      if (!/^A[12]$/.test(this.player || '')) return;
+      const mine = beat.tracks[this.player];
+      if (!mine || Player.list !== mine) return;
+      const k = togetherKey(list, i);
+      let j = -1;
+      if (k) j = mine.findIndex((c, n) => togetherKey(mine, n) === k);
+      else if (/^(go|via) /.test(list[i]) && !list.slice(0, i).some(c => /^(go|via) /.test(c))) j = mine.findIndex(c => /^(go|via) /.test(c));
+      if (j < 0) return;
+      const patience = (k ? 3 : 2.5) * Figure.slow;
+      for (let waited = 0; Player.list === mine && Player.i < j && waited < patience && !this.failed; waited += 0.1) await this.step(this.sleep(0.1));
+    }
+
+    /** Walking alongside you, he does not stride ahead: once he is further along his way than you are along yours, he eases off. */
+    pacerFor(role, s) {
+      if (!/^A[12]$/.test(this.player || '') || !/^A[12]$/.test(role) || role === this.player) return null;
+      const me = FIG[role], you = FIG[this.player], total = Math.hypot(s[0] - me.x, s[1] - me.z) || 1;
+      let yours = null;
+      return () => {
+        const c = Player.cur;
+        if (!c || c.verb !== 'go' || UI.paused) return 1;      // you are not walking: he goes at his own pace
+        const goal = Player.legOpen && Player.legGoal ? Player.legGoal : spot(c.args[0]);
+        if (!yours || yours.goal !== goal) yours = { goal, d: Math.hypot(goal[0] - you.x, goal[1] - you.z) || 1 };
+        const ahead = (1 - Math.hypot(s[0] - me.x, s[1] - me.z) / total) - (1 - Math.hypot(goal[0] - you.x, goal[1] - you.z) / yours.d) - 0.12;
+        return ahead > 0 ? Math.max(0.65, 1 - ahead * 1.5) : 1;      // easing off, never crawling
+      };
     }
 
     /** People do not reach across a room: go near enough to whoever you are dealing with, and turn to them. */
@@ -1069,7 +1144,7 @@
       const d = Math.hypot(o.x - f.x, o.z - f.z);
       if (d > reach && d < 6) {
         const k = reach / d, x = o.x + (f.x - o.x) * k, z = o.z + (f.z - o.z) * k;
-        await this.step(f.walkTo(x, z, { speed: WALK * 0.8, route: Nav.route(f.x, f.z, x, z) }));
+        await this.step(f.walkTo(x, z, { speed: walk() * 0.8, route: Nav.route(f.x, f.z, x, z) }));
       }
       await this.step(f.turnTo(Math.atan2(o.x - f.x, o.z - f.z)));
       if (role === this.player) Player.lastFace = f.heading;
@@ -1090,19 +1165,18 @@
         case 'go': case 'via': {
           const s = spot(args[0]);
           const back = args[1] === 'back';
-          await this.step(f.walkTo(s[0], s[1], { back, speed: args[1] === 'slow' ? WALK * 0.22 : WALK, route: back ? null : Nav.route(f.x, f.z, s[0], s[1]) }));
+          await this.step(f.walkTo(s[0], s[1], { back, speed: args[1] === 'slow' ? walk() * 0.22 : walk(), route: back ? null : Nav.route(f.x, f.z, s[0], s[1]), pacer: this.pacerFor(role, s) }));
           if (verb === 'go' && !back && s[2] != null) await this.step(f.turnTo(s[2]));
           return;
         }
         case 'face': case 'faceto': return this.step(f.turnTo(headingFor(role, args[0])));
         case 'turn': return this.step(f.turnTo(headingFor(role, args[1]), args[0]));
         case 'pace': {
-          // walking behind the player: not until they have cleared this point. The other server does this only behind you.
+          // walking behind the player: they keep walking, at their own steady pace, and never overtake you; nobody stands and waits for you
+          // to clear a point. Only if you stop in their way do they stop, and that is yours to answer for. The other server does this only behind you.
           if (!this.player || role === this.player || (role === 'A1' && this.player !== 'A2') || this.player === 'P' || this.player === 'K') return;
-          const n = +args[0];
-          if (Player.stage !== Infinity) f.keepBehind = FIG[this.player];      // nobody waits on someone whose part is over
-          await this.step(this.until(() => Player.stage >= n));
-          if (args[1] === 'last') f.keepBehind = null;     // you have reached your place: now they go to theirs, beside you
+          if (Player.stage !== Infinity) f.keepBehind = FIG[this.player];      // nobody keeps behind someone whose part is over
+          if (args[1] === 'last') f.keepBehind = null;     // the last stretch, to their own place: beside you, not behind
           return;
         }
         case 'kneel': return this.step(f.kneel());
@@ -1161,6 +1235,14 @@
           return;
         }
         case 'need': return this.step(this.until(() => Props.holder(args[0]) === role));
+        case 'under': {      // the paten raised under the chin, and kept there until the Host has been given (giveHost lowers it)
+          const [p, to] = args, o = FIG[to], s = spot('pr' + to.slice(1));
+          await this.step(this.until(() => o.posture === 'kneel'));
+          if (s && Math.hypot(f.x - s[0], f.z - s[1]) > 0.15) await this.step(f.walkTo(s[0], s[1], { speed: walk() * 0.8, route: Nav.route(f.x, f.z, s[0], s[1]) }));      // a step into place at his right, close to the rail
+          if (s) await this.step(f.turnTo(s[2]));
+          f.lift = () => underChin(o); f.liftHand = Props.slot[p] === 'L' ? 'L' : 'R'; f.patenFor = to;
+          return this.step(f.wait(0.5));
+        }
         case 'receive': {
           await this.step(this.until(() => this.hostFor.has(role)));
           return this.step(f.wait(0.6));
@@ -1188,7 +1270,7 @@
           return;
         }
         case 'tug': Fix.bellSwing = 1.2; if (!this.quiet) chime('sacristy'); return this.step(Gest.reach(f, () => fixturePos('sbell'), 'R', 0.8));
-        case 'fold': Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); return this.step(Gest.fold(f));
+        case 'fold': await this.step(Gest.fold(f)); Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); return;
         case 'say': return this.say(role, args[0], beat);
         case 'wait': return this.step(this.sleep(+args[0]));
         case 'signal': this.flags.add(args[0]); return;
@@ -1218,7 +1300,9 @@
       const dur = (t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE;
       // a line you have to answer: you hear it out, and meanwhile you can get your answer ready
       const mine = (beat.tracks[role] || []), lastSay = mine.filter(c => c.startsWith('say ')).pop() === 'say ' + ref;
-      const answer = role !== this.player && lastSay && !window.__serve.autoplay ? this.nextSay() : null;
+      // not while you are saying a line yourself in this moment (said together, as the Salve): your own answer gets the next one ready when it is over
+      const yours = (beat.tracks[this.player] || []).some(c => c.startsWith('say '));
+      const answer = role !== this.player && lastSay && !yours && !window.__serve.autoplay ? this.nextSay() : null;
       if (answer) {
         const hold = Math.max(2.5, Math.min(10, 1.6 + t.la.length * 0.03));
         this.ready = { ref: answer, result: Player.ready(this, answer, /^confiteor-m\.0/.test(answer) ? 'You begin the Confiteor' : 'Your response') };
@@ -1228,6 +1312,26 @@
       }
       await this.step(this.sleep(dur));
       if (isServer) this.answered[ref] = true;
+    }
+
+    /** The Host is given: was your paten under the chin? */
+    patenCheck(to) {
+      if (!/^C\d+$/.test(to) || this.kind !== 'play' || window.__serve.autoplay || this.patenSeen.has(to)) return;
+      this.patenSeen.add(to);
+      const me = this.player, c = Player.cur;
+      if (!me || Props.holder('paten') !== me) return;
+      const waiting = c && c.verb === 'under' && c.args[1] === to;
+      if (FIG[me].patenFor === to) return;
+      if (c && waiting) c.mistakes++;
+      this.mistake('He received with no paten under his chin', 'When the priest is in front of him, drag the paten under his chin.', this.beats[this.index]);
+      if (waiting && !Player.autoing) Player.done(false);
+    }
+
+    /** Does this moment ask you to do something with your body or hands, that you need a moment to see coming? Not while watching, nor in the tests. */
+    leadIn(b) {
+      if (this.kind !== 'play' || !/^A[12]$/.test(this.player || '') || window.__serve.autoplay) return false;
+      const list = b.tracks[this.player];
+      return !!list && list.some(c => { const v = C.parse(c).verb; return KEY_VERBS.has(v) && v !== 'say'; });
     }
 
     /** Is the next thing you have to do to answer? */
@@ -1280,7 +1384,7 @@
       return {
         steps: d.steps, time: d.time, flags: new Set(d.flags), hostFor: new Set(d.hostFor), hostUp: d.hostUp, cap: d.cap, capPart: d.capPart, note: d.noteNow,
         figs: Object.fromEntries(Object.entries(FIG).map(([r, f]) => [r, f.save()])),
-        loc: Object.assign({}, Props.loc), slot: Object.assign({}, Props.slot), tilt: Object.assign({}, Props.tilt), worn: Props.worn, veilFolded: Props.veilFolded,
+        loc: Object.assign({}, Props.loc), slot: Object.assign({}, Props.slot), tilt: Object.assign({}, Props.tilt), worn: Props.worn, veilFolded: Props.veilFolded, veil: PROPS.veil.obj.userData.shape(),
         out: Object.fromEntries(Object.entries(Props.out).map(([r, s]) => [r, new Set(s)])),
         placed: Object.values(PROPS).map(p => [p.obj.position.clone(), p.obj.quaternion.clone()]),      // a worn biretta is left where it last was
         shown: this.pieces.map(o => o.visible), glow: this.glows.map(o => o.intensity),
@@ -1295,7 +1399,8 @@
       d.timers = []; d.ended = false; d.index = i;
       d.steps = s.steps; d.time = s.time; d.flags = new Set(s.flags); d.hostFor = new Set(s.hostFor); d.hostUp = s.hostUp; d.cap = s.cap; d.capPart = s.capPart; d.noteNow = s.note;
       for (const [r, f] of Object.entries(FIG)) f.load(s.figs[r]);
-      Object.assign(Props, { loc: Object.assign({}, s.loc), slot: Object.assign({}, s.slot), tilt: Object.assign({}, s.tilt), worn: s.worn, veilFolded: s.veilFolded });
+      Object.assign(Props, { loc: Object.assign({}, s.loc), slot: Object.assign({}, s.slot), tilt: Object.assign({}, s.tilt), worn: s.worn, veilFolded: s.veilFolded, pinVeil: null, keepVeil: false });
+      PROPS.veil.obj.userData.set(s.veil);
       Props.out = Object.fromEntries(Object.entries(s.out).map(([r, o]) => [r, new Set(o)]));
       Object.values(PROPS).forEach((p, k) => { p.obj.position.copy(s.placed[k][0]); p.obj.quaternion.copy(s.placed[k][1]); });
       this.pieces.forEach((o, k) => { o.visible = s.shown[k]; });
@@ -1479,11 +1584,11 @@
   const Gest = {
     cross: f => f.gesture([
       { t: 0, R: J.R, L: FL }, { t: 0.18, R: [0, 0.74, 0.13] }, { t: 0.42, R: [0, 0.33, 0.18] },
-      { t: 0.64, R: [0.14, 0.5, 0.14] }, { t: 0.84, R: [-0.14, 0.5, 0.14] }, { t: 1, R: J.R, L: FL }], dur(1.1)),
+      { t: 0.64, R: [0.14, 0.5, 0.14] }, { t: 0.84, R: [-0.14, 0.5, 0.14] }, { t: 1, R: J.R, L: FL }], dur(1.1), { hands: { R: 'cross', L: 'breast' } }),
     small: f => f.gesture([
       { t: 0, R: J.R, L: FL }, { t: 0.2, R: [0.0, 0.74, 0.15] }, { t: 0.32, R: [0.02, 0.74, 0.15] },
-      { t: 0.5, R: [0.0, 0.64, 0.15] }, { t: 0.62, R: [0.02, 0.64, 0.15] }, { t: 0.8, R: [0.0, 0.44, 0.19] }, { t: 0.9, R: [0.02, 0.44, 0.19] }, { t: 1, R: J.R, L: FL }], dur(1.1)),
-    strike: f => f.gesture([{ t: 0, R: [-0.06, 0.37, 0.33], L: FL }, { t: 0.55, R: [-0.02, 0.38, 0.17] }, { t: 1, R: [-0.06, 0.37, 0.3], L: FL }], dur(0.5)),
+      { t: 0.5, R: [0.0, 0.64, 0.15] }, { t: 0.62, R: [0.02, 0.64, 0.15] }, { t: 0.8, R: [0.0, 0.44, 0.19] }, { t: 0.9, R: [0.02, 0.44, 0.19] }, { t: 1, R: J.R, L: FL }], dur(1.1), { hands: { R: 'thumb', L: 'breast' } }),
+    strike: f => f.gesture([{ t: 0, R: [-0.06, 0.37, 0.33], L: FL }, { t: 0.55, R: [-0.02, 0.38, 0.17] }, { t: 1, R: [-0.06, 0.37, 0.3], L: FL }], dur(0.8), { hands: { R: 'strike', L: 'breast' } }),
     kiss: f => {
       const side = f.held.R ? 'R' : f.held.L ? 'L' : 'R';
       return f.gesture([{ t: 0 }, { t: 0.45, [side]: [side === 'R' ? -0.03 : 0.03, 0.62, 0.17], neck: 0.15 }, { t: 1 }], dur(0.7));
@@ -1498,7 +1603,24 @@
       const side = Props.slot.bells === 'L' ? 'L' : 'R', x = side === 'R' ? -0.16 : 0.16;
       return f.gesture([{ t: 0, [side]: [x, 0.2, 0.3] }, { t: 0.3, [side]: [x - 0.05, 0.26, 0.32] }, { t: 0.6, [side]: [x + 0.03, 0.2, 0.3] }, { t: 1, [side]: [x, 0.2, 0.3] }], dur(0.45));
     },
-    fold: f => f.gesture([{ t: 0 }, { t: 0.3, R: [-0.15, 0.25, 0.35], L: [0.15, 0.25, 0.35] }, { t: 0.6, R: [-0.04, 0.3, 0.32], L: [0.04, 0.3, 0.32] }, { t: 1 }], dur(1.0)),
+    fold: f => {
+      const veil = PROPS.veil.obj, U = veil.userData, ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+      Props.pinVeil = { at: veil.position.clone(), heading: f.heading };
+      const edge = side => () => U.edgeWorld(side), at = (x, z) => () => U.pointWorld(x, z);
+      return f.gesture([
+        { t: 0, hands: { R: 'edge', L: 'edge' } },
+        { t: 0.12, R: edge('R'), L: edge('L'), hands: { R: 'edge', L: 'pinchAt' } },      // both edges in hand
+        { t: 0.15, R: edge('R'), L: edge('L') },
+        { t: 0.5, R: edge('R'), L: edge('L'), hands: { R: 'edge', L: 'pinchAt' } },      // the left third lifted, turned over and laid on the middle
+        { t: 0.56, R: edge('R'), L: at(-0.06, 0), hands: { R: 'pinchAt', L: 'altar' } },    // the left hand holds the fold down; the right takes its edge
+        { t: 0.58, R: edge('R'), L: at(-0.06, 0) },
+        { t: 0.9, R: edge('R'), L: at(-0.06, 0), hands: { R: 'pinchAt', L: 'altar' } },     // the right third over both
+        { t: 1, hands: { R: 'edge', L: 'edge' } },
+      ], dur(3.4), { onTick: x => {
+        U.set({ drape: 0, lift: 0, f1: Math.PI * ease((x - 0.15) / 0.35), f2: Math.PI * ease((x - 0.58) / 0.32) });
+        if (x >= 1) Props.pinVeil = null;
+      } });
+    },
     doffBiretta: f => f.gesture([{ t: 0 }, { t: 0.45, R: [-0.06, 0.82, 0.08] }, { t: 1, R: [-0.12, 0.3, 0.32] }], dur(0.7)),
   };
 
@@ -1534,8 +1656,12 @@
     donBiretta: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.6, R: [-0.06, 0.82, 0.08] }, { t: 1 }], dur(0.7)); Props.worn = true; FIG.P.setBiretta(true); Props.loc.biretta = 'hand:P'; Props.slot.biretta = null; Props.syncHands('P'); },
     doffBiretta: async (d, f) => { Props.worn = false; FIG.P.setBiretta(false); Props.attach('biretta', 'P'); await Gest.doffBiretta(f); },
     unveil: async (d, f) => {
-      await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.1, 0.18, 0.5], L: [0.1, 0.18, 0.5], spine: 0.2 }, { t: 1 }], dur(0.9));
-      Props.attach('veil', 'P'); PROPS.veil.obj.userData.setState('held');
+      const U = PROPS.veil.obj.userData, ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+      const side = s => () => U.pointWorld(s === 'L' ? -0.2 : 0.2, 0);
+      await f.gesture([{ t: 0 }, { t: 0.55, R: side('R'), L: side('L'), spine: 0.2, hands: { R: 'pinchAt', L: 'pinchAt' } }, { t: 1, R: side('R'), L: side('L'), spine: 0.2 }], dur(1.2));
+      Props.keepVeil = true; Props.attach('veil', 'P'); Props.keepVeil = false;
+      await f.gesture([{ t: 0, hands: { R: 'edge', L: 'edge' } }, { t: 1, hands: { R: 'edge', L: 'edge' } }], dur(1.1), { onTick: x => U.set({ drape: 1 - ease(x), lift: 1 - ease(x), f1: 0, f2: 0 }) });
+      U.setState('held');
     },
     pour: async (d, f) => {
       const p = Props.held('P').find(q => q === 'wine' || q === 'water');
@@ -1569,16 +1695,26 @@
     giveHost: async (d, f, [to]) => {
       const target = FIG[to];
       await d.approach('P', to, 0.72);
+      const beat = d.beats[d.index], holder = beat && Object.keys(beat.tracks).find(r => beat.tracks[r].includes('under paten ' + to));
+      if (holder) { const t0 = d.time; await d.step(d.until(() => FIG[holder].patenFor === to || d.time - t0 > 6 * Figure.slow)); }      // the paten under his chin first; he will not wait for ever
       await f.gesture([{ t: 0 }, { t: 0.4, R: () => target.headWorld().add(V(0, -0.03, 0.0)) }, { t: 0.7, R: () => target.headWorld().add(V(0, -0.03, 0.0)) }, { t: 1 }], dur(1.0),
-        { onT: [[0.6, () => d.hostFor.add(to)]] });
-      d.hostFor.add(to);
+        { onT: [[0.6, () => { d.patenCheck(to); d.hostFor.add(to); }]] });
+      d.patenCheck(to); d.hostFor.add(to);
+      for (const r of ['A1', 'A2']) if (FIG[r].patenFor === to) { await f.wait(0.3); FIG[r].lift = null; FIG[r].patenFor = null; }      // and the paten comes down
     },
     putPaten: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.15, 0.12, 0.45], spine: 0.15 }, { t: 1 }], dur(0.7)); if (Props.holder('paten') === 'P') Props.place('paten', 'altar.paten'); if (Props.holder('ciborium') === 'P') Props.place('ciborium', 'tab'); },
     holdChalice: async (d, f) => { Props.attach('chalice', 'P'); f.base = 'holdChalice'; await f.wait(dur(0.5)); },
     holdFingers: async (d, f) => { if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); f.base = 'fingers'; await f.wait(dur(0.4)); },
     wipeChalice: async (d, f) => { f.base = null; if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.05, 0.2, 0.42], L: [0.05, 0.2, 0.42] }, { t: 1 }], dur(1.0)); },
     foldCorporal: (d, f) => f.gesture([{ t: 0 }, { t: 0.3, R: [-0.15, 0.15, 0.45], L: [0.15, 0.15, 0.45], spine: 0.2 }, { t: 0.7, R: [-0.3, 0.2, 0.4], L: [-0.2, 0.2, 0.42], spine: 0.15 }, { t: 1 }], dur(1.2)),
-    veilChalice: async (d, f) => { await f.wait(dur(0.6)); Props.veilFolded = false; Props.place('veil', 'chalice'); },
+    veilChalice: async (d, f) => {
+      // the folded veil opened out and laid over the chalice, falling evenly all round
+      const U = PROPS.veil.obj.userData, from = U.shape(), ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+      Props.veilFolded = false; Props.place('veil', 'chalice', true);
+      await f.gesture([{ t: 0 }, { t: 0.3, R: [-0.12, 0.2, 0.46], L: [0.12, 0.2, 0.46], spine: 0.15, hands: { R: 'pinchAt', L: 'pinchAt' } }, { t: 0.8, R: [-0.15, 0.12, 0.46], L: [0.15, 0.12, 0.46], spine: 0.15 }, { t: 1 }], dur(1.6),
+        { onTick: x => U.set({ f2: from.f2 * (1 - ease(x / 0.35)), f1: from.f1 * (1 - ease((x - 0.2) / 0.35)), drape: ease((x - 0.5) / 0.45), lift: 0 }) });
+      U.setState('draped');
+    },
     burseOnChalice: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.04, 0.22, 0.45] }, { t: 1 }], dur(0.6)); Props.place('burse', 'chalice'); f.base = null; },
     takeChalice: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.06, 0.15, 0.45], L: [0.06, 0.15, 0.45] }, { t: 1 }], dur(0.8)); Props.attach('chalice', 'P'); },
     blessPeople: (d, f) => f.gesture([{ t: 0 }, { t: 0.2, R: [-0.08, 0.72, 0.32] }, { t: 0.45, R: [-0.08, 0.25, 0.4] }, { t: 0.65, R: [0.1, 0.48, 0.4] }, { t: 0.85, R: [-0.3, 0.48, 0.4] }, { t: 1 }], dur(1.3)),
@@ -1597,6 +1733,7 @@
         d.check();
         this.i = i;
         const c = list[i], { verb, args } = C.parse(c);
+        if ((verb === 'via' && /^w_/.test(args[0])) || verb === 'go') this.openLeg(list, i);
         if (verb === 'via' && /^w_/.test(args[0])) {      // a point on the way: a help to the player, cleared by going past it
           const after = list.slice(i + 1).map(C.parse).find(n => n.verb === 'go' || n.verb === 'via');
           this.nextPoint = after ? spot(after.args[0]) : null;
@@ -1620,16 +1757,25 @@
         this.nextTogether = togetherKey(list, i);
         await this.expect(d, c, beat);
         if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, c.replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
-        if (verb === 'go') { this.lastFace = spot(args[0])[2]; }
+        if (verb === 'go') { this.lastFace = spot(args[0])[2]; this.legOpen = false; }
       }
       this.cur = null; this.list = null; if (this.then && !this.then.far) this.then = null; UI.remind(null);
-      this.owed = []; this.stage = Infinity;      // your part in this beat is over: nobody waits on it any more
+      this.owed = []; this.stage = Infinity; this.legOpen = false;      // your part in this beat is over: nobody waits on it any more
       for (const o of Object.values(FIG)) o.keepBehind = null;
+    },
+
+    /** Where this walk began and where it ends: the points the guide shows between are help, not the way you must take. */
+    openLeg(list, i) {
+      if (this.legOpen) return;
+      const f = FIG[this.d.player], end = list.slice(i).map(C.parse).find(n => n.verb === 'go' || (n.verb === 'via' && !/^w_/.test(n.args[0])));
+      this.legOpen = true; this.legStart = [f.x, f.z];
+      this.legGoal = end ? spot(end.args[0]) : null;
     },
 
     expect(d, cmd, beat) {
       const { verb, args } = C.parse(cmd);
       if (verb === 'go') { const f = FIG[d.player]; this.legFrom = [f.x, f.z]; }
+      if (BODY_VERBS.has(verb) || verb === 'cross' || verb === 'go') this.late = null;      // the moment for putting right what you missed has gone by
       this.cur = { cmd, verb, args, count: 0, need: verb === 'strike' || verb === 'ring' ? (+args[0] || 1) : 1, beat, mistakes: 0, start: d.time, left: this.allow(d, verb, args) };
       d.results.total++;
       UI.remind(this.cur, beat);
@@ -1681,6 +1827,22 @@
       if (!list || !list.length || this.next()) return null;
       return Object.assign(C.parse(list[0]), { cmd: list[0] });
     },
+    /** The next thing you will be asked to do, in this moment or one of the next few: for the reminder before it is due. */
+    upcoming() {
+      const d = this.d;
+      if (!d || !d.player || !d.beats) return null;
+      const pick = (list, from, beat) => {
+        for (let j = from; j < list.length; j++) { const v = C.parse(list[j]).verb; if (KEY_VERBS.has(v) && v !== 'say') return { cmd: list[j], beat }; }
+        return null;
+      };
+      const now = d.beats[d.index];
+      if (now && this.list && this.list === now.tracks[d.player]) { const r = pick(this.list, this.i + 1, now); if (r) return r; }
+      for (let k = d.index + 1; k < Math.min(d.beats.length, d.index + 4); k++) {
+        const list = d.beats[k].tracks[d.player];
+        if (list && list.length) { const r = pick(list, 0, d.beats[k]); if (r) return r; }
+      }
+      return null;
+    },
     /** The next real thing to do, past any walking and turning still to be done; and where that walking was going. */
     nextAction() {
       if (!this.list) return null;
@@ -1706,8 +1868,8 @@
     /** How long, in real seconds, the Mass gives you for this before it has gone on without you. */
     allow(d, verb, args) {
       const f = FIG[d.player];
-      const rate = TURN_RATE;
-      if (verb === 'go') { const s = spot(args[0]); return Math.hypot(f.x - s[0], f.z - s[1]) * 1.25 / (WALK * d.o.speed) + Math.abs(wrap(Math.atan2(s[0] - f.x, s[1] - f.z) - f.heading)) / rate + 4.5; }     // a little over the straight line: there are columns and rails to go round
+      const rate = TURN_RATE / Figure.slow;
+      if (verb === 'go') { const s = spot(args[0]); return Math.hypot(f.x - s[0], f.z - s[1]) * 1.25 / (walk() * d.o.speed) + Math.abs(wrap(Math.atan2(s[0] - f.x, s[1] - f.z) - f.heading)) / rate + 4.5; }     // a little over the straight line: there are columns and rails to go round
       if (verb === 'turn') {
         let by = wrap(headingFor(d.player, args[1]) - f.heading);
         if (args[0] === 'cw' && by > 0) by -= 2 * Math.PI;
@@ -1716,8 +1878,8 @@
       }
       if (verb === 'faceto') return Math.abs(wrap(headingFor(d.player, args[0]) - f.heading)) / rate + 2.5;
       if (verb === 'ring') return 4;
-      if (verb === 'kneel' || verb === 'stand' || verb === 'gen' || verb === 'genhold' || verb === 'rise') return 3.5;
-      return 7;
+      if (verb === 'kneel' || verb === 'stand' || verb === 'gen' || verb === 'genhold' || verb === 'rise') return 5 * Figure.slow;
+      return 7 * Figure.slow;
     },
 
     /** Which way you should be facing, in words. */
@@ -1736,7 +1898,7 @@
         if (Math.hypot(tx, tz) < 1.3 && Math.abs(wrap(Math.atan2(tx, tz) - f.heading)) < FACE_OFF) { this.faceT = 0; return; }
       }
       if (this.lastGo && Math.hypot(f.x - spot(this.lastGo)[0], f.z - spot(this.lastGo)[1]) > 2.2) return;      // being out of place has its own reckoning
-      if (Math.abs(wrap(f.heading - this.lastFace)) < FACE_OFF) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
+      if (facesWay(f, this.lastFace)) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
       this.faceT += dt;
       if (this.faceT > 1.2 && !this.faceToasted && !this.faceSlipped && UI.coach()) { this.faceToasted = true; UI.toast('Face ' + this.faceWord() + ' (← → turn you).'); }
       if (this.faceT > 3 && !this.faceSlipped) { this.faceSlipped = true; d.mistake('You were facing the wrong way', 'Face ' + this.faceWord() + '.', this.beat); }
@@ -1755,7 +1917,9 @@
         return Math.hypot(px - ax - t * ux, pz - az - t * uz);
       };
       const going = c && c.verb === 'go', target = going ? spot(c.args[0]) : null;
-      const off = going ? Math.min(seg(f.x, f.z, this.legFrom, target), Math.hypot(f.x - target[0], f.z - target[1])) : Math.hypot(f.x - this.anchor[0], f.z - this.anchor[1]);
+      const goal = going && this.legOpen && this.legGoal ? this.legGoal : target, start = going && this.legOpen && this.legStart ? this.legStart : this.legFrom;
+      const detour = going ? (Math.hypot(f.x - start[0], f.z - start[1]) + Math.hypot(f.x - goal[0], f.z - goal[1]) - Math.hypot(goal[0] - start[0], goal[1] - start[1])) / 2 : Infinity;
+      const off = going ? Math.min(seg(f.x, f.z, this.legFrom, target), Math.hypot(f.x - target[0], f.z - target[1]), detour) : Math.hypot(f.x - this.anchor[0], f.z - this.anchor[1]);
       const limit = going ? 2.6 : 1.3;
       const closing = off < (this.lastOff == null ? off : this.lastOff) - 1e-4;     // coming back is always allowed
       this.lastOff = off;
@@ -1765,12 +1929,13 @@
         c.crossed = true;
         d.mistake('You crossed the altar steps', 'The altar steps are for the altar: go round on the floor.', this.beat);
       }
-      const inAltar = (x, z) => Math.abs(x) < 2.65 && z < 0.9 && z > -2.3;      // the first step is where you kneel: above it is the altar's
+      const [low, second] = C.LAYOUT.steps;
+      const inAltar = (x, z) => Math.abs(x) < low[0] + 0.05 && z < second[1] + 0.1 && z > C.LAYOUT.wallBack;      // the first step is where you kneel: above it is the altar's
       const entitled = going ? inAltar(target[0], target[1]) || inAltar(this.legFrom[0], this.legFrom[1]) : inAltar(this.anchor[0], this.anchor[1]);
       if (inAltar(f.x, f.z) && !entitled && off > 1.2) {     // on your way across the end of the steps is no offence; off it is
         this.altarT = (this.altarT || 0) + dt;
         if (this.altarT > 0.6 && !closing) {
-          if (canFail) return d.fail('You walked up to the altar when you had no business there.', going ? describe(c.cmd)[0] : 'Keep your place.', this.beat && this.beat.cite), true;
+          if (canFail && !going) return d.fail('You walked up to the altar when you had no business there.', 'Keep your place.', this.beat && this.beat.cite), true;
           if (!this.altarSlip) { this.altarSlip = true; d.mistake('You walked up to the altar when you had no business there', '', this.beat, true); }
         }
       } else { this.altarT = 0; this.altarSlip = false; }
@@ -1804,7 +1969,7 @@
         else if (o.y > 0.2 && this.pushT > 0.4) why = 'You shoved the priest on the altar steps.';
         else if (this.pushT > 0.5) why = 'You kept pushing into the priest until he nearly fell.';
         else if (o.bumps >= 2) why = 'You knocked into the priest a second time.';
-      } else if (carried.length && this.pushT > 0.6) {
+      } else if (carried.length && this.pushT > 1.5) {      // a brush in passing is a slip; only a real shove spills what he carries
         why = 'You knocked ' + name + ' and ' + (PROP_TEXT[carried[0]] || carried[0]) + ' went flying.';
       }
       if (!why) return false;
@@ -1836,6 +2001,7 @@
       if (why) return d.fail(why, describe(c.cmd)[0], c.beat && c.beat.cite);
       this.autoing = true; c.mistakes++;
       d.mistake('Too late: ' + describe(c.cmd)[0], '', c.beat);
+      if (BODY_VERBS.has(c.verb) || c.verb === 'cross') this.late = { type: c.verb === 'rise' ? 'stand' : c.verb, at: this.t };
       const me = d.player, f = FIG[me], [a0, a1] = c.args;
       const out = name => { (Props.out[me] = Props.out[me] || new Set()).add(name); };
       switch (c.verb) {
@@ -1848,6 +2014,7 @@
         case 'open': case 'close': FX.gates[a0].open = c.verb === 'open' ? 1 : 0; break;
         case 'flip': case 'unflip': FX.cloths[a0].flipped = c.verb === 'flip' ? 1 : 0; break;
         case 'fold': Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); break;
+        case 'under': d.patenSeen.add(a1); break;      // the Host is given all the same, and being late was the slip
         case 'drop': f.lift = null; break;
         default: break;      // a bow or a step not made, a bell not rung: simply not done
       }
@@ -1861,7 +2028,7 @@
       if (c.verb === 'turn') this.lastFace = headingFor(this.d.player, c.args[1]);
       if (c.verb === 'faceto') this.lastFace = headingFor(this.d.player, c.args[0]);
       if (c.verb === 'go') {
-        if (/^w_/.test(c.args[0]) && c.next) this.owed.push({ at: spot(c.args[0]), next: c.next });
+        if (/^w_/.test(c.args[0]) && c.next) this.owed.push({ at: spot(c.args[0]), next: c.next, goal: this.legOpen ? this.legGoal : null });
         else { this.stage += this.owed.length + 1; this.owed = []; }
         // arrived, your place is that spot; if the moment passed first you are judged from where you actually are
         const s = spot(c.args[0]), f = FIG[this.d.player];
@@ -1910,6 +2077,8 @@
       }
       const expect = c ? c.verb : null;
       const wrong = (msg) => {
+        // doing now what you were too late for, before the next thing for your body is due: that slip is already counted, and this is putting it right
+        if (this.late && this.late.type === type) { this.late = null; return; }
         if (c) c.mistakes++;
         d.mistake(msg, c ? describe(c.cmd)[0] : 'Wait for your cue', this.beat);
       };
@@ -1922,7 +2091,7 @@
           if (this.unknelt && expect !== 'kneel') { this.unknelt = false; return; }      // back on your knees: that is putting it right
           if (expect !== 'kneel') return wrong('You knelt — not now.');
           if (this.lastGo && !near(this.lastGo, 2.2)) return wrong('Kneel at ' + (SPOT_TEXT[this.lastGo] || this.lastGo) + ' — stand (↑) and go there.');
-          if (this.lastFace != null && !facing(this.lastFace, FACE_OFF)) { this.faceSlipped = true; c.mistakes++; d.mistake('You knelt facing the wrong way', 'Face ' + this.faceWord() + ' (← → turn you).', this.beat); }
+          if (this.lastFace != null && !facesWay(f, this.lastFace)) { this.faceSlipped = true; c.mistakes++; d.mistake('You knelt facing the wrong way', 'Face ' + this.faceWord() + ' (← → turn you).', this.beat); }
           return this.done();
         case 'stand':
           if (f.posture === 'stand') return;
@@ -1938,13 +2107,13 @@
           if (Math.abs(f.x) < 0.8) this.genSinceSide = true;
           if (expect !== 'gen') return wrong('A genuflection was not called for here.');
           if (this.lastGo && !near(this.lastGo, 2.2)) return wrong('Genuflect at ' + (SPOT_TEXT[this.lastGo] || this.lastGo) + '.');
-          if (!facing(Math.PI, FACE_OFF)) { c.mistakes++; d.mistake('You genuflected facing the wrong way', 'Genuflect towards the altar.', this.beat); }
+          if (!facesWay(f, Math.PI)) { c.mistakes++; d.mistake('You genuflected facing the wrong way', 'Genuflect towards the altar.', this.beat); }
           return this.done();
         case 'genhold':
           if (f.posture !== 'stand') return;
           f.genHold();
           if (expect !== 'genhold') return wrong(expect === 'gen' ? 'Just genuflect and rise — no need to stay down.' : 'You genuflected — not now.');
-          if (!facing(Math.PI, FACE_OFF)) { c.mistakes++; d.mistake('You genuflected facing the wrong way', 'Genuflect towards the altar.', this.beat); }
+          if (!facesWay(f, Math.PI)) { c.mistakes++; d.mistake('You genuflected facing the wrong way', 'Genuflect towards the altar.', this.beat); }
           return this.done();
         case 'rise':
           if (f.posture !== 'genhold') return;
@@ -2053,6 +2222,13 @@
           target = V(near.x, 1, near.z); break;
         }
         case 'touch': target = V(FIG[a0].x, 1, FIG[a0].z); if (!(Props.out[a0] && Props.out[a0].has('water-fingers'))) return UI.toast('Wait for ' + ROLE_TEXT(a0) + ' to hold out his fingers.'); break;
+        case 'under': {      // you have to be there: beside the priest, at the rail, near enough to reach under the chin
+          if (Props.holder(a0) !== d.player) return UI.toast('You are not holding the paten.');
+          if (FIG[a1].posture !== 'kneel') return UI.toast('Wait for the communicant to kneel at the rail.');
+          const at = underChin(FIG[a1]);
+          if (Math.hypot(f.x - at.x, f.z - at.z) > 1.8 || f.posture !== 'stand') return UI.toast('Go up to the rail, at the priest’s right.');
+          return this.runAuto();
+        }
         case 'light': case 'snuff': target = Props.worldPos('sc'); break;
         case 'open': case 'close': case 'flip': case 'unflip': target = fixturePos(a0); break;
         case 'dip': target = fixturePos('font'); break;
@@ -2066,7 +2242,7 @@
           const k = reach / short, x = target.x + (f.x - target.x) * k, z = target.z + (f.z - target.z) * k;
           if (!Plan.free(x, z, 0.18, blocked)) continue;
           this.autoing = true;
-          f.walkTo(x, z, { speed: WALK * d.o.speed, route: Nav.route(f.x, f.z, x, z) }).then(() => { this.autoing = false; if (this.cur === c) this.runAuto(); });
+          f.walkTo(x, z, { speed: walk() * d.o.speed, route: Nav.route(f.x, f.z, x, z) }).then(() => { this.autoing = false; if (this.cur === c) this.runAuto(); });
           return;
         }
       }
@@ -2149,8 +2325,9 @@
       this.t = (this.t || 0) + dt;
       // have you really gone by the points the guide has cleared? only then may those behind you come on
       while (this.owed.length) {
-        const { at, next } = this.owed[0];
-        if (Math.hypot(f.x - at[0], f.z - at[1]) < 0.5 || Math.hypot(f.x - next[0], f.z - next[1]) < Math.hypot(at[0] - next[0], at[1] - next[1])) { this.stage++; this.owed.shift(); } else break;
+        // gone by it: at it, or further on than it, towards the next point or (going your own way, ahead) towards where the walk ends
+        const { at, next, goal } = this.owed[0], gone = (p, m = 0) => p && Math.hypot(f.x - p[0], f.z - p[1]) < Math.hypot(at[0] - p[0], at[1] - p[1]) - m;
+        if (Math.hypot(f.x - at[0], f.z - at[1]) < 0.5 || gone(next) || gone(goal, 0.3)) { this.stage++; this.owed.shift(); } else break;
       }
       // standing where someone has to pass
       if (!UI.paused) for (const [role, o] of Object.entries(FIG)) {
@@ -2190,7 +2367,7 @@
       const going = Input.walk();
       if (going && !this.autoing && f.posture === 'stand' && !UI.paused && mayMove) {
         {
-          const sp = WALK * d.o.speed * dt * (going < 0 ? BACK : 1);      // the same pace as everyone else in this Mass
+          const sp = walk() * d.o.speed * dt * (going < 0 ? BACK : 1);      // the same pace as everyone else in this Mass
           const way = Input.steer(f, dt), wx = Math.sin(way) * going, wz = Math.cos(way) * going;
           // how a server does not move: backwards, beyond a step; or away from your place when nothing asks you to walk.
           // Walking on to the very spot you were going to is no fault, however the cue had already counted you there; nor is a step closer for a task in your hands
@@ -2237,20 +2414,22 @@
         goArrow.rotation.set(Math.PI, 0, 0);
         // the circle is a guide, not a rule: near enough is there; and a point on the way is cleared once you are past it
         const away = Math.hypot(f.x - s[0], f.z - s[1]), isPoint = /^w_/.test(c.args[0]), nx = this.nextPoint;
-        const roundTable = /^w_(tab|c[EG]$)/.test(c.args[0]);     // the way round the chair and the column, and the lower lane where the servers cross: cut these corners and you are on the steps, or in the other's way
-        const past = isPoint && !roundTable && nx && Math.hypot(f.x - nx[0], f.z - nx[1]) < Math.hypot(s[0] - nx[0], s[1] - nx[1]);
+        const goal = this.legOpen && this.legGoal ? this.legGoal : nx;
+        const past = isPoint && goal && Math.hypot(f.x - goal[0], f.z - goal[1]) < Math.hypot(s[0] - goal[0], s[1] - goal[1]) - 0.1;
         const handsOn = /^(el|com|cru|top|veil|st2|plate|abl|grad|cred|sed|pr\d|cr\d)/.test(c.args[0]);     // beside the priest or at the table you must be within reach
         const atFoot = /^(mid[LR]?|x[EG])$/.test(c.args[0]);     // the foot of the altar is on the floor: from here the servers cross, and the other one's way is the step above; and you kneel head on, not on the corner
-        if (f.posture === 'stand' && (away < (roundTable ? 0.45 : isPoint ? 1.1 : atFoot ? 0.4 : handsOn ? 0.55 : 0.9) || past)) this.done();
+        if (f.posture === 'stand' && (away < (isPoint ? 1.1 : atFoot ? 0.4 : handsOn ? 0.55 : 0.9) || past)) this.done();
       }
       // nobody waits: what you have not done when its moment has passed is missed
       if (c && !this.autoing && !UI.paused) {
         const heldBy = c.verb === 'take' ? Props.holder(c.args[0]) : null;
         const waitingOnThem = (heldBy && (heldBy === d.player || !(Props.out[heldBy] && Props.out[heldBy].has(c.args[0]))))
-          || (c.verb === 'touch' && !(Props.out[c.args[0]] && Props.out[c.args[0]].has('water-fingers')));
+          || (c.verb === 'touch' && !(Props.out[c.args[0]] && Props.out[c.args[0]].has('water-fingers')))
+          || c.verb === 'under';
         if (!waitingOnThem && !window.__serve.autoplay) {
           c.left -= dt;
           if (c.left <= 0) {
+            if (c.verb === 'go' && /^w_/.test(c.args[0])) { this.done(); return; }
             if (c.verb === 'go') {
               const s = spot(c.args[0]), away = Math.hypot(f.x - s[0], f.z - s[1]);
               const coming = c.lastAway == null || away < c.lastAway - 0.15;
@@ -2845,6 +3024,7 @@
     beat(d, b, i) {
       if (b.part !== this.lastPart) { this.lastPart = b.part; $('#caption').hidden = true; }
       $('#part').textContent = b.part;
+      if (d.kind === 'play' && !Player.cur) this.remind(null);      // what is coming, as soon as the moment before it begins
       $('#progress').style.width = (100 * i / d.beats.length).toFixed(1) + '%';
       if (d.kind !== 'play' && b.note && d.kind === 'watch') this.note(b.note, b.cite);
     },
@@ -2866,10 +3046,13 @@
     typing() { return !!(this.asking && this.asking.input); },
     /** One line: the button, what it is for, and if the moment has a short reason, that. */
     remind(c, beat) {
-      const el = $('#remind'), on = !!c && opts.reminders && !window.__serve.autoplay && !!director && director.kind === 'play';
-      el.hidden = !on; document.body.classList.toggle('reminding', on);
+      const el = $('#remind'), playing = opts.reminders && !window.__serve.autoplay && !!director && director.kind === 'play';
+      // with nothing to do this instant, what you will do next, so that it never comes on you suddenly
+      const up = !c && playing ? Player.upcoming() : null, on = playing && (!!c || !!up);
+      el.hidden = !on; el.classList.toggle('next', !c); document.body.classList.toggle('reminding', on);
       if (!on) return;
-      const [text, hint] = describe(c.cmd), button = this.typing() && BODY_VERBS.has(c.verb) ? 'Alt' : hint;
+      if (!c) { c = C.parse(up.cmd); c.cmd = up.cmd; beat = up.beat; }
+      const [text, hint] = describe(c.cmd), button = up ? 'Next' : this.typing() && BODY_VERBS.has(c.verb) ? 'Alt' : hint;
       // the reason, from the sentences that are about you: what the other server does is not your hint
       const me = director.player, other = me === 'A1' ? 'A2' : 'A1', note = beat && ((beat.notes && beat.notes[me]) || beat.note) || '';
       let why = (note.replace(/^[….\s]+/, '').split(/(?<=[.!?…])\s/).find(x => director.o.servers !== 2 || !new RegExp('\\b' + other + '\\b').test(x) || new RegExp('\\b' + me + '\\b').test(x)) || '').replace(/[….\s]+$/, '');
@@ -2878,15 +3061,14 @@
     },
     mistake(text, expected, major) {
       $('#mistakes').textContent = (director.results.slips || 0) + (director.o.failing === false ? '' : ' / ' + SLIP_LIMIT);
-      if (major) { this.toast('Major slip: ' + text, 'bad major'); return; }
-      if (director.o.mode === 'strict') return;
-      this.toast(text + (expected ? ' — ' + expected : ''), 'bad');
+      // what the slip was is always said, whatever help or reminders you have chosen: those are about what is coming, this is what has happened
+      this.toast((major ? 'Major slip: ' : 'Slip: ') + text.replace(/[.\s]+$/, '') + (expected ? ' — ' + expected : ''), major ? 'bad major' : 'bad', 7000);
     },
-    toast(text, kind) {
+    toast(text, kind, ms = 2600) {
       const el = h('div', { class: 'toast ' + (kind || '') }, text);
       $('#toasts').append(el);
-      setTimeout(() => el.classList.add('out'), 2600);
-      setTimeout(() => el.remove(), 3200);
+      setTimeout(() => el.classList.add('out'), ms);
+      setTimeout(() => el.remove(), ms + 600);
     },
     /** Ask for a response; resolves { ok, given }. */
     ask(t, ref, mode, limit, hearing, title = 'Your response') {
@@ -2984,6 +3166,10 @@
       if (!Explore.active && (!director || director.kind === 'demo' || director.failed)) return;
       this.paused = !this.paused;
       $('#pause').hidden = !this.paused;
+      const slips = director && director.kind === 'play' ? director.results.mistakes : [];
+      fill($('#pause-slips'), slips.length ? h('div', { class: 'slip-part' }, 'Your slips so far') : null,
+        slips.length ? h('ol', { class: 'slips' }, slips.slice(-12).map(m => h('li', null, h('div', { class: 'slip-part' }, m.part), h('div', null, (m.major ? 'Major: ' : '') + m.text),
+          m.expected ? h('div', { class: 'slip-exp' }, 'Expected: ' + m.expected) : null))) : null);
       $('#btn-walk-on').hidden = !(director && director.o.fromExplore && director.player);
     },
     failed(d, reason, expected, cite) {
@@ -3114,7 +3300,7 @@
     $('#caption').hidden = true; $('#note').hidden = true; $('#respond').hidden = true; UI.remind(null); UI.asking = null;
     youRing.visible = kind === 'play' && !o.choir;
     Grab.reset();
-    Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false;
+    Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false; Player.late = null;
     Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
@@ -3174,7 +3360,8 @@
     ['Servers', 'servers', [[1, 'One server'], [2, 'Two servers']]],
     ['Responses', 'respond', [['choose', 'Choose from four'], ['type', 'Type the Latin']]],
     ['Typing', 'typeHelp', [['easy', 'Easy: the line shown in grey'], ['memory', 'From memory']], () => opts.respond === 'type'],
-    ['Help (the Mass never waits for you, either way)', 'mode', [['coach', 'Circles on the floor and warnings'], ['strict', 'None']]],
+    ['Pace: the pause before each thing you do, and every gesture', 'pace', [['unhurried', 'Unhurried'], ['natural', 'Natural'], ['brisk', 'Brisk']]],
+    ['Help (the priest never waits for you; the other server keeps step with you)', 'mode', [['coach', 'Circles on the floor and warnings'], ['strict', 'None']]],
     ['Typing: syllables you must keep up per second', 'syllables', [[2, '2'], [3, '3'], [4, '4'], [5, '5'], [6, '6']], () => opts.respond === 'type'],
     ['Reminders at the top: which button, and why', 'reminders', [[true, 'On'], [false, 'Off']]],
     ['Camera while serving', 'camera', [['follow', 'Behind you'], ['fixed', 'Fixed above the gate']]],
@@ -3200,7 +3387,7 @@
     fill(body, ...OPTION_UI.filter(([, , , when]) => !when || when()).map(([label, key, choices]) =>
       h('div', { class: 'opt' }, h('div', { class: 'opt-label' }, label),
         h('div', { class: 'seg' }, choices.map(([v, text]) => h('button', {
-          'aria-pressed': String(opts[key] === v), onclick: () => { setOpt(key, v); if (key === 'weather') SKY.setMode(v); renderOptions(); },
+          'aria-pressed': String(opts[key] === v), onclick: () => { setOpt(key, v); if (key === 'weather') SKY.setMode(v); if (key === 'pace') Figure.slow = PACES[v] || 1; renderOptions(); },
         }, text))))),
       ...(opts.sound ? VOLUME_UI : []).map(([label, key]) => {
         const val = h('span', null, percent(opts[key]));
@@ -3270,7 +3457,7 @@
   }
   function frame(now) {
     const real = Math.min(0.05, (now - last) / 1000); last = now;
-    if (!TURBO) step(real);
+    if (!TURBO) { step(real); Sharp.watch((now - (frame.prev || now)) / 1000); frame.prev = now; }
     const line = director && director.line;
     if (line && (line.preparing || line.seeking)) Bar.paint();      // the picture stays until there is a moment to show
     else if (!TURBO || (frameNo++ % 8) === 0) renderer.render(scene, camera);
