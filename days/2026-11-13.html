@@ -108,6 +108,19 @@
   }
   .pill.active { border-color: var(--accent); color: var(--accent); }
   h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
+  h2 .credit {
+    float: right;
+    margin-left: 0.8rem;
+    font-size: 0.72rem;
+    line-height: 2.2;
+    font-style: italic;
+    letter-spacing: 0.03em;
+    text-transform: none;
+    color: var(--muted);
+  }
+  /* Where the credit will not fit beside the title it drops below it, and the
+     heading has to grow round it, or it hangs into the first verse. */
+  h2:has(.credit) { display: flow-root; }
   .pill-row { margin: 0.6rem 0 0.2rem; }
   .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
   blockquote {
@@ -355,6 +368,15 @@
   <p>O God, Who by the light of the Holy Spirit didst instruct the hearts of the faithful, grant that by the same Holy Spirit we may be truly wise and ever rejoice in His consolations. Through Christ our Lord.</p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
+  <section data-section="marian-psalm">
+    <h2><span class="numeral">III.</span>Psalm 14 of Our Lady <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
+  <p>O Lady, who shall dwell in the tabernacle of God ? or who shall rest with the leaders of the people?</p>
+  <p>The poor in spirit, and the pure of heart, the meek, the peaceful, and the mourners.</p>
+  <p>Be mindful, O Lady, that thou speak for us good things: and that thou mayest turn away the indignation of thy Son from us.</p>
+  <p>O sinners, let us embrace the footprints of Mary, and cast ourselves at her blessed feet.</p>
+  <p>Let us hold her fast, nor let her go: until we deserve to be blessed by her.</p>
+  <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
+  </section>
   <section data-section="creed" hidden>
     <h2><span class="numeral">.</span>Tridentine Creed <button type="button" id="lang-btn" name="lang-btn" class="pill" data-next="latin">Latin</button></h2>
   <div class="lang-english">
@@ -388,8 +410,8 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </div>
   </section>
-  <section data-section="acts">
-    <h2><span class="numeral">III.</span>Acts of Faith, Hope, and Love</h2>
+  <section data-section="acts" hidden>
+    <h2><span class="numeral">.</span>Acts of Faith, Hope, and Love</h2>
   <p class="rubric">Act of Faith</p>
   <p>O my God, I firmly believe that you are one God in three divine Persons, Father, Son, and Holy Spirit. I believe that your divine Son became man and died for our sins and that he will come to judge the living and the dead. I believe these and all the truths which the Holy Catholic Church teaches because you have revealed them who are eternal truth and wisdom, who can neither deceive nor be deceived. In this faith I intend to live and die.</p>
   <div class="vr"><div class="r">Amen.</div></div>
@@ -400,8 +422,8 @@
   <p>O Lord God, I love you above all things and I love my neighbor for your sake because you are the highest, infinite and perfect good, worthy of all my love. In this love I intend to live and die.</p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
-  <section data-section="contrition">
-    <h2><span class="numeral">IV.</span>Act of Contrition</h2>
+  <section data-section="contrition" hidden>
+    <h2><span class="numeral">.</span>Act of Contrition</h2>
   <div class="pill-row">
     <button type="button" class="pill contrition-btn" data-toggle-value="Act of Sorrow">Act of Sorrow</button>
     <button type="button" class="pill contrition-btn" data-toggle-value="O my God, I am heartily sorry">O my God, I am heartily sorry</button>
@@ -427,7 +449,7 @@
   </div>
   </section>
   <section data-section="lords-prayer">
-    <h2><span class="numeral">V.</span>Kyrie and Lord&#x27;s Prayer</h2>
+    <h2><span class="numeral">IV.</span>Kyrie and Lord&#x27;s Prayer</h2>
   <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
   <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
   <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
@@ -437,7 +459,7 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="offering">
-    <h2><span class="numeral">VI.</span>Morning Offering</h2>
+    <h2><span class="numeral">V.</span>Morning Offering</h2>
   <div class="pill-row">
     <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, through the Immaculate Heart">O Jesus, through the Immaculate Heart</button>
     <button type="button" class="pill offering-btn" data-toggle-value="O Jesus, I come before You">O Jesus, I come before You</button>
@@ -467,7 +489,7 @@
   </div>
   </section>
   <section data-section="saints">
-    <h2><span class="numeral">VII.</span>Invocation of the Saints</h2>
+    <h2><span class="numeral">VI.</span>Invocation of the Saints</h2>
   <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
   <div class="bilingual">Christ, have mercy. <span class="la">/ Christe, eléison.</span></div>
   <div class="bilingual">Lord, have mercy. <span class="la">/ Kýrie, eléison.</span></div>
@@ -485,21 +507,21 @@
   <div class="vr"><div class="v">All ye holy Martyrs, Angels, Virgins, Apostles, and Saints of God,</div><div class="r">intercede for us.</div></div>
   </section>
   <section data-section="reading-doctrinal">
-    <h2><span class="numeral">VIII.</span>From “Dilexit Nos: On the Human and Divine Love of the Heart of Jesus Christ”</h2>
+    <h2><span class="numeral">VII.</span>From “Dilexit Nos: On the Human and Divine Love of the Heart of Jesus Christ”</h2>
   <blockquote data-reading="94a90e2cbb4c">
     <p>67. Entering into the heart of Christ, we feel loved by a human heart filled with affections and emotions like our own. Jesus’ human will freely choose to love us, and that spiritual love is flooded with grace and charity. When we plunge into the depths of his heart, we find ourselves overwhelmed by the immense glory of his infinite love as the eternal Son, which we can no longer separate from his human love. It is precisely in his human love, and not apart from it, that we encounter his divine love: we discover “the infinite in the finite”.</p>
   </blockquote>
   <p class="attribution">&mdash; Dilexit Nos: On the Human and Divine Love of the Heart of Jesus Christ — Pope Francis</p>
   </section>
   <section data-section="reading-general">
-    <h2><span class="numeral">IX.</span>From “Libido Dominandi”</h2>
+    <h2><span class="numeral">VIII.</span>From “Libido Dominandi”</h2>
   <blockquote data-reading="a18c8732a57c">
     <p>Liberalism, by the inner dynamic of its logic, was forced to become an instrument of social control in order to avoid the chaos which it created by its own erosion of tradition and morals. Democratic man could not be left to his own devices; chaos would result. The logic was clear. If there is no God, there can be no religion; if there is no religion, there can be no morals; if there are no morals, there can be no self-control; if there is no self-control, there can be no social order; if there is no social order, there can be nothing but the chaos of competing desire.</p>
   </blockquote>
   <p class="attribution">&mdash; Libido Dominandi — E. Michael Jones</p>
   </section>
   <section data-section="reading-historical">
-    <h2><span class="numeral">X.</span>From “Adobe Days”</h2>
+    <h2><span class="numeral">IX.</span>From “Adobe Days”</h2>
   <blockquote data-reading="b8b2ed3f751f">
     <p>It was deemed wise to keep me occupied, so far as possible, in order to thwart Satan, ever on the lookout for idle hands. So I was taught to sew patch-work and to knit, to read and to spell. There were short periods when I had to stay in the house, but like most California children, I spent out of doors most of the time not given over to eating and sleeping. Now-adays even those duties are attended to upon porches.</p>
     <p>Under mamma’s guidance I once laboriously and secretly sewed ‘‘over and over’’ a gray and striped ‘‘comfort bag’’ for a birthday gift to papa. It was modelled on the bags made for the soldiers in the Union army when my mother was a girl. We made a special trip to Hollister to buy its contents, black and white thread, coarse needles, buttons, wax, blunt scissors, and to top off, pink and white sugary peppermint drops. That bag remained in service for twenty years, going always in father’s satchel whenever he went away. It came to my rescue once when I had torn my skirt from hem to band. As he sewed up the rent for me with nice big stitches, first on one side and then on the other, he told me it was a shoemaker’s stitch and had the advantage of bringing the edges together just as they had been originally, without puckering the cloth. Mamma used the same stitch to mend the torn pages of books and sheet music, in those days before Mr. Dennison invented his transparent tape.</p>
@@ -507,7 +529,7 @@
   <p class="attribution">&mdash; Adobe Days — Sarah Bixby Smith</p>
   </section>
   <section data-section="suffrage">
-    <h2><span class="numeral">XI.</span>Suffrage</h2>
+    <h2><span class="numeral">X.</span>Suffrage</h2>
   <p class="antiphon"><span class="label">Ant.</span> May the Blessed Virgin Mary, Mother of God, and all the Saints intercede for us with the Lord.</p>
   <div class="vr"><div class="v">The Lord hath made his holy one wonderful:</div><div class="r">The Lord will hear me when I cry unto him.</div></div>
   <p class="rubric">At the letter N., the name of the Titular of the local church is said, if the title is not a divine person or a mystery of the Lord, and when the name is not already in the prayer, the names of the holy Angels and of St. John the Baptist, if they are titulars, are said before the name of St. Joseph. In all these cases, the words blessed N. are omitted.</p>
@@ -516,20 +538,20 @@
   <p>Through the same Jesus Christ, thy Son, Our Lord, Who liveth and reigneth with thee in the unity of the Holy Spirit, God, world without end.</p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
-  <section data-section="closing-prayer">
-    <h2><span class="numeral">XII.</span>Closing Prayer</h2>
+  <section data-section="closing-prayer" hidden>
+    <h2><span class="numeral">.</span>Closing Prayer</h2>
   <p><em>Let us pray.</em></p>
   <p>Lord, may everything we do begin with your inspiration and continue with your help, so that all our prayers and works may begin in you and by you be happily ended. We ask this through Christ our Lord.</p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="doxology">
-    <h2><span class="numeral">XIII.</span>Doxology</h2>
+    <h2><span class="numeral">XI.</span>Doxology</h2>
   <p>Hear, O Israel: the Lord thy God is one God. And thou shalt love the Lord thy God with thy whole heart, and with thy whole soul, and with thy whole mind, and with thy whole strength. This is the first commandment. And the second is like to it: Thou shalt love thy neighbour as thyself. </p>
   <p>There is no other commandment greater than these. <span class="red">(Mark 12:29-31)</span></p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="verse-of-the-day">
-    <h2><span class="numeral">XIV.</span>Verse for the Day</h2>
+    <h2><span class="numeral">XII.</span>Verse for the Day</h2>
   <p>O Lord, in the morning Thou shalt hear my voice: in the morning I will stand before Thee, and will see. <span class="red">(Psalm 5:4-5)</span></p>
   <blockquote class="quote">
     <p>If you criticize the Church, you are simply criticizing yourself.</p>
@@ -537,16 +559,16 @@
   <p class="attribution">&mdash; St. Carlo Acutis</p>
   </section>
   <section data-section="pledge">
-    <h2><span class="numeral">XV.</span>Pledge of Allegiance</h2>
+    <h2><span class="numeral">XIII.</span>Pledge of Allegiance</h2>
   <p>I pledge allegiance to the Flag of the United States of America, and to the Republic for which it stands, one Nation under God, indivisible, with liberty and justice for all.</p>
   </section>
   <section data-section="closing-verses">
-    <h2><span class="numeral">XVI.</span>Closing Verses</h2>
+    <h2><span class="numeral">XIV.</span>Closing Verses</h2>
   <div class="vr"><div class="v">May the divine assistance <span class="red">✠</span> remain always with us and may the souls of the faithfully departed, through the mercy of God, rest in peace.</div><div class="r">Amen.</div></div>
   <div class="vr"><div class="v">Eternal rest grant unto them, O Lord;</div><div class="r">and let perpetual light shine upon them.</div></div>
   </section>
   <section data-section="sign-close">
-    <h2><span class="numeral">XVII.</span>Sign of the Cross</h2>
+    <h2><span class="numeral">XV.</span>Sign of the Cross</h2>
   <p><span class="red">✠</span> In the name of the Father, and of the Son, and of the Holy Spirit.</p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
@@ -606,7 +628,7 @@
   setupToggleButtons("offering-btn", "offering", "morningOffering");
   setupToggleButtons("contrition-btn", "contrition", "actofcontrition");
 </script>
-<script type="application/json" id="section-meta">[{"id": "sign-open", "label": "Sign of the Cross (opening)", "auto": true, "required": true, "rule": ""}, {"id": "holy-spirit", "label": "Invocation of the Holy Spirit", "auto": true, "required": true, "rule": ""}, {"id": "creed", "label": "Tridentine Creed", "auto": false, "required": false, "rule": "Sundays"}, {"id": "acts", "label": "Acts of Faith, Hope, and Love", "auto": true, "required": false, "rule": "weekdays"}, {"id": "contrition", "label": "Act of Contrition", "auto": true, "required": false, "rule": ""}, {"id": "lords-prayer", "label": "Kyrie and Lord's Prayer", "auto": true, "required": true, "rule": ""}, {"id": "offering", "label": "Morning Offering", "auto": true, "required": true, "rule": ""}, {"id": "saints", "label": "Invocation of the Saints", "auto": true, "required": false, "rule": ""}, {"id": "reading-doctrinal", "label": "First reading — catechism, council, encyclical", "auto": true, "required": true, "rule": ""}, {"id": "reading-general", "label": "Second reading — spiritual writing", "auto": true, "required": false, "rule": ""}, {"id": "reading-historical", "label": "Third reading — history and lives", "auto": true, "required": false, "rule": "weekdays"}, {"id": "suffrage", "label": "Suffrage", "auto": true, "required": false, "rule": ""}, {"id": "closing-prayer", "label": "Closing Prayer", "auto": true, "required": false, "rule": ""}, {"id": "doxology", "label": "Doxology", "auto": true, "required": true, "rule": ""}, {"id": "verse-of-the-day", "label": "Verse for the Day", "auto": true, "required": false, "rule": ""}, {"id": "pledge", "label": "Pledge of Allegiance", "auto": true, "required": false, "rule": "weekdays and holidays"}, {"id": "closing-verses", "label": "Closing Verses", "auto": true, "required": true, "rule": ""}, {"id": "sign-close", "label": "Sign of the Cross (closing)", "auto": true, "required": true, "rule": ""}]</script>
+<script type="application/json" id="section-meta">[{"id": "sign-open", "label": "Sign of the Cross (opening)", "auto": true, "required": true, "rule": ""}, {"id": "holy-spirit", "label": "Invocation of the Holy Spirit", "auto": true, "required": true, "rule": ""}, {"id": "marian-psalm", "label": "Psalter of Our Lady — St. Bonaventure", "auto": true, "required": false, "rule": ""}, {"id": "creed", "label": "Tridentine Creed", "auto": false, "required": false, "rule": "Sundays"}, {"id": "acts", "label": "Acts of Faith, Hope, and Love", "auto": false, "required": false, "rule": ""}, {"id": "contrition", "label": "Act of Contrition", "auto": false, "required": false, "rule": ""}, {"id": "lords-prayer", "label": "Kyrie and Lord's Prayer", "auto": true, "required": true, "rule": ""}, {"id": "offering", "label": "Morning Offering", "auto": true, "required": true, "rule": ""}, {"id": "saints", "label": "Invocation of the Saints", "auto": true, "required": false, "rule": ""}, {"id": "reading-doctrinal", "label": "First reading — catechism, council, encyclical", "auto": true, "required": true, "rule": ""}, {"id": "reading-general", "label": "Second reading — spiritual writing", "auto": true, "required": false, "rule": ""}, {"id": "reading-historical", "label": "Third reading — history and lives", "auto": true, "required": false, "rule": "weekdays"}, {"id": "suffrage", "label": "Suffrage", "auto": true, "required": false, "rule": ""}, {"id": "closing-prayer", "label": "Closing Prayer", "auto": false, "required": false, "rule": ""}, {"id": "doxology", "label": "Doxology", "auto": true, "required": true, "rule": ""}, {"id": "verse-of-the-day", "label": "Verse for the Day", "auto": true, "required": false, "rule": ""}, {"id": "pledge", "label": "Pledge of Allegiance", "auto": true, "required": false, "rule": "weekdays and holidays"}, {"id": "closing-verses", "label": "Closing Verses", "auto": true, "required": true, "rule": ""}, {"id": "sign-close", "label": "Sign of the Cross (closing)", "auto": true, "required": true, "rule": ""}]</script>
 <script>
 
 (function () {

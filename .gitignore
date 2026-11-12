@@ -15,6 +15,7 @@
 !export_office_data.py
 !verify_office_js.py
 !prayers.py
+!marian_psalter.py
 !holidays_us.py
 !readings.json
 

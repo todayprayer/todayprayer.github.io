@@ -33,6 +33,7 @@ from pathlib import Path
 import calendar_1962
 import holidays_us
 import json
+import marian_psalter
 import prayers
 from book_excerpts import READINGS_FILE, Excerpt, reading_excerpt, reading_key
 
@@ -149,6 +150,19 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   }}
   .pill.active {{ border-color: var(--accent); color: var(--accent); }}
   h2 .pill {{ float: right; text-transform: none; letter-spacing: normal; }}
+  h2 .credit {{
+    float: right;
+    margin-left: 0.8rem;
+    font-size: 0.72rem;
+    line-height: 2.2;
+    font-style: italic;
+    letter-spacing: 0.03em;
+    text-transform: none;
+    color: var(--muted);
+  }}
+  /* Where the credit will not fit beside the title it drops below it, and the
+     heading has to grow round it, or it hangs into the first verse. */
+  h2:has(.credit) {{ display: flow-root; }}
   .pill-row {{ margin: 0.6rem 0 0.2rem; }}
   .pill-row .pill {{ margin-right: 0.4rem; margin-bottom: 0.3rem; }}
   blockquote {{
@@ -992,6 +1006,49 @@ def acutis_quote(day: datetime.date) -> prayers.Quotation:
     )
 
 
+def in_turn(step: int, length: int) -> int:
+    """Which of `length` things the `step`th turn falls to.
+
+    The steps are dealt in rounds of `length`, and each round in an order of
+    its own, shuffled by the round's number. So the choice looks random from
+    one turn to the next, as asked for, but every one of the things comes
+    round once in each round and none of them twice -- which a fresh draw each
+    turn would not promise. Seeded by the round and nothing else, so a day is
+    the same however and whenever it is built; office.js does this arithmetic
+    too, with its port of CPython's shuffle.
+    """
+    order = list(range(length))
+    random.Random(step // length).shuffle(order)
+    return order[step % length]
+
+
+# Section labels for the settings list, which stay put while the titles change.
+MARIAN_PSALM_LABEL = "Psalter of Our Lady — St. Bonaventure"
+MARIAN_SATURDAY_LABEL = "Our Lady’s Saturday — canticle, Te Deum, creed or litany"
+
+# Whose these are, set small at the right of the section's heading, where the
+# Creed keeps its Latin button: the psalm and the Saturday piece both carry it.
+MARIAN_CREDIT = (
+    ' <span class="credit" title="From the Psalter of the Blessed Virgin Mary, '
+    'ascribed to St. Bonaventure">St. Bonaventure</span>'
+)
+
+
+def marian_psalm(day: datetime.date) -> int:
+    """The day's psalm of Our Lady's Psalter, 1 to 150: one a day, every one
+    of them in each hundred and fifty days."""
+    return in_turn(day.toordinal(), len(marian_psalter.PSALMS)) + 1
+
+
+def marian_saturday(day: datetime.date) -> int | None:
+    """On a Saturday, which piece of marian_psalter.SATURDAY follows the
+    psalm; on any other day, None. Counted in Saturdays, so the eleven come
+    round once in each eleven weeks."""
+    if day.weekday() != 5:
+        return None
+    return in_turn(day.toordinal() // 7, len(marian_psalter.SATURDAY))
+
+
 @dataclasses.dataclass(frozen=True)
 class Section:
     """One part of the office, and what the browser needs to know about it.
@@ -1127,13 +1184,34 @@ def build_page(
             S("holiday-hymn", holiday.hymn_title, render_prayer(holiday.hymn),
               rule="holidays")
         )
+    # A psalm of Our Lady's Psalter follows the hymn, as the psalms follow the
+    # hymn in the breviary -- and on a day without one, follows what the hymn
+    # would have followed. On Saturdays, which are hers, one of the canticles
+    # or the hymn, creed or litany at the back of the same book comes after it.
+    psalm_number = marian_psalm(day)
+    sections.append(
+        S("marian-psalm", f"Psalm {psalm_number} of Our Lady",
+          render_prayer(marian_psalter.psalm(psalm_number)),
+          extra=MARIAN_CREDIT, label=MARIAN_PSALM_LABEL)
+    )
+    saturday = marian_saturday(day)
+    if saturday is not None:
+        title, body = marian_psalter.SATURDAY[saturday]
+        sections.append(
+            S("marian-saturday", title, render_prayer(body), extra=MARIAN_CREDIT,
+              label=MARIAN_SATURDAY_LABEL, rule="Saturdays")
+        )
+    # The Acts, the Act of Contrition and the closing prayer are written into
+    # every page but shown by none unless the reader turns them on: they gave
+    # their room to the Psalter. The Acts used to stand on weekdays in the
+    # Creed's place; the Creed keeps its Sundays.
     sections += [
         S("creed", "Tridentine Creed", render_lang_prayer(prayers.TRIDENTINE_CREED),
           extra=lang_button, auto=sunday, rule="Sundays"),
         S("acts", "Acts of Faith, Hope, and Love", render_prayer(prayers.ACTS),
-          auto=not sunday, rule="weekdays"),
+          auto=False),
         S("contrition", "Act of Contrition",
-          render_optional("contrition", prayers.ACT_OF_CONTRITION)),
+          render_optional("contrition", prayers.ACT_OF_CONTRITION), auto=False),
         S("lords-prayer", "Kyrie and Lord's Prayer",
           render_prayer(prayers.KYRIE_AND_LORDS_PRAYER), required=True),
         S("offering", "Morning Offering",
@@ -1147,7 +1225,8 @@ def build_page(
           render_excerpt(hexcerpt, spent=not sunday),
           label="Third reading — history and lives", auto=not sunday, rule="weekdays"),
         S("suffrage", "Suffrage", render_prayer(prayers.SUFFRAGE)),
-        S("closing-prayer", "Closing Prayer", render_prayer(prayers.CLOSING_PRAYER)),
+        S("closing-prayer", "Closing Prayer", render_prayer(prayers.CLOSING_PRAYER),
+          auto=False),
         S("doxology", "Doxology", render_prayer(prayers.DOXOLOGY), required=True),
         S("verse-of-the-day", "Verse for the Day",
           render_prayer(verse_of_the_day(day) + [acutis_quote(day)])),

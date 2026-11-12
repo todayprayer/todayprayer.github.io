@@ -23,7 +23,7 @@ Hebrew Greater Doxology after its first line, which is Luke 2:14 and is
 Delitzsch's, the rest being translated here.
 """
 
-from prayers import Response, Rubric, SIGN_OF_THE_CROSS as SIGN_OF_THE_CROSS_EN
+from prayers import GLORIA_PATRI, Response, Rubric, SIGN_OF_THE_CROSS as SIGN_OF_THE_CROSS_EN
 
 __all__ = [
     "LANGUAGES",
@@ -184,16 +184,8 @@ HAIL_MARY = {
     ],
 }
 
-# Said at the end of the psalm, as it is at the end of every psalm of the
-# office. It closes the psalm rather than standing on its own, so the page
-# prints it inside the psalm's section and not as a section of its own.
-GLORIA_PATRI = [
-    (
-        "Glory be to the Father, and to the Son, and to the Holy Spirit.",
-        "As it was in the beginning, is now, and ever shall be, "
-        "world without end. Amen.",
-    ),
-]
+# GLORIA_PATRI, said at the end of the psalm, is imported from prayers.py
+# above, which the morning office shares: it closes Our Lady's psalms there.
 
 # --- The Greater Doxology ---------------------------------------------------
 #

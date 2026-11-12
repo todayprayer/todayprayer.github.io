@@ -6,9 +6,10 @@ browser becomes a rival version of a day that will later be generated for
 real — and one of the two will have been prayed.
 
 So this compares bytes, for a handful of days chosen to exercise the parts
-that differ: a feria, a Sunday (where the Creed displaces the Acts and the
-third reading is written but not spent), a saint's day with books of his own,
-and a civil holiday (which adds the hymn and holds the Pledge on).
+that differ: a feria, a Sunday (where the Creed is shown and the third
+reading is written but not spent), a saint's day with books of his own, a
+civil holiday (which adds the hymn and holds the Pledge on), and Saturdays
+(which add a piece of Our Lady's Psalter after her psalm).
 
 Usage:
     python verify_office_js.py
@@ -53,6 +54,11 @@ DEFAULT_DAYS = [
     # Daniel 3 without it.
     "2027-10-24",   # Saint Raphael the Archangel
     "2027-01-17",   # a Sunday in the new year
+    # Saturdays, which add a canticle, the Te Deum, the creed or the litany of
+    # Our Lady's Psalter after the day's psalm -- the only place the port's
+    # shuffle is dealt by the week rather than the day.
+    "2026-12-05",
+    "2027-03-13",
     "2027-06-06",   # far enough out to catch a bad ordinal
 ]
 

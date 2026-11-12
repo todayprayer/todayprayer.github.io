@@ -77,6 +77,20 @@ THANKS_BE_TO_GOD = [
     Response("Thanks be to God."),
 ]
 
+# Said at the end of a psalm, as it is at the end of every psalm of the
+# office. It closes the psalm rather than standing on its own, so a page
+# prints it inside the psalm's section and not as a section of its own. Kept
+# here for the reason the Deo gratias is: the night office closes David's
+# psalm with it and the morning closes Our Lady's, and the two should not be
+# able to drift into saying it differently.
+GLORIA_PATRI = [
+    (
+        "Glory be to the Father, and to the Son, and to the Holy Spirit.",
+        "As it was in the beginning, is now, and ever shall be, "
+        "world without end. Amen.",
+    ),
+]
+
 INVOCATION_OF_THE_HOLY_SPIRIT = [
     ("Come, Holy Spirit, fill the hearts of Thy faithful and kindle in them the fire of Thy love.",
      "Send forth Thy Spirit, and they shall be created; and Thou shalt renew the face of the earth."),

@@ -133,6 +133,24 @@
     return out;
   };
 
+  // Random.shuffle, in place: from the end down, each place swapped with one
+  // drawn at or below it.
+  PyRandom.prototype.shuffle = function (x) {
+    for (var i = x.length - 1; i > 0; i--) {
+      var j = this._randbelow(i + 1);
+      var t = x[i]; x[i] = x[j]; x[j] = t;
+    }
+  };
+
+  // generate_page.in_turn: the steps dealt in rounds of `length`, each round
+  // in an order shuffled by the round's number.
+  function inTurn(step, length) {
+    var order = [];
+    for (var i = 0; i < length; i++) { order.push(i); }
+    new PyRandom(Math.floor(step / length)).shuffle(order);
+    return order[step % length];
+  }
+
   // ---- hashlib.sha1 ------------------------------------------------------
 
   function utf8Bytes(str) {
@@ -456,12 +474,27 @@
       sections.push({ id: "holiday-hymn", title: hymn.title, body: hymn.body,
         rule: "holidays" });
     }
+    // A psalm of Our Lady's Psalter after the hymn, or after what the hymn
+    // would have followed; on a Saturday, a piece from the back of the book
+    // after it. Which ones is generate_page.marian_psalm and marian_saturday.
+    var marian = data.marian;
+    var psalmIndex = inTurn(ordinal, marian.psalms.length);
+    sections.push({ id: "marian-psalm",
+      title: "Psalm " + (psalmIndex + 1) + " of Our Lady",
+      body: marian.psalms[psalmIndex],
+      extra: marian.credit, label: marian.labels.psalm });
+    if (weekday === 5) {
+      var piece = marian.saturday[inTurn(Math.floor(ordinal / 7), marian.saturday.length)];
+      sections.push({ id: "marian-saturday", title: piece.title, body: piece.body,
+        extra: marian.credit, label: marian.labels.saturday, rule: "Saturdays" });
+    }
     sections.push(
       { id: "creed", title: "Tridentine Creed", body: fixed.creed,
         extra: data.lang_button, auto: sunday, rule: "Sundays" },
       { id: "acts", title: "Acts of Faith, Hope, and Love", body: fixed.acts,
-        auto: !sunday, rule: "weekdays" },
-      { id: "contrition", title: "Act of Contrition", body: fixed.contrition },
+        auto: false },
+      { id: "contrition", title: "Act of Contrition", body: fixed.contrition,
+        auto: false },
       { id: "lords-prayer", title: "Kyrie and Lord's Prayer",
         body: fixed["lords-prayer"], required: true },
       { id: "offering", title: "Morning Offering", body: fixed.offering, required: true },
@@ -476,7 +509,8 @@
         body: renderExcerpt(hexcerpt, !sunday),
         label: "Third reading — history and lives", auto: !sunday, rule: "weekdays" },
       { id: "suffrage", title: "Suffrage", body: fixed.suffrage },
-      { id: "closing-prayer", title: "Closing Prayer", body: fixed["closing-prayer"] },
+      { id: "closing-prayer", title: "Closing Prayer", body: fixed["closing-prayer"],
+        auto: false },
       { id: "doxology", title: "Doxology", body: fixed.doxology, required: true },
       { id: "verse-of-the-day", title: "Verse for the Day",
         body: verseBody + "\n" + sayingBody },

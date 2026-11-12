@@ -14,6 +14,8 @@ So the browser is handed:
   - the saints' rotation, each line already rendered, to be indexed by date;
   - the sayings of Saint Carlo Acutis, each already rendered, to be stepped
     through by date;
+  - the hundred and fifty psalms of Our Lady's Psalter and the eleven pieces
+    a Saturday may add after them, each already rendered, to be dealt by date;
   - per date: the verse of the day, the holiday hymn if there is one, and the
     feast's topics and rank, which is all the calendar the browser needs;
   - the keys of every reading the pages in days/ have already spent.
@@ -37,10 +39,14 @@ from pathlib import Path
 
 import calendar_1962
 import holidays_us
+import marian_psalter
 import night_prayers
 import prayers
 from generate_page import (
     DAYS_DIR,
+    MARIAN_CREDIT,
+    MARIAN_PSALM_LABEL,
+    MARIAN_SATURDAY_LABEL,
     PAGE_TEMPLATE,
     RANK_STEER,
     SETTINGS_CSS,
@@ -163,6 +169,29 @@ def acutis_sayings() -> dict:
             for saying in prayers.ACUTIS_QUOTES
         ],
         "stride": prayers.ACUTIS_STRIDE,
+    }
+
+
+def marian() -> dict:
+    """Our Lady's Psalter, rendered: every psalm, and every piece a Saturday
+    may add. Which of them a day says is generate_page.in_turn, arithmetic on
+    the date that office.js repeats, so the browser is handed the texts and
+    not a psalm per date -- the same bargain as acutis_sayings above. The
+    labels go too, being the one thing about these sections the settings list
+    prints that is not in the section itself, and the credit their headings
+    carry.
+    """
+    return {
+        "psalms": [
+            render_prayer(marian_psalter.psalm(n))
+            for n in range(1, len(marian_psalter.PSALMS) + 1)
+        ],
+        "saturday": [
+            {"title": title, "body": render_prayer(body)}
+            for title, body in marian_psalter.SATURDAY
+        ],
+        "labels": {"psalm": MARIAN_PSALM_LABEL, "saturday": MARIAN_SATURDAY_LABEL},
+        "credit": MARIAN_CREDIT,
     }
 
 
@@ -299,6 +328,7 @@ def main() -> None:
         "saints": saints(),
         "verses": {"pool": verses, "byDate": verse_index},
         "acutis": acutis_sayings(),
+        "marian": marian(),
         "hymns": {"pool": hymns, "byDate": hymn_index},
         "steering": steering(days),
         # What the pages in days/ have already prayed. The browser cannot list
@@ -319,6 +349,8 @@ def main() -> None:
     print(f"  {len(verses)} distinct verse bodies, {len(hymns)} holiday hymns")
     print(f"  {len(data['acutis']['pool'])} sayings of Saint Carlo Acutis, "
           f"stepped {data['acutis']['stride']} at a time")
+    print(f"  {len(data['marian']['psalms'])} psalms of Our Lady, "
+          f"{len(data['marian']['saturday'])} pieces for her Saturdays")
     print(f"  {len(data['steering'])} days with feast steering")
     print(f"  {len(data['spent'])} readings already spent by days/")
 
