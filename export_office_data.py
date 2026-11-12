@@ -44,7 +44,6 @@ import night_prayers
 import prayers
 from generate_page import (
     DAYS_DIR,
-    MARIAN_CREDIT,
     MARIAN_PSALM_LABEL,
     MARIAN_SATURDAY_LABEL,
     PAGE_TEMPLATE,
@@ -53,6 +52,7 @@ from generate_page import (
     SETTINGS_JS,
     SETTINGS_UI,
     render_lang_prayer,
+    render_marian,
     render_optional,
     render_prayer,
     used_readings,
@@ -178,20 +178,18 @@ def marian() -> dict:
     the date that office.js repeats, so the browser is handed the texts and
     not a psalm per date -- the same bargain as acutis_sayings above. The
     labels go too, being the one thing about these sections the settings list
-    prints that is not in the section itself, and the credit their headings
-    carry.
+    prints that is not in the section itself.
     """
     return {
         "psalms": [
-            render_prayer(marian_psalter.psalm(n))
+            render_marian(marian_psalter.psalm(n))
             for n in range(1, len(marian_psalter.PSALMS) + 1)
         ],
         "saturday": [
-            {"title": title, "body": render_prayer(body)}
-            for title, body in marian_psalter.SATURDAY
+            {"title": piece.title, "body": render_marian(piece)}
+            for piece in marian_psalter.SATURDAY
         ],
         "labels": {"psalm": MARIAN_PSALM_LABEL, "saturday": MARIAN_SATURDAY_LABEL},
-        "credit": MARIAN_CREDIT,
     }
 
 

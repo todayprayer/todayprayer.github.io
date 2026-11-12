@@ -108,19 +108,6 @@
   }
   .pill.active { border-color: var(--accent); color: var(--accent); }
   h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
-  h2 .credit {
-    float: right;
-    margin-left: 0.8rem;
-    font-size: 0.72rem;
-    line-height: 2.2;
-    font-style: italic;
-    letter-spacing: 0.03em;
-    text-transform: none;
-    color: var(--muted);
-  }
-  /* Where the credit will not fit beside the title it drops below it, and the
-     heading has to grow round it, or it hangs into the first verse. */
-  h2:has(.credit) { display: flow-root; }
   .pill-row { margin: 0.6rem 0 0.2rem; }
   .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
   blockquote {
@@ -128,12 +115,20 @@
     padding: 0.2rem 0 0.2rem 1.2rem;
     border-left: 3px solid var(--rule);
   }
+  /* Verse, set as the night office sets its psalm: one verse to a line, and
+     a verse that wraps hangs. */
+  blockquote .line {
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }
   .attribution {
     text-align: right;
     font-style: normal;
     font-size: 0.9rem;
     color: var(--muted);
   }
+  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }
   footer {
     text-align: center;
     margin-top: 3rem;
@@ -369,59 +364,65 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="marian-psalm">
-    <h2><span class="numeral">III.</span>Psalm 129 of Our Lady <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>Out of the depths I have cried to thee, O Lady: Lady, hear my prayer.</p>
-  <p>Let thine ears be attentive: to the voice of praise and of thy glorification.</p>
-  <p>Deliver me from the hand of my adversaries: confound their plans and their attempts against me.</p>
-  <p>Deliver me in the evil day: and in the day of death forget not my soul.</p>
-  <p>Lead me unto the harbor of salvation: may my name be written among the just.</p>
+    <h2><span class="numeral">III.</span>Psalm 129 of Our Lady</h2>
+  <blockquote class="psalm">
+    <p class="line">Out of the depths I have cried to thee, O Lady: Lady, hear my prayer.</p>
+    <p class="line">Let thine ears be attentive: to the voice of praise and of thy glorification.</p>
+    <p class="line">Deliver me from the hand of my adversaries: confound their plans and their attempts against me.</p>
+    <p class="line">Deliver me in the evil day: and in the day of death forget not my soul.</p>
+    <p class="line">Lead me unto the harbor of salvation: may my name be written among the just.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="marian-saturday">
-    <h2><span class="numeral">IV.</span>Hymn After the Model of the &quot;Te Deum&quot; <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>We praise thee, O Mother of God: we confess thee, Mary, ever Virgin.</p>
-  <p>Thou art the Spouse of the Eternal Father: the whole earth venerates thee.</p>
-  <p>Thee all angels and archangels, thrones and principalities serve.</p>
-  <p>Thee all powers and all virtues of Heaven: and all dominations obey.</p>
-  <p>Before thee all the angelic choirs: the Cherubim and Seraphim exulting stand.</p>
-  <p>With unceasing voice every angelic creature proclaims thee:</p>
-  <p>Holy, holy, holy: Mary, Mother of God and Virgin!</p>
-  <p>Full are the heavens and the earth: of the majesty and glory of the fruit of thy womb.</p>
-  <p>Thee the glorious choir of Apostles: praise as the Mother of their Creator.</p>
-  <p>Thee the white-robed multitude of blessed martyrs: glorify as the Mother of Christ.</p>
-  <p>Thee the glorious army of Confessors: style the Temple of the Trinity.</p>
-  <p>Thee the amiable choir of holy virgins: preaches as the example of virginity and humility.</p>
-  <p>Thee the whole heavenly court: honoureth as Queen.</p>
-  <p>The Church, invoking thee, calls thee throughout the whole world: Mother of the Divine Majesty.</p>
-  <p>Venerating thee as the true Mother of the heavenly King: holy, sweet, and loving.</p>
-  <p>Thou art the Lady of Angels: thou art the gate of Paradise.</p>
-  <p>Thou art the ladder of glory: and of the heavenly kingdom.</p>
-  <p>Thou art the bridal chamber: thou art the ark of piety and grace.</p>
-  <p>Thou art the vein of mercy: thou art the Spouse and the Mother of the Eternal King.</p>
-  <p>Thou art the temple of the treasury of the Holy Ghost: thou art the noble throne of the whole blessed Trinity.</p>
-  <p>Thou art the Mediatrix of God, and the lover of men: the heavenly Illuminatrix of mortal men.</p>
-  <p>Thou art the inspirer of the warriors, the advocate of the poor: the compassionate refuge of sinners.</p>
-  <p>Thou art the distributrix of gifts: the barrier against demons and the proud, and their fear.</p>
-  <p>Thou art the Lady of the world, the Queen of Heaven: after God our only hope.</p>
-  <p>Thou art the salvation of them that call upon thee: the harbor of the shipwrecked, the solace of the wretched, the refuge of those who perish.</p>
-  <p>Thou art the Mother of all the blessed, full of joy after God: the comfort of all the dwellers in Heaven.</p>
-  <p>Thou art the promotrix of the just, the one who gathers together those who stray: the promise of the patriarchs.</p>
-  <p>Thou art the truth of the prophets, the herald and teacher of the Apostles: the Mistress of the Evangelists.</p>
-  <p>Thou art the strength of martyrs, the example of confessors: the honor and the festivity of virgins.</p>
-  <p>Thou hast received into thy womb the Son of God: to deliver exiled man.</p>
-  <p>By thee is driven out the ancient enemy: and the kingdoms of Heaven are opened to believers.</p>
-  <p>Thou sittest together with thy Son: at the right hand of the Father.</p>
-  <p>Do thou intercede for us, O Virgin Mary: with Him who we believe will come to judge us.</p>
-  <p>We beseech thee, therefore, help us, thy servants: who have been redeemed with the Precious Blood of Thy Son.</p>
-  <p>Save thy people, O Lady: that we may be partakers of the inheritance of Thy Son.</p>
-  <p>And rule us: and keep us forever.</p>
-  <p>Day by day, O loving one: we salute thee.</p>
-  <p>And we desire to praise thee forever: with both mind and voice.</p>
-  <p>Deign, O sweet Mary, now and forever: to keep us without sin.</p>
-  <p>Have mercy on us, O loving one: have mercy on us.</p>
-  <p>Let thy great mercy be upon us: because we trust in thee, O Virgin Mary.</p>
-  <p>In thee, O sweet Mary, we hope: do thou defend us forever.</p>
-  <p>Praise becometh thee; empire is thine: to thee be power and glory forever.</p>
+    <h2><span class="numeral">IV.</span>Hymn After the Model of the &quot;Te Deum&quot;</h2>
+  <blockquote class="psalm">
+    <p class="line">We praise thee, O Mother of God: we confess thee, Mary, ever Virgin.</p>
+    <p class="line">Thou art the Spouse of the Eternal Father: the whole earth venerates thee.</p>
+    <p class="line">Thee all angels and archangels, thrones and principalities serve.</p>
+    <p class="line">Thee all powers and all virtues of Heaven: and all dominations obey.</p>
+    <p class="line">Before thee all the angelic choirs: the Cherubim and Seraphim exulting stand.</p>
+    <p class="line">With unceasing voice every angelic creature proclaims thee:</p>
+    <p class="line">Holy, holy, holy: Mary, Mother of God and Virgin!</p>
+    <p class="line">Full are the heavens and the earth: of the majesty and glory of the fruit of thy womb.</p>
+    <p class="line">Thee the glorious choir of Apostles: praise as the Mother of their Creator.</p>
+    <p class="line">Thee the white-robed multitude of blessed martyrs: glorify as the Mother of Christ.</p>
+    <p class="line">Thee the glorious army of Confessors: style the Temple of the Trinity.</p>
+    <p class="line">Thee the amiable choir of holy virgins: preaches as the example of virginity and humility.</p>
+    <p class="line">Thee the whole heavenly court: honoureth as Queen.</p>
+    <p class="line">The Church, invoking thee, calls thee throughout the whole world: Mother of the Divine Majesty.</p>
+    <p class="line">Venerating thee as the true Mother of the heavenly King: holy, sweet, and loving.</p>
+    <p class="line">Thou art the Lady of Angels: thou art the gate of Paradise.</p>
+    <p class="line">Thou art the ladder of glory: and of the heavenly kingdom.</p>
+    <p class="line">Thou art the bridal chamber: thou art the ark of piety and grace.</p>
+    <p class="line">Thou art the vein of mercy: thou art the Spouse and the Mother of the Eternal King.</p>
+    <p class="line">Thou art the temple of the treasury of the Holy Ghost: thou art the noble throne of the whole blessed Trinity.</p>
+    <p class="line">Thou art the Mediatrix of God, and the lover of men: the heavenly Illuminatrix of mortal men.</p>
+    <p class="line">Thou art the inspirer of the warriors, the advocate of the poor: the compassionate refuge of sinners.</p>
+    <p class="line">Thou art the distributrix of gifts: the barrier against demons and the proud, and their fear.</p>
+    <p class="line">Thou art the Lady of the world, the Queen of Heaven: after God our only hope.</p>
+    <p class="line">Thou art the salvation of them that call upon thee: the harbor of the shipwrecked, the solace of the wretched, the refuge of those who perish.</p>
+    <p class="line">Thou art the Mother of all the blessed, full of joy after God: the comfort of all the dwellers in Heaven.</p>
+    <p class="line">Thou art the promotrix of the just, the one who gathers together those who stray: the promise of the patriarchs.</p>
+    <p class="line">Thou art the truth of the prophets, the herald and teacher of the Apostles: the Mistress of the Evangelists.</p>
+    <p class="line">Thou art the strength of martyrs, the example of confessors: the honor and the festivity of virgins.</p>
+    <p class="line">Thou hast received into thy womb the Son of God: to deliver exiled man.</p>
+    <p class="line">By thee is driven out the ancient enemy: and the kingdoms of Heaven are opened to believers.</p>
+    <p class="line">Thou sittest together with thy Son: at the right hand of the Father.</p>
+    <p class="line">Do thou intercede for us, O Virgin Mary: with Him who we believe will come to judge us.</p>
+    <p class="line">We beseech thee, therefore, help us, thy servants: who have been redeemed with the Precious Blood of Thy Son.</p>
+    <p class="line">Save thy people, O Lady: that we may be partakers of the inheritance of Thy Son.</p>
+    <p class="line">And rule us: and keep us forever.</p>
+    <p class="line">Day by day, O loving one: we salute thee.</p>
+    <p class="line">And we desire to praise thee forever: with both mind and voice.</p>
+    <p class="line">Deign, O sweet Mary, now and forever: to keep us without sin.</p>
+    <p class="line">Have mercy on us, O loving one: have mercy on us.</p>
+    <p class="line">Let thy great mercy be upon us: because we trust in thee, O Virgin Mary.</p>
+    <p class="line">In thee, O sweet Mary, we hope: do thou defend us forever.</p>
+    <p class="line">Praise becometh thee; empire is thine: to thee be power and glory forever.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="creed" hidden>

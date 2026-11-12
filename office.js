@@ -482,11 +482,11 @@
     sections.push({ id: "marian-psalm",
       title: "Psalm " + (psalmIndex + 1) + " of Our Lady",
       body: marian.psalms[psalmIndex],
-      extra: marian.credit, label: marian.labels.psalm });
+      label: marian.labels.psalm });
     if (weekday === 5) {
       var piece = marian.saturday[inTurn(Math.floor(ordinal / 7), marian.saturday.length)];
       sections.push({ id: "marian-saturday", title: piece.title, body: piece.body,
-        extra: marian.credit, label: marian.labels.saturday, rule: "Saturdays" });
+        label: marian.labels.saturday, rule: "Saturdays" });
     }
     sections.push(
       { id: "creed", title: "Tridentine Creed", body: fixed.creed,

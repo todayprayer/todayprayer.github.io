@@ -36,7 +36,9 @@ etc."; that line is not kept in the verses below, because the page prints the
 Glory Be in full after them, from prayers.GLORIA_PATRI.
 """
 
-from prayers import GLORIA_PATRI, Response, Subheading
+from dataclasses import dataclass, field
+
+from prayers import GLORIA_PATRI, Response
 
 # Each psalm is a list of parts and each part a list of verses. Every psalm
 # but 118 is a single part.
@@ -1957,27 +1959,50 @@ LITANY = (
 
 # --- As the page says them ----------------------------------------------------
 
-def psalm(number: int) -> list:
-    """Psalm `number`, 1 to 150, closed with the Glory Be. Its number is in
-    the section's title, so the psalm itself goes unheaded; only Psalm 118's
-    later parts are headed, 118A to 118J as the book heads them, each closed
-    with the Glory Be in its turn."""
-    items: list = []
-    for i, verses in enumerate(PSALMS[number - 1]):
-        if i:
-            items.append(Subheading(f"Psalm {number}{'ABCDEFGHIJ'[i - 1]}"))
-        items += verses
-        items += GLORIA_PATRI
-    return items
+AUTHOR = "St. Bonaventure"
+SOURCE = "The Psalter of the Blessed Virgin Mary"
+LITANY_SOURCE = "The Psalter of the Blessed Virgin Mary, tr. John Cumming (1852)"
 
 
-# What a Saturday may add after the psalm, as (title, body): the canticles in
-# the book's order, then the Te Deum, the creed and the litany.
+@dataclass
+class Piece:
+    """One psalm, canticle, hymn, creed or litany, as a page sets it.
+
+    Set the way the night office sets its psalm: the verses in a block, the
+    credit under them, and then whatever closes the piece -- the Glory Be, an
+    Amen, or nothing. `parts` is the verse, as (heading, verses) pairs, the
+    heading empty where the part has none. The litany is not verse but
+    versicle and response, so it comes as prayer items in `items` instead.
+    """
+
+    title: str
+    parts: list = field(default_factory=list)
+    close: list = field(default_factory=list)
+    source: str = SOURCE
+    items: list = field(default_factory=list)
+
+
+def psalm(number: int) -> Piece:
+    """Psalm `number`, 1 to 150. Its number is in the title, so the psalm
+    goes unheaded; only Psalm 118's later parts are headed, 118A to 118J as
+    the book heads them, and each part is closed with the Glory Be."""
+    return Piece(
+        title=f"Psalm {number} of Our Lady",
+        parts=[
+            (f"Psalm {number}{'ABCDEFGHIJ'[i - 1]}" if i else "", verses)
+            for i, verses in enumerate(PSALMS[number - 1])
+        ],
+        close=GLORIA_PATRI,
+    )
+
+
+# What a Saturday may add after the psalm: the canticles in the book's order,
+# then the Te Deum, the creed and the litany.
 SATURDAY = (
-    [(title, verses + GLORIA_PATRI) for title, verses in CANTICLES]
+    [Piece(title, [("", verses)], GLORIA_PATRI) for title, verses in CANTICLES]
     + [
-        (TE_DEUM_TITLE, TE_DEUM + [Response("Amen.")]),
-        (CREED_TITLE, CREED),
-        (LITANY_TITLE, LITANY),
+        Piece(TE_DEUM_TITLE, [("", TE_DEUM)], [Response("Amen.")]),
+        Piece(CREED_TITLE, [("", CREED)]),
+        Piece(LITANY_TITLE, source=LITANY_SOURCE, items=LITANY),
     ]
 )

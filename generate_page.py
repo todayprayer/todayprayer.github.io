@@ -150,19 +150,6 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
   }}
   .pill.active {{ border-color: var(--accent); color: var(--accent); }}
   h2 .pill {{ float: right; text-transform: none; letter-spacing: normal; }}
-  h2 .credit {{
-    float: right;
-    margin-left: 0.8rem;
-    font-size: 0.72rem;
-    line-height: 2.2;
-    font-style: italic;
-    letter-spacing: 0.03em;
-    text-transform: none;
-    color: var(--muted);
-  }}
-  /* Where the credit will not fit beside the title it drops below it, and the
-     heading has to grow round it, or it hangs into the first verse. */
-  h2:has(.credit) {{ display: flow-root; }}
   .pill-row {{ margin: 0.6rem 0 0.2rem; }}
   .pill-row .pill {{ margin-right: 0.4rem; margin-bottom: 0.3rem; }}
   blockquote {{
@@ -170,12 +157,20 @@ PAGE_TEMPLATE = """<!DOCTYPE html>
     padding: 0.2rem 0 0.2rem 1.2rem;
     border-left: 3px solid var(--rule);
   }}
+  /* Verse, set as the night office sets its psalm: one verse to a line, and
+     a verse that wraps hangs. */
+  blockquote .line {{
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }}
   .attribution {{
     text-align: right;
     font-style: normal;
     font-size: 0.9rem;
     color: var(--muted);
   }}
+  .attribution .source {{ display: block; font-size: 0.8rem; font-style: italic; }}
   footer {{
     text-align: center;
     margin-top: 3rem;
@@ -1026,12 +1021,35 @@ def in_turn(step: int, length: int) -> int:
 MARIAN_PSALM_LABEL = "Psalter of Our Lady — St. Bonaventure"
 MARIAN_SATURDAY_LABEL = "Our Lady’s Saturday — canticle, Te Deum, creed or litany"
 
-# Whose these are, set small at the right of the section's heading, where the
-# Creed keeps its Latin button: the psalm and the Saturday piece both carry it.
-MARIAN_CREDIT = (
-    ' <span class="credit" title="From the Psalter of the Blessed Virgin Mary, '
-    'ascribed to St. Bonaventure">St. Bonaventure</span>'
-)
+
+def render_marian(piece: marian_psalter.Piece) -> str:
+    """A piece of Our Lady's Psalter, set as the night office sets its psalm.
+
+    The verse in a block, a verse to a line; the credit under it, St.
+    Bonaventure and the book; and after the credit what closes the piece, the
+    Glory Be above all. A psalm in parts closes each part with its Glory Be
+    and carries the credit once, over the last.
+
+    The block is given a class of its own, like the quotation under the verse
+    for the day, so that BLOCKQUOTE does not take it for a reading.
+    """
+    credit = (
+        f'  <p class="attribution">&mdash; {html.escape(marian_psalter.AUTHOR)}'
+        f'<span class="source">{html.escape(piece.source)}</span></p>'
+    )
+    out = [render_prayer(piece.items)] if piece.items else []
+    for i, (heading, verses) in enumerate(piece.parts):
+        if heading:
+            out.append(render_paragraph(prayers.Subheading(heading)))
+        lines = "\n".join(f'    <p class="line">{html.escape(v)}</p>' for v in verses)
+        out.append(f'  <blockquote class="psalm">\n{lines}\n  </blockquote>')
+        if i == len(piece.parts) - 1:
+            out.append(credit)
+        if piece.close:
+            out.append(render_prayer(piece.close))
+    if not piece.parts:
+        out.append(credit)
+    return "\n".join(out)
 
 
 def marian_psalm(day: datetime.date) -> int:
@@ -1188,17 +1206,15 @@ def build_page(
     # hymn in the breviary -- and on a day without one, follows what the hymn
     # would have followed. On Saturdays, which are hers, one of the canticles
     # or the hymn, creed or litany at the back of the same book comes after it.
-    psalm_number = marian_psalm(day)
+    psalm = marian_psalter.psalm(marian_psalm(day))
     sections.append(
-        S("marian-psalm", f"Psalm {psalm_number} of Our Lady",
-          render_prayer(marian_psalter.psalm(psalm_number)),
-          extra=MARIAN_CREDIT, label=MARIAN_PSALM_LABEL)
+        S("marian-psalm", psalm.title, render_marian(psalm), label=MARIAN_PSALM_LABEL)
     )
     saturday = marian_saturday(day)
     if saturday is not None:
-        title, body = marian_psalter.SATURDAY[saturday]
+        piece = marian_psalter.SATURDAY[saturday]
         sections.append(
-            S("marian-saturday", title, render_prayer(body), extra=MARIAN_CREDIT,
+            S("marian-saturday", piece.title, render_marian(piece),
               label=MARIAN_SATURDAY_LABEL, rule="Saturdays")
         )
     # The Acts, the Act of Contrition and the closing prayer are written into

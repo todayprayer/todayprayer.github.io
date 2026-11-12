@@ -108,19 +108,6 @@
   }
   .pill.active { border-color: var(--accent); color: var(--accent); }
   h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
-  h2 .credit {
-    float: right;
-    margin-left: 0.8rem;
-    font-size: 0.72rem;
-    line-height: 2.2;
-    font-style: italic;
-    letter-spacing: 0.03em;
-    text-transform: none;
-    color: var(--muted);
-  }
-  /* Where the credit will not fit beside the title it drops below it, and the
-     heading has to grow round it, or it hangs into the first verse. */
-  h2:has(.credit) { display: flow-root; }
   .pill-row { margin: 0.6rem 0 0.2rem; }
   .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
   blockquote {
@@ -128,12 +115,20 @@
     padding: 0.2rem 0 0.2rem 1.2rem;
     border-left: 3px solid var(--rule);
   }
+  /* Verse, set as the night office sets its psalm: one verse to a line, and
+     a verse that wraps hangs. */
+  blockquote .line {
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }
   .attribution {
     text-align: right;
     font-style: normal;
     font-size: 0.9rem;
     color: var(--muted);
   }
+  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }
   footer {
     text-align: center;
     margin-top: 3rem;
@@ -369,23 +364,29 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="marian-psalm">
-    <h2><span class="numeral">III.</span>Psalm 26 of Our Lady <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>O Lady, may thy light be the splendor of my countenance: and let the serenity of thy grace shine upon my mind.</p>
-  <p>Raise up my head: and I will sing a psalm to thy name.</p>
-  <p>Turn not away thy face from me: for from my youth up I have greatly desired thy beauty and thy grace.</p>
-  <p>I have loved thee and sought after thee, O Queen of Heaven: withdraw not thy mercy and thy grace from thy servant.</p>
-  <p>I will give praise to thee in the nations: and I will honor the throne of thy glory.</p>
+    <h2><span class="numeral">III.</span>Psalm 26 of Our Lady</h2>
+  <blockquote class="psalm">
+    <p class="line">O Lady, may thy light be the splendor of my countenance: and let the serenity of thy grace shine upon my mind.</p>
+    <p class="line">Raise up my head: and I will sing a psalm to thy name.</p>
+    <p class="line">Turn not away thy face from me: for from my youth up I have greatly desired thy beauty and thy grace.</p>
+    <p class="line">I have loved thee and sought after thee, O Queen of Heaven: withdraw not thy mercy and thy grace from thy servant.</p>
+    <p class="line">I will give praise to thee in the nations: and I will honor the throne of thy glory.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="marian-saturday">
-    <h2><span class="numeral">IV.</span>A Canticle Like Habacuc&#x27;s (3) <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>O Lady, I have heard thy hearing: and I was astonished: I have considered thy works, and I have feared.</p>
-  <p>Lady, thy work: in the midst of the years thou hast quickened it.</p>
-  <p>I will praise thee, O Lady: for thou hast hidden these things from the wise, and hast revealed them to little ones.</p>
-  <p>Thy glory hath covered the heavens: and the earth is full of thy mercy.</p>
-  <p>Thou hast gone forth, O Virgin, in the salvation of thy people: to their salvation with Christ.</p>
-  <p>O blessed one, in thy hands is laid up our salvation: be mindful, O loving one, of our poverty.</p>
-  <p>He whom thou wilt save, will be saved: and he from whom thou shalt turn away thy face, will go down to destruction.</p>
+    <h2><span class="numeral">IV.</span>A Canticle Like Habacuc&#x27;s (3)</h2>
+  <blockquote class="psalm">
+    <p class="line">O Lady, I have heard thy hearing: and I was astonished: I have considered thy works, and I have feared.</p>
+    <p class="line">Lady, thy work: in the midst of the years thou hast quickened it.</p>
+    <p class="line">I will praise thee, O Lady: for thou hast hidden these things from the wise, and hast revealed them to little ones.</p>
+    <p class="line">Thy glory hath covered the heavens: and the earth is full of thy mercy.</p>
+    <p class="line">Thou hast gone forth, O Virgin, in the salvation of thy people: to their salvation with Christ.</p>
+    <p class="line">O blessed one, in thy hands is laid up our salvation: be mindful, O loving one, of our poverty.</p>
+    <p class="line">He whom thou wilt save, will be saved: and he from whom thou shalt turn away thy face, will go down to destruction.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="creed" hidden>

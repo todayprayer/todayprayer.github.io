@@ -108,19 +108,6 @@
   }
   .pill.active { border-color: var(--accent); color: var(--accent); }
   h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
-  h2 .credit {
-    float: right;
-    margin-left: 0.8rem;
-    font-size: 0.72rem;
-    line-height: 2.2;
-    font-style: italic;
-    letter-spacing: 0.03em;
-    text-transform: none;
-    color: var(--muted);
-  }
-  /* Where the credit will not fit beside the title it drops below it, and the
-     heading has to grow round it, or it hangs into the first verse. */
-  h2:has(.credit) { display: flow-root; }
   .pill-row { margin: 0.6rem 0 0.2rem; }
   .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
   blockquote {
@@ -128,12 +115,20 @@
     padding: 0.2rem 0 0.2rem 1.2rem;
     border-left: 3px solid var(--rule);
   }
+  /* Verse, set as the night office sets its psalm: one verse to a line, and
+     a verse that wraps hangs. */
+  blockquote .line {
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }
   .attribution {
     text-align: right;
     font-style: normal;
     font-size: 0.9rem;
     color: var(--muted);
   }
+  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }
   footer {
     text-align: center;
     margin-top: 3rem;
@@ -369,12 +364,15 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="marian-psalm">
-    <h2><span class="numeral">III.</span>Psalm 89 of Our Lady <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>O Lady, thou art made unto us refreshment: in all our needs.</p>
-  <p>The diffusion of thy grace produces thy holy operations in us: and the gentle dropping of thy sweetness maketh holy affections.</p>
-  <p>I will be mindful, O Lady, of thy tender mercies: I will sing unto thee a sacrifice of praise and a song of joy.</p>
-  <p>They who honor thee will obtain a perennial crown for ashes: and the mantle of praise for the spirit of mourning.</p>
-  <p>They who hope in thee will be clothed with light: joy and perpetual rejoicing will be their lot.</p>
+    <h2><span class="numeral">III.</span>Psalm 89 of Our Lady</h2>
+  <blockquote class="psalm">
+    <p class="line">O Lady, thou art made unto us refreshment: in all our needs.</p>
+    <p class="line">The diffusion of thy grace produces thy holy operations in us: and the gentle dropping of thy sweetness maketh holy affections.</p>
+    <p class="line">I will be mindful, O Lady, of thy tender mercies: I will sing unto thee a sacrifice of praise and a song of joy.</p>
+    <p class="line">They who honor thee will obtain a perennial crown for ashes: and the mantle of praise for the spirit of mourning.</p>
+    <p class="line">They who hope in thee will be clothed with light: joy and perpetual rejoicing will be their lot.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="creed" hidden>

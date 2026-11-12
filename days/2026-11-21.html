@@ -108,19 +108,6 @@
   }
   .pill.active { border-color: var(--accent); color: var(--accent); }
   h2 .pill { float: right; text-transform: none; letter-spacing: normal; }
-  h2 .credit {
-    float: right;
-    margin-left: 0.8rem;
-    font-size: 0.72rem;
-    line-height: 2.2;
-    font-style: italic;
-    letter-spacing: 0.03em;
-    text-transform: none;
-    color: var(--muted);
-  }
-  /* Where the credit will not fit beside the title it drops below it, and the
-     heading has to grow round it, or it hangs into the first verse. */
-  h2:has(.credit) { display: flow-root; }
   .pill-row { margin: 0.6rem 0 0.2rem; }
   .pill-row .pill { margin-right: 0.4rem; margin-bottom: 0.3rem; }
   blockquote {
@@ -128,12 +115,20 @@
     padding: 0.2rem 0 0.2rem 1.2rem;
     border-left: 3px solid var(--rule);
   }
+  /* Verse, set as the night office sets its psalm: one verse to a line, and
+     a verse that wraps hangs. */
+  blockquote .line {
+    padding-left: 1.3rem;
+    text-indent: -1.3rem;
+    line-height: 1.55;
+  }
   .attribution {
     text-align: right;
     font-style: normal;
     font-size: 0.9rem;
     color: var(--muted);
   }
+  .attribution .source { display: block; font-size: 0.8rem; font-style: italic; }
   footer {
     text-align: center;
     margin-top: 3rem;
@@ -369,25 +364,31 @@
   <div class="vr"><div class="r">Amen.</div></div>
   </section>
   <section data-section="marian-psalm">
-    <h2><span class="numeral">III.</span>Psalm 33 of Our Lady <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>I will bless Our Lady at all times: and her praise shall never fail in my mouth.</p>
-  <p>Magnify her with me: all ye who are nourished with the milk and honey of her refreshment.</p>
-  <p>In dangers and doubts invoke her: and in necessities you will find sweet help and refreshment.</p>
-  <p>Take example from her conversation: and be zealous to imitate her charity and humility.</p>
-  <p>Because thou wast most humble, O Lady: thou hast induced the Uncreated Word to take flesh from thee.</p>
+    <h2><span class="numeral">III.</span>Psalm 33 of Our Lady</h2>
+  <blockquote class="psalm">
+    <p class="line">I will bless Our Lady at all times: and her praise shall never fail in my mouth.</p>
+    <p class="line">Magnify her with me: all ye who are nourished with the milk and honey of her refreshment.</p>
+    <p class="line">In dangers and doubts invoke her: and in necessities you will find sweet help and refreshment.</p>
+    <p class="line">Take example from her conversation: and be zealous to imitate her charity and humility.</p>
+    <p class="line">Because thou wast most humble, O Lady: thou hast induced the Uncreated Word to take flesh from thee.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="marian-saturday">
-    <h2><span class="numeral">IV.</span>A Canticle Like That of Moses (Deuteronomy 32) <span class="credit" title="From the Psalter of the Blessed Virgin Mary, ascribed to St. Bonaventure">St. Bonaventure</span></h2>
-  <p>Hear, ye heavens, what I shall speak of Mary: let the earth hear the words of my mouth.</p>
-  <p>Magnify her together with me: and let us exalt her name forever and ever.</p>
-  <p>O wicked and perverse generation: acknowledge our Lady for thy salvatrix.</p>
-  <p>Is she not thy mother, who hath possessed thee: and generated thee in faith?</p>
-  <p>If thou leavest her, thou art not the friend of the supreme Caesar: for without her He will not save thee.</p>
-  <p>Would that thou couldst understand, and be wise: and provide for thy last end!</p>
-  <p>As an infant without a nurse cannot live: so thou canst not have salvation without Our Lady.</p>
-  <p>Let thy soul thirst for her, hold her, and do not let her go: until she has blessed thee.</p>
-  <p>Let thy mouth be filled with her praises: sing her magnificence the whole day long.</p>
+    <h2><span class="numeral">IV.</span>A Canticle Like That of Moses (Deuteronomy 32)</h2>
+  <blockquote class="psalm">
+    <p class="line">Hear, ye heavens, what I shall speak of Mary: let the earth hear the words of my mouth.</p>
+    <p class="line">Magnify her together with me: and let us exalt her name forever and ever.</p>
+    <p class="line">O wicked and perverse generation: acknowledge our Lady for thy salvatrix.</p>
+    <p class="line">Is she not thy mother, who hath possessed thee: and generated thee in faith?</p>
+    <p class="line">If thou leavest her, thou art not the friend of the supreme Caesar: for without her He will not save thee.</p>
+    <p class="line">Would that thou couldst understand, and be wise: and provide for thy last end!</p>
+    <p class="line">As an infant without a nurse cannot live: so thou canst not have salvation without Our Lady.</p>
+    <p class="line">Let thy soul thirst for her, hold her, and do not let her go: until she has blessed thee.</p>
+    <p class="line">Let thy mouth be filled with her praises: sing her magnificence the whole day long.</p>
+  </blockquote>
+  <p class="attribution">&mdash; St. Bonaventure<span class="source">The Psalter of the Blessed Virgin Mary</span></p>
   <div class="vr"><div class="v">Glory be to the Father, and to the Son, and to the Holy Spirit.</div><div class="r">As it was in the beginning, is now, and ever shall be, world without end. Amen.</div></div>
   </section>
   <section data-section="creed" hidden>
