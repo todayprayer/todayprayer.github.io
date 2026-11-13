@@ -568,11 +568,13 @@
       const kb = this.keepBehind, behind = kb && Math.hypot(this.x + ux * step - kb.x, this.z + uz * step - kb.z);
       const you = !this.isPlayer && Figure.bodies.find(o => o.isPlayer && o.root.visible);
       const toYou = you ? Math.hypot(this.x + ux * step - you.x, this.z + uz * step - you.z) : 9;
-      const yielding = you && toYou < 0.6 && toYou < Math.hypot(this.x - you.x, this.z - you.z) && (w.yielded || 0) < 1;
+      // only someone in front, on the way: beside him, as at the next place along a step, is not in his way
+      const inFront = you && ((you.x - this.x) * ux + (you.z - this.z) * uz) / (Math.hypot(you.x - this.x, you.z - this.z) || 1) > 0.8;
+      const yielding = inFront && toYou < 0.6 && toYou < Math.hypot(this.x - you.x, this.z - you.z) && (w.yielded || 0) < 1;
       this.blockedBy = null;
-      if (yielding) {                     // let you by, a moment
+      if (yielding) {                     // let you by, a moment; then on to his place, not left short of it
         w.yielded = (w.yielded || 0) + dt; stopped = true; this.walkLook = you;
-        if (toGoal < 0.7) return finish();
+        if (toGoal < 0.25) return finish();
       } else if (kb && !w.goRound && behind < 0.7 && behind < Math.hypot(this.x - kb.x, this.z - kb.z)) {
         // leave room for whoever is ahead, and wait; if they have plainly stopped there, settle near by or go round them
         stopped = true; this.walkLook = kb;
@@ -616,7 +618,7 @@
 
     /** Walk in a straight line; resolves on arrival. opts.back walks backwards without turning. */
     walkTo(x, z, opts = {}) {
-      return new Promise(resolve => { this.walk = { x, z, back: !!opts.back, speed: opts.speed || 1.1, route: opts.route ? opts.route.slice() : null, pacer: opts.pacer || null, resolve }; });
+      return new Promise(resolve => { this.walk = { x, z, back: !!opts.back, look: opts.look || null, speed: opts.speed || 1.1, route: opts.route ? opts.route.slice() : null, pacer: opts.pacer || null, resolve }; });
     }
     /** Turn to a heading. dir: 'cw' (to the right, heading decreasing) | 'ccw' | undefined (shortest). */
     turnTo(h, dir) {
@@ -770,6 +772,8 @@
       let neckYawT = 0;
       if (this.nodT > 0 && this.nodTarget) neckYawT = this.yawTo(this.nodTarget, 1.1);
       else if (this.walkLook) neckYawT = this.yawTo(this.walkLook.headWorld(), 1.0);     // a glance at whoever is in the way
+      else if (this.walk && this.walk.back && this.walk.look) neckYawT = this.yawTo(this.walk.look, 1.25);      // stepping backwards: looking over the shoulder at where the feet go
+      else if (this.lookBack) neckYawT = this.lookBack;
       else if (this.lookAt) neckYawT = this.yawTo(this.lookAt, 1.0);
 
       // gestures

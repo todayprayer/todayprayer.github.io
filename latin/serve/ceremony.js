@@ -80,6 +80,9 @@
     // crossing the middle at the foot of the altar
     'mid': [0, 1.95, A], 'midR': [0.38, 1.95, A], 'midL': [-0.38, 1.95, A],
     'ftE': [1.55, 1.95, A], 'ftG': [-1.55, 1.95, A],
+    // up to the Epistle end of the altar from its side, never up the front: round the outside of the column, and in over the side of the steps
+    'w_dnE': [1.05, 1.85], 'w_colE': [2.8, 1.25], 'w_sideE': [2.8, -0.5], 'sideE': [2.8, -0.5, G],
+    'w_colG': [-2.8, 1.25], 'w_sideG': [-2.8, -0.5],      // and down again the same way, at either end
     'cornerE': [3.1, 1.6, A], 'cornerG': [-3.1, 1.6, A],      // before the frames
     'w_frE': [3.05, 1.1], 'w_frG': [-4.4, 1.1],      // on the way to the chairs: the walkway before the Epistle ones, the opening of the Gospel frame
     'floorG': [-2.9, -0.3, E],
@@ -97,9 +100,9 @@
     // cruets and Lavabo: side by side on the floor beside the steps, by the table; then up on to the second step, in front of the priest
     'cruWait1': [3.0, -0.38, G], 'cruWait2': [3.0, 0.18, G], 'cruWaitS': [3.0, -0.1, G],
     'cruOut': [3.6, -0.1],      // A2 coming from the table: outside A1, so he need not pass him
-    'cruA1': [2.2, -0.38, toward(2.2, -0.38, 1.5, -0.1)], 'cruA2': [2.2, 0.18, toward(2.2, 0.18, 1.5, -0.1)],
-    'cruS': [2.2, -0.1, G],
-    'ablA1': [2.2, -0.38, E], 'ablS': [2.2, -0.1, E],      // the same places, reached from the top step with the back to the priest: then a turn back the way he came
+    'cruA1': [2.08, -0.38, toward(2.08, -0.38, 1.5, -0.1)], 'cruA2': [2.08, 0.18, toward(2.08, 0.18, 1.5, -0.1)],      // the middle of the second step (1.9 to 2.25), not its edge
+    'cruS': [2.08, -0.1, G],
+    'ablA1': [2.08, -0.38, E], 'ablS': [2.08, -0.1, E],      // the same places, reached from the top step with the back to the priest: then a turn back the way he came
 
     // side furniture
     'cred': [3.3, -1.4, A], 'cred1': [3.08, -1.4, A], 'cred2': [3.55, -1.4, A],
@@ -358,8 +361,8 @@
     B({ P: 'say versicles.8' });
     B({ P: 'wait 1.2; go P.mid slow; say ascent.0-1', S: 'pinch', note: 'Pinch his alb again as he goes up the steps.', cite: 'SV p. 12' });
     B({ P: 'bow med; say ascent.2-3; g kissAltar; up',
-        A1: two ? 'stand; turn ccw people; go xE; kneel' : 'stand; go xG; kneel',
-        A2: 'stand; turn cw people; go xG; kneel',
+        A1: two ? 'stand; go xE; kneel' : 'stand; go xG; kneel',
+        A2: 'stand; go xG; kneel',
         note: two ? 'Go to your place in extended formation and kneel.' : 'The book is open on the Epistle side: your place is opposite it, on the Gospel side.',
         cite: two ? 'SV p. 4 (formations)' : 'SV p. 26 (general rule)' });
 
@@ -387,28 +390,26 @@
     B({ P: 'g handsOnBook; say T.epistle; g leftHandDown', note: 'The signal: he lays his left hand on the altar.', cite: 'SV p. 12' });
     B({ S: 'say lessons.0' });
     B({ P: 'say T.gradual',
-        A1: two ? 'stand; turn ccw people; go ftE' : 'stand; go mid; gen; go ftE',
-        note: two ? 'After the Alleluia, A1 goes to the Epistle side to move the book; A2 stays.' : 'Stand, genuflect crossing the middle, and go to the Epistle side.',
-        cite: two ? 'SV p. 13' : 'SV p. 33' });
+        A1: two ? 'stand; turn cw epistle; via w_colE; go sideE' : 'stand; go mid; gen; via w_colE; go sideE',
+        note: two ? 'After the Alleluia, A1 goes round the outside of the column to the side of the steps, to move the book; A2 stays.' : 'Stand, genuflect crossing the middle, and go round the column to the side of the steps.',
+        cite: two ? 'SV p. 13; at St. Vitus up from the side, not the front' : 'SV p. 33' });
     B({ P: 'go P.mid; g eyesUp; bow deep; say T.munda; up',
-        A1: 'go topE; take missal; turn ccw people; go mid; signal bookGen; gen; go topG; put missal altar.G; go st2G; face P',
-        A2: 'waitsig bookGen; stand; face P',
-        note: 'Carry the Missal down, genuflect in the middle, set it at about 30° on the Gospel side, and stand on the second step facing the priest.',
+        A1: 'go topE; take missal; turn ccw people; go mid; signal bookGen; gen; go topG; put missal altar.G; turn ccw wall; go mid; gen',
+        A2: 'waitsig bookGen; stand',
+        note: 'Up from the side for the Missal; carry it down, genuflect in the middle, set it at about 30° on the Gospel side, then turn to the wall and come down again, genuflecting in the middle.',
+        noteA2: 'Stand as A1 genuflects in the middle with the Missal.',
         cite: two ? 'SV p. 13: when A1 genuflects, A2 stands' : 'SV p. 33' });
 
     // ── Gospel ───────────────────────────────────────────────────────────────
     part = 'Gospel';
-    B({ P: 'go P.gosBook; say lessons.1' });
+    B({ P: 'go P.gosBook; say lessons.1', A1: 'go xE; face book', A2: 'face book', note: 'Back to your own place, standing, facing the Missal.', noteA2: 'Stand facing the Missal.', cite: two ? 'SV p. 13' : 'SV p. 33: you end up on the EPISTLE side' });
     B({ S: 'say lessons.2' });
     B({ P: 'g signBook; small; say lessons.3', S: 'small', note: 'Thumb to forehead, lips and breast — standing straight, head not bent to the thumb.', cite: 'SV p. 13' });
     B({ S: 'say lessons.4' });
     B({ P: 'say T.gospel1; nod', S: 'nod', note: 'Bow at the Holy Name.', cite: 'SV p. 13' });
-    B({ A1: 'turn ccw wall; go mid; gen; go xE; face book', A2: 'face book',
-        note: 'Turn towards the wall (counter-clockwise), go down, genuflect crossing the middle, and stand at your place facing the Missal at 45°.',
-        cite: two ? 'SV p. 13' : 'SV p. 33: you end up on the EPISTLE side' });
     B({ P: 'say T.gospel2; g kissBook', note: 'Cue for “Laus tibi, Christe”: he goes to kiss the Missal.', cite: 'SV p. 13' });
     B({ S: 'say lessons.5' });
-    B({ P: 'say T.evangelica' });
+    B({ P: 'say T.evangelica', S: sermon ? null : 'face altar; kneel', note: sermon ? '' : 'After “Laus tibi, Christe”, kneel at once in your place.', cite: sermon ? '' : 'SV p. 14' });
 
     // ── Sermon (or not) ──────────────────────────────────────────────────────
     if (sermon) {
@@ -432,15 +433,15 @@
       B({ S: 'rise', A1: 'via w_frE; go sed; put biretta sed.chair; via w_frE; go xE; kneel', A2: 'go xG; kneel', one: 'rise; via w_frE; go sed; put biretta sed.chair; via w_frE; go xE; kneel',
           note: 'Back to extended formation, and kneel.' });
     } else {
-      B({ P: 'say T.sermonNone', S: 'face altar; kneel', note: 'No sermon from the lectern: kneel at once in extended formation.', cite: 'SV p. 14' });
+      B({ P: 'say T.sermonNone' });
     }
 
     // ── Creed ────────────────────────────────────────────────────────────────
     if (o.creed) {
       part = 'Creed';
       B({ P: 'go P.mid; g extendRaise; nod; say T.credo1', note: 'Do NOT stand — remain kneeling.', cite: 'SV p. 14' });
-      B({ P: 'gen; say T.credo2', note: 'Kneeling, you need not bow at “simul adoratur” (St. Vitus).', cite: 'SV p. 5' });
-      B({ P: 'say T.credo3; cross', S: 'cross' });
+      B({ P: 'gen; say T.credo2', S: 'bow head', note: 'As he genuflects at “Et incarnatus est”, bow your head, and keep it bowed until “homo factus est” is said. (At “simul adoratur” you need not bow, kneeling.)', cite: 'SV p. 5; the head bow as served at St. Vitus' });
+      B({ P: 'say T.credo3; cross', S: 'up; cross', note: 'Raise your head as he goes on.' });
     } else {
       B({ P: 'go P.mid' });
     }
@@ -449,17 +450,18 @@
     part = 'Offertory';
     B({ P: 'g kissAltar; turn cw people; g extendJoin; say offertory.0; turn ccw altar' });
     B({ S: 'say offertory.1' });
-    B({ P: 'nod; say offertory.2; say T.offAnt' });
+    B({ P: 'nod; say offertory.2' });
     if (two) {
       B({ A1: 'stand; go midR; sync offGen; gen',
           A2: 'stand; go midL; sync offGen; gen',
-          P: 'g unveil; hold veil',
+          P: 'say T.offAnt; g unveil; hold veil',
+          note: 'Stand at his “Oremus”: come together in the middle and genuflect.',
           cite: 'SV p. 14: come together and genuflect' });
       B({ A1: `${toTable}; go cred1; take water; take wine; go cruWait1`,
-          A2: 'go veilTop; take veil; face altar; fold veil; put veil altar.veil; go cruWait2',
+          A2: 'via w_colE; via w_sideE; go veilTop; take veil; face altar; fold veil; put veil altar.veil; go cruWait2',
           P: 'say T.suscipe',
           noteA1: 'Round to the table on the floor, take both cruets, and wait at the side of the steps by the table.',
-          noteA2: 'At once up for the veil, on the priest’s Epistle side. Fold it in thirds, away from the edge of the altar, then come down beside A1 by the table.',
+          noteA2: 'At once for the veil: round the column and up the side of the steps, on the priest’s Epistle side, never up the front. Fold it in thirds, away from the edge of the altar, then come down beside A1 by the table.',
           note: 'A2 goes at once for the veil and folds it in thirds; A1 goes round to the table for the cruets. The priest stays at the altar until both are by the table.',
           cite: 'SV pp. 14–15' });
       B({ A1: 'offer wine; face gospel', A2: 'take wine; face gospel', note: 'A1 keeps the water and hands A2 the wine; both hold their cruet in the right hand.', cite: 'SV p. 15, with the cruets as served at St. Vitus' });
@@ -475,7 +477,7 @@
           P: 'go P.mid; say T.offerimus',
           note: '…descend turning INWARDS (A1 counter-clockwise, A2 clockwise), and kiss the cruets as you return them.', cite: 'SV p. 15' });
     } else {
-      B({ one: `stand; ${toTable}; go cred; go veilTop`, P: 'g unveil; hold veil', note: 'To the credence — do NOT genuflect; then up for the chalice veil.', cite: 'SV p. 34' });
+      B({ one: `stand; ${toTable}; go cred; via w_sideE; go veilTop`, P: 'say T.offAnt; g unveil; hold veil', note: 'Stand at his “Oremus”. To the credence — do NOT genuflect; then up the side of the steps for the chalice veil.', cite: 'SV p. 34' });
       B({ one: 'take veil; face altar; fold veil; put veil altar.veil; go cred; take wine; take water; go cruWaitS', P: 'say T.suscipe',
           note: 'Fold the veil in thirds, away from the edge. Wine in the right hand, water in the left; wait at the side of the steps by the table.', cite: 'SV p. 34' });
       B({ P: 'wait 0.8; go P.cruet', note: 'Only now does the priest come to the end of the top step, facing you.' });
@@ -495,19 +497,23 @@
     if (two) {
       B({ A1: 'take towel; signal towelUp; go cruWait1', A2: 'take pitcher; waitsig towelUp; take bowl; via cruOut; go cruWait2', cite: 'SV p. 15' });
       B({ P: 'wait 0.8; go P.cruet', note: 'Again he comes only when you are both in place.' });
-      B({ P: 'nod', A1: 'go cruA1; hold towel', A2: 'go cruA2', note: 'Both up to the second step together; A1 holds the towel out, unfolded.', cite: 'SV p. 15' });
+      B({ P: 'nod', S: 'nod', note: 'Bow when the priest bows to you, as with the cruets…', cite: 'SV p. 15' });
+      B({ A1: 'go cruA1; hold towel', A2: 'go cruA2', note: '…then both up to the second step together; A1 holds the towel out, unfolded.', cite: 'SV p. 15' });
       B({ A2: 'pour pitcher', P: 'g wash; say T.lavabo', note: 'Pour a healthy stream until he raises his hands.', cite: 'SV p. 15' });
       B({ P: 'take towel; g dry; offer towel', A1: 'take towel', note: 'He folds the towel back over your outstretched hands.', cite: 'SV p. 15' });
+      B({ P: 'nod', S: 'nod', note: 'Bow back to the priest before you go down.', cite: 'SV p. 15' });
       B({ A1: 'turn ccw epistle; go cred1; put towel cred.towel; light sc; take bells', A2: 'turn cw epistle; go cred2; put pitcher bowl; put bowl cred.bowl',
           P: 'go P.mid; bow med; say T.suscipeTrin; up', note: 'A1 lights the Sanctus candle and takes the bells.', cite: 'SV p. 16' });
       B({ A1: `${fromTable}; go midR; sync lavGen; gen; go xE; kneel`, A2: `${fromTable2}; go midL; sync lavGen; gen; go xG; kneel`, note: 'Genuflect together, then back to extended formation.', cite: 'SV p. 16' });
     } else {
       B({ one: 'take towel; take pitcher; take bowl; go cruWaitS', note: 'Towel folded over your right arm; water in the right hand, basin in the left.', cite: 'SV p. 35' });
       B({ P: 'wait 0.8; go P.cruet', note: 'Again he comes only when you are in place.' });
-      B({ P: 'nod', one: 'go cruS', note: 'Ascend to the second step when the priest bows.' });
+      B({ P: 'nod', one: 'nod', note: 'Bow when the priest bows to you…' });
+      B({ one: 'go cruS', note: '…then up to the second step.' });
       B({ one: 'pour pitcher', P: 'g wash; say T.lavabo' });
       B({ one: 'offer towel', P: 'take towel; g dry; hold towel', note: 'Extend your right arm so the towel is in front of him.', cite: 'SV p. 35' });
       B({ one: 'take towel' });
+      B({ P: 'nod', one: 'nod', note: 'Bow back to the priest before you go down.' });
       B({ one: `turn cw altar; go cred; put towel cred.towel; put pitcher bowl; put bowl cred.bowl; light sc; take bells; ${fromTable}; go xE; kneel`,
           P: 'go P.mid; bow med; say T.suscipeTrin; up',
           note: 'Light the Sanctus candle, take the bells, and kneel at your place — no genuflection, you have not crossed the middle.', cite: 'SV p. 35' });
@@ -547,10 +553,12 @@
       B({ P: `g ${lift}`, A1: 'lift; ring 1', A2: 'lift', one: 'lift; ring 1', note: two ? '…lift the back of the chasuble (A1 with the left hand, A2 with the right) and ring at the elevation…' : '…lift the chasuble with your left hand and ring at the elevation…', cite: 'SV pp. 17, 36' });
       B({ P: `g ${lower}; gen`, S: 'drop', A1: 'ring 1', note: '…and once more as he genuflects.' });
     }
-    B({ A1: two ? 'stand; turn ccw people; go midR; sync footGen; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
-        A2: 'stand; turn cw people; go midL; sync footGen; gen; go xG; kneel',
+    B({ A1: two ? 'stand; sync elDown; go midR back; sync footGen; gen; go xE; kneel' : 'stand; go mid back; gen; go xE; kneel',
+        A2: 'stand; sync elDown; go midL back; sync footGen; gen; go xG; kneel',
         P: 'say T.unde',
-        note: 'Turn inwards, go down, genuflect, and back to extended formation.', cite: 'SV p. 17' });
+        note: two ? 'Stand together and step backwards down the steps, still facing the altar, looking behind you; genuflect together at the foot, and back to extended formation.'
+                  : 'Stand and step backwards down the steps, still facing the altar, looking behind you; genuflect at the foot, and back to your place.',
+        cite: 'SV p. 17; backwards down the steps as served at St. Vitus' });
     B({ P: 'strike 1; say T.nobisQuoque' });
     B({ P: 'g crossesOblata; say T.perIpsum; g minorElevation', A1: o.bellMinorElevation ? 'ring 1' : null,
         note: o.bellMinorElevation ? 'Ring at the minor elevation — watch his right elbow.' : '', cite: 'SV p. 17' });
@@ -605,30 +613,36 @@
       B({ S: 'bow deep', K: 'stand; kneel; bow deep', note: 'A profound bow; say the Confiteor quietly once he has drunk from the chalice.', cite: 'SV p. 18' });
       if (o.wholePrayer) B({ S: 'say confiteor-m.0-7', K: 'say confiteor-m.0-7', cues: [{ at: 'mea culpa', cmd: 'strike 3' }] });
       else for (let i = 0; i < 8; i++) { const c = `say confiteor-m.${i}${i === 4 ? '; strike 3' : ''}`; B({ S: c, K: c }); }
-      B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people; say confiteor-m.8', note: 'Do NOT move until he gives the Misereatur.', cite: 'SV p. 19' });
+      // he gives the absolution looking aside to his right, towards the changing-room door; only then back to the altar for the ciborium
+      B({ P: 'g openTabernacle; gen; turn cw epistle; say confiteor-m.8', note: 'Do NOT move until he gives the Misereatur.', cite: 'SV p. 19' });
       B({ S: 'say confiteor-m.9', K: 'say confiteor-m.9' });
       B({ P: 'g blessPeople; say confiteor-m.10', S: 'up; cross', K: 'up; cross', note: 'Rise from the bow, still kneeling.', cite: 'SV p. 19' });
       B({ S: 'say confiteor-m.11', K: 'say confiteor-m.11' });
+      B({ P: 'turn ccw altar; g takeCiborium; turn cw people; g showHost; say T.ecce' });
     } else {
-      B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people' });
+      B({ P: 'g openTabernacle; gen; g takeCiborium; turn cw people; g showHost; say T.ecce' });
     }
-    B({ P: 'g showHost; say T.ecce' });
     for (let i = 0; i < 3; i++) B({ P: 'say T.dnsdC', S: 'strike 1', K: 'strike 1', note: i ? '' : 'Strike your breast at each “Domine, non sum dignus”.', cite: i ? '' : 'SV p. 22' });
     const goUp = o.choir ? `stand; go comK${o.choir}; kneel` : null;
     if (two) {
       B({ P: 'g giveHost A1; say T.corpus', A1: 'receive', K: goUp, note: 'A1 receives first, holding the paten by its handle under his chin.', cite: 'SV p. 22' });
       B({ A1: 'offer paten', A2: 'take paten', note: 'A1 passes the paten to his left, to A2.', cite: 'SV p. 22' });
-      B({ P: 'g giveHost A2; say T.corpus', A2: 'receive' });
+      // with people to communicate, each is up the moment he has received: A1 down the front and round the column for the candle, out of the priest's way;
+      // A2 on his feet and turned aside, ready to go down at the priest's right
+      if (o.communion) B({ P: 'g giveHost A2; say T.corpus', A2: 'receive; stand; turn cw epistle', A1: 'stand; via w_dnE; via w_colE; go sideE',
+                           noteA1: 'Up at once: down the steps and round the outside of the column, to the side of the steps by the gradine. Never across the top step past the priest.',
+                           noteA2: 'Receive; then stand and turn aside towards the Epistle side, ready to go down with the priest.', cite: 'SV p. 22, as served at St. Vitus' });
+      else B({ P: 'g giveHost A2; say T.corpus', A2: 'receive' });
     } else {
       B({ P: 'g giveHost A1; say T.corpus', one: 'receive', K: goUp, note: 'Hold the paten by its handle, closely under your chin.', cite: '' });
     }
     if (o.choir) { B({ P: 'g giveHost K; say T.corpus', K: 'receive' }); thenK = `stand; go K.${o.choir}; sit`; }
     if (o.communion) {
       const holder = two ? 'A2' : 'A1';
-      B({ P: 'go P.r1; face people', [two ? 'A2' : 'one']: 'stand; go pr1; face people',
-          A1: two ? 'stand; go gradE; take sc; go cr1; face people' : undefined,
+      B({ P: 'go P.r1; face people', [two ? 'A2' : 'one']: two ? 'go pr1; face people' : 'stand; go pr1; face people',
+          A1: two ? 'go gradE; take sc; via w_sideE; go cr1; face people' : undefined,
           C: i => `go C${i}.rail; kneel`,
-          note: two ? 'A2 (with the paten) goes at the priest’s RIGHT; A1 takes the Sanctus candle from the gradine and walks at his left, further off. No genuflection when carrying the paten.'
+          note: two ? 'A2 (with the paten) goes down at the priest’s RIGHT, leading; A1 takes the Sanctus candle from the gradine and comes back down the side to his left, further off. No genuflection when carrying the paten.'
                     : 'Stand and assist the priest: the paten at his RIGHT. The Sanctus candle stays on the gradine.',
           cite: two ? 'SV p. 22' : 'SV p. 38' });
       commX.forEach((x, i) => {
@@ -649,8 +663,8 @@
     } else {
       B({ [two ? 'A2' : 'one']: 'give paten P', P: 'need paten; turn ccw altar; g putPaten', note: 'Hand the paten back, held still just below his elbow.', cite: '' });
       B({ P: 'say T.reposition; g closeTabernacle; signal tabClosed',
-          A1: two ? 'stand; turn ccw people; go midR; sync footGen; gen; go xE; kneel' : 'stand; turn ccw people; go mid; gen; go xE; kneel',
-          A2: 'stand; turn cw people; go midL; sync footGen; gen; go xG; kneel',
+          A1: two ? 'stand; go midR; sync footGen; gen; go xE; kneel' : 'stand; go mid; gen; go xE; kneel',
+          A2: 'stand; go midL; sync footGen; gen; go xG; kneel',
           note: 'Not carrying the paten, genuflect before going back to your place.', cite: 'SV p. 22' });
     }
 
@@ -676,9 +690,9 @@
           note: 'Genuflect in sync; A1 takes the Missal to the Epistle side; A2 lays the veil down on the Gospel side, takes the burse and holds it open, the left hand concealing the opening.', cite: 'SV p. 24' });
       B({ P: 'g foldCorporal', A2: 'wait 0.6; put burse altar.burseG; take veil; hold veil', note: 'Hold the veil low on either side so he can take it from the top.', cite: 'SV p. 24' });
       B({ P: 'take veil; g veilChalice', A2: 'take burse; give burse P', note: 'Then present the burse with your left hand.' });
-      B({ P: 'need burse; g burseOnChalice; go P.epi; say T.commAnt', A1: 'sync down; turn cw people; ' + (clothOn ? 'go clothE; unflip clothE; ' : '') + 'go xE; kneel',
-          A2: 'sync down; turn ccw people; ' + (clothOn ? 'go clothG; unflip clothG; ' : '') + 'go xG; kneel',
-          note: 'Descend together and return to extended formation.', cite: 'SV p. 24' });
+      B({ P: 'need burse; g burseOnChalice; go P.epi; say T.commAnt', A1: 'sync down; via w_sideE; via w_colE; ' + (clothOn ? 'go clothE; unflip clothE; ' : '') + 'go xE; kneel',
+          A2: 'sync down; via w_sideG; via w_colG; ' + (clothOn ? 'go clothG; unflip clothG; ' : '') + 'go xG; kneel',
+          note: 'Come down together by the side of the altar, round the outside of the column, and back to extended formation: not down the front.', cite: 'SV p. 24; down the side as served at St. Vitus' });
     } else {
       const candle = clothOn ? 'go clothE; unflip clothE; go gradE; take sc' : 'go gradE; take sc';
       B({ P: 'say T.quodOre; g holdChalice',
@@ -698,8 +712,8 @@
       B({ P: 'g foldCorporal', one: 'wait 0.6; put burse altar.burseG; take veil; hold veil', note: 'Hold the veil low on either side.', cite: 'SV p. 40' });
       B({ P: 'take veil; g veilChalice', one: 'take burse; give burse P', note: 'Then present the burse with your left hand.' });
       B({ P: 'need burse; g burseOnChalice; go P.epi; say T.commAnt',
-          one: clothOn ? 'turn ccw people; go clothG; unflip clothG; go xG; kneel' : 'turn ccw people; go xG; kneel',
-          note: 'Back to your place on the Gospel side, opposite the book.', cite: 'SV p. 40' });
+          one: clothOn ? 'via w_sideG; via w_colG; go clothG; unflip clothG; go xG; kneel' : 'via w_sideG; via w_colG; go xG; kneel',
+          note: 'Down the side of the altar and round the column, back to your place on the Gospel side, opposite the book.', cite: 'SV p. 40' });
     }
 
     // ── Postcommunion, dismissal, blessing ───────────────────────────────────

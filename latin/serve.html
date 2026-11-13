@@ -98,10 +98,10 @@ body[data-mode="watch"] #note, body[data-mode="watch"] #toasts { bottom: 78px; }
 .typed-ok { color: var(--gold); letter-spacing: .01em; }
 .typed-rest { color: var(--muted); }
 .ask-en { max-height: 3.9em; overflow: hidden; }
-.only-typing, #acts button[data-act="body"] { display: none; }
-body.typing kbd.only-typing { display: inline-block; }
-body.typing span.only-typing { display: inline; }
-body.touch.typing #acts button[data-act="body"] { display: block; }
+#bodybtn { position: absolute; left: 50%; top: 44%; transform: translate(-50%, -50%); z-index: 4; min-width: 240px; padding: 18px 30px; border: 2px solid #fff3cf; border-radius: 16px; background: var(--gold); color: #24180c; font: 700 24px/1.1 var(--sans); letter-spacing: .06em; text-transform: uppercase; cursor: pointer; box-shadow: 0 0 0 6px rgba(226,191,104,.28), 0 12px 40px rgba(0,0,0,.55); }
+#bodybtn:hover { background: #f0d083; }
+#bodybtn.fresh { animation: bodypop .22s ease-out; }
+@keyframes bodypop { from { opacity: .2; transform: translate(-50%, -50%) scale(.82); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
 .choice.picked { border-color: var(--hint); background: rgba(143,211,255,.2); }
 .choice.right { border-color: var(--ok); background: rgba(121,197,146,.18); }
 .choice.wrong { border-color: var(--bad); background: rgba(236,132,118,.18); }
@@ -268,6 +268,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
   <div id="grab-tip" hidden></div>
   <div id="caption" hidden></div>
   <div id="respond" hidden></div>
+  <button id="bodybtn" tabindex="-1" hidden></button>
   <div id="side">
     <div id="keymap" aria-label="Keys">
       <kbd>← →</kbd><span>Turn</span>
@@ -279,7 +280,6 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
       <kbd>Space</kbd><span>Sign of the cross</span>
       <kbd>Drag</kbd><span>Your hands, head, back</span>
       <kbd>1–4</kbd><span>Answer</span>
-      <kbd class="only-typing">Alt</kbd><span class="only-typing">While typing: move your body</span>
       <kbd>R</kbd><span>Camera behind you</span>
       <kbd>Esc</kbd><span>Pause</span>
     </div>
@@ -318,7 +318,7 @@ body[data-mode="explore"] .score, body[data-mode="explore"] .track, body.no-scor
       <kbd>Ctrl</kbd><span>Stand up if you are down; sit if you are at a seat.</span>
       <kbd>Space</kbd><span>Make the sign of the cross.</span>
       <kbd>1–4</kbd><span>Choose your spoken response. While the priest is speaking you can get it ready, and change your mind; it is said when he finishes. If you have none ready by then, you have a second and a half. If you chose to type your responses, type them like speaking: you have that same time to begin, and after that each right letter adds its share of the time the line takes to say, at four syllables a second unless you change that in the options. The Confiteor is typed whole, and your turns and strikes come due as you reach those words. Fall behind that pace for long, or stop, and you run out. It is followed as speech is heard: accents, capitals, punctuation and spelling do not matter (<i>caeli</i> or <i>coeli</i>, <i>Jesu</i> or <i>Iesu</i>), a few letters out in a word is let go, and in a longer line so is a missed or stray word. It ends by itself when you reach the end of the line. The box turns red only if you have lost the line.</span>
-      <kbd>Alt</kbd><span>Only while a line is waiting to be typed: your hands are busy, so Alt makes the movement that is due now: a bow, a turn, a strike of the breast, kneeling, standing, a genuflection. You still have to remember it at the right moment, and pressing it with nothing due is a slip. The sign of the cross is always Space; walking and handling things stay yours.</span>
+      <kbd>Button</kbd><span>While a line is waiting to be typed your hands are busy, so what your body has to do appears as a button in the middle of the screen at the moment it is due: Strike your breast, Sign of the cross, Bow, Turn to the priest, Kneel… Click it. Walking and handling things stay yours.</span>
       <kbd>Drag</kbd><span>Anywhere but your own body: look all around you, and up at the sky, without changing the way you walk.</span>
       <kbd>R</kbd><span>Camera back behind you (or double-click).</span>
       <kbd>W</kbd><span>Change the weather: clear, cloudy, overcast, rain.</span>

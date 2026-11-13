@@ -719,12 +719,21 @@
   function togetherKey(list, i) {
     const { verb } = C.parse(list[i]);
     if (!TOGETHER.has(verb)) return null;
+    // done on the other server's sign (A2 stands as A1 genuflects with the Missal): together with the moment he gives it
+    if (i && /^waitsig /.test(list[i - 1])) return 'sig:' + list[i - 1].slice(8);
     let from = 0;
     for (let j = 0; j < i; j++) if (list[j].startsWith('sync ')) from = j;
     const before = list.slice(from, i);
     if (before.some(c => /^(go|via|wait|pace|waitsig) /.test(c))) return null;
     return before.join(';') + '>' + list[i];
   }
+  /** What a server does after the priest, not with him: he hears the priest begin, or sees him begin the same thing, and then does it.
+   *  What in the priest's part it waits for; failing that, his first line, if nothing but a gesture or two comes before it. */
+  const FOLLOW = { cross: /^(cross|g bless)/, strike: /^strike/, bow: /^bow /, up: /^up$/, nod: /^(nod|bow)/, small: /^small/, gen: /^gen/, genhold: /^gen/, kneel: null, stand: null, rise: null };
+  const LEADS_INTO = /^(bow|up|cross|small|strike|nod|kiss|g) ?/;      // what the priest does as his line begins, not before it
+  // a posture still owed is settled once a cue asks for something it does not lead into: a missed stand by kneeling or sitting (a genuflection needs you standing), and so on
+  const OWED = /^(stand|rise|kneel|up)$/;
+  const SETTLES = { stand: /^(stand|rise|kneel|sit)$/, rise: /^(stand|rise|kneel|sit)$/, kneel: /^(kneel|stand|rise|sit|gen|genhold)$/, up: /^(bow|up)$/ };
   const BODY_VERBS = new Set(['kneel', 'stand', 'sit', 'gen', 'genhold', 'rise', 'bow', 'up', 'nod', 'small', 'strike', 'turn', 'faceto']);
   const TASK_VIEW = new Set(['take', 'put', 'fold', 'give', 'offer', 'hold', 'pour', 'light', 'snuff', 'under']);      // tasks the camera comes in close for
   const USE_FIT = new Set(['take', 'put', 'give', 'offer', 'hold', 'pour', 'pinch', 'lift', 'light', 'snuff', 'open', 'close', 'flip', 'unflip', 'dip', 'offerwater', 'touch', 'tug', 'fold', 'under']);
@@ -917,6 +926,7 @@
     gateE: 'the Epistle-side gate', gateG: 'the Gospel-side gate', midRail: 'the middle, by the gates',
     clothE: 'the rail cloth on the Epistle side', clothG: 'the rail cloth on the Gospel side',
     cornerG: 'round the Gospel end of the altar', floorG: 'the Gospel end of the altar', cornerE: 'round the Epistle end',
+    w_dnE: 'the foot of the steps, before the column', w_colE: 'round the outside of the column', w_sideE: 'the side of the steps, at the Epistle end', sideE: 'the side of the steps, at the Epistle end', w_colG: 'round the outside of the column', w_sideG: 'the side of the steps, at the Gospel end',
   };
   for (let i = 1; i <= 4; i++) { SPOT_TEXT['pr' + i] = 'the priest’s right, by the next communicant'; SPOT_TEXT['cr' + i] = 'the priest’s left, a little apart, with the candle'; }
   const PROP_TEXT = {
@@ -937,7 +947,7 @@
     const { verb, args } = C.parse(cmd);
     const a0 = args[0];
     switch (verb) {
-      case 'go': return ['Go to ' + (SPOT_TEXT[a0] || a0), '← → ↑'];
+      case 'go': return args[1] === 'back' ? ['Step backwards down to ' + (SPOT_TEXT[a0] || a0) + ', still facing the altar', '↓ (held)'] : ['Go to ' + (SPOT_TEXT[a0] || a0), '← → ↑'];
       case 'turn': return [`Turn ${args[0] === 'cw' ? 'clockwise (to your right)' : 'counter-clockwise (to your left)'} to face ${DIR_TEXT[args[1]] || SPOT_TEXT[args[1]] || args[1]}`, args[0] === 'cw' ? '→' : '←'];
       case 'faceto': return ['Turn to face ' + (DIR_TEXT[a0] || a0), '← →, or drag your back sideways'];
       case 'kneel': return ['Kneel — right knee first', 'Shift'];
@@ -1084,6 +1094,7 @@
           }
           this.answered = {};
           if (i > from && this.leadIn(b)) { if (!this.quiet && !Player.cur) UI.remind(null); await this.step(this.sleep(GAPS[opts.pace] || GAPS.natural)); }
+          this.pAt = {}; this.heardAt = null; this.preCap = null;
           Player.stage = this.player && b.tracks[this.player] ? 0 : Infinity; Player.owed = [];
           await Promise.all(Object.entries(b.tracks).map(([r, list]) => this.track(r, list, b)));
           for (const f of Object.values(FIG)) f.keepBehind = null;
@@ -1101,11 +1112,55 @@
       const server = role === 'A1' || role === 'A2';
       for (let i = 0; i < list.length; i++) {
         // a server is a person: a moment to take in what comes next before doing it, not the instant the last thing ends
-        if (server && i && !/^(via|sync|signal|waitsig|wait|pace) /.test(list[i]) && !/^via /.test(list[i - 1])) await this.step(this.sleep(SERVER_PAUSE));
+        if (server && i && !/^(via|sync|signal|waitsig|wait|pace) /.test(list[i]) && !/^(via|sync) /.test(list[i - 1])) await this.step(this.sleep(SERVER_PAUSE));      // after waiting for the other, straight on together
         if (server) await this.keepStep(list, i, beat);
+        if (server) await this.follow(beat, list[i]);
         if (this.player && server) { const k = togetherKey(list, i); if (k) (beat.togetherAt = beat.togetherAt || {})[k] = Player.t; }
+        if (role === 'P') {
+          this.pAt[i] = this.time;
+          // he begins his line as he bows or signs himself: the words are up as soon as he moves, never after
+          if (/^say /.test(list[i + 1] || '') && LEADS_INTO.test(list[i]) && this.player !== 'P') this.priestLine(list[i + 1].slice(4));
+        }
         await this.exec(role, list[i], beat);
       }
+    }
+
+    /** A sign given: whoever waits on it may go on. Given by a server, it is the moment the other does his part with it. */
+    signal(role, name, beat) {
+      this.flags.add(name);
+      if (this.player && /^A[12]$/.test(role) && beat) (beat.togetherAt = beat.togetherAt || {})['sig:' + name] = Player.t;
+    }
+
+    /** The priest's line goes up at the top: from now he has been heard. */
+    priestLine(ref) {
+      const t = C.lineText(ref, Mass);
+      this.cap = [t.who === 'A' ? 'All' : 'P.', t, 'P']; if (!this.quiet) UI.caption(...this.cap);
+      this.preCap = ref;
+      if (this.heardAt == null) this.heardAt = this.time;
+    }
+    /** In this moment, what the priest has to have begun before a server does this: his same gesture, or failing that his first line.
+     *  Never anything he could himself be waiting on a server for. Returns when he began it (null until he has), or null if the server simply goes ahead. */
+    leadFor(beat, cmd) {
+      const P = beat.tracks.P, { verb } = C.parse(cmd);
+      if (!P || !(verb in FOLLOW) || this.player === 'P') return null;
+      const same = FOLLOW[verb];
+      let quick = true, said = null;
+      for (let k = 0; k < P.length; k++) {
+        const p = P[k];
+        if (/^(sync|waitsig|need|take|receive|offer|hold|under|touch|give) /.test(p)) break;      // from here on he may be waiting for us
+        if (same && same.test(p)) return () => this.pAt[k];
+        if (/^say /.test(p)) { if (quick && said == null) said = k; }
+        else if (!LEADS_INTO.test(p) && !/^(turn|faceto|face) /.test(p)) quick = false;
+      }
+      return said == null ? null : () => this.heardAt;
+    }
+    /** The other server, a moment after the priest: as long as it takes to see it. */
+    async follow(beat, cmd) {
+      const lead = this.leadFor(beat, cmd);
+      if (!lead) return;
+      if (lead() == null) await this.step(this.until(() => lead() != null));
+      const at = lead() + 0.6;
+      if (this.time < at) await this.step(this.sleep(at - this.time));
     }
 
     /** Serving with you, the other server keeps step: what the two of you do together he does when you come to it, and the two of you set off together.
@@ -1167,7 +1222,9 @@
         case 'go': case 'via': {
           const s = spot(args[0]);
           const back = args[1] === 'back';
-          await this.step(f.walkTo(s[0], s[1], { back, speed: args[1] === 'slow' ? walk() * 0.22 : walk(), route: back ? null : Nav.route(f.x, f.z, s[0], s[1]), pacer: this.pacerFor(role, s) }));
+          // a server stepping backwards down the steps looks over his outer shoulder, at where he is going
+          const look = back && role !== 'P' ? { x: s[0] + (f.x >= 0 ? 1.5 : -1.5), z: s[1] } : null;
+          await this.step(f.walkTo(s[0], s[1], { back, look, speed: args[1] === 'slow' ? walk() * 0.22 : back && role !== 'P' ? walk() * BACK : walk(), route: back ? null : Nav.route(f.x, f.z, s[0], s[1]), pacer: this.pacerFor(role, s) }));
           if (verb === 'go' && !back && s[2] != null) await this.step(f.turnTo(s[2]));
           return;
         }
@@ -1275,7 +1332,7 @@
         case 'fold': await this.step(Gest.fold(f)); Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); return;
         case 'say': return this.say(role, args[0], beat);
         case 'wait': return this.step(this.sleep(+args[0]));
-        case 'signal': this.flags.add(args[0]); return;
+        case 'signal': this.signal(role, args[0], beat); return;
         case 'waitsig': return this.step(this.until(() => this.flags.has(args[0])));
         case 'sync': {
           (this.sync[args[0]] = this.sync[args[0]] || new Set()).add(role);
@@ -1298,7 +1355,9 @@
       const both = isServer && this.o.servers === 2 && (beat.tracks.A1 || []).includes('say ' + ref) && (beat.tracks.A2 || []).includes('say ' + ref);
       if (both && role === 'A2') return this.step(this.until(() => this.answered[ref]));
       const who = role === 'P' ? (t.who === 'A' ? 'All' : 'P.') : both ? 'A1 · A2' : this.o.servers === 2 ? role : 'S.';
-      if (this.kind !== 'play' || role === 'P' || this.player === 'P' || this.player === 'K') { this.cap = [who, t, role]; if (!this.quiet) UI.caption(who, t, role); }      // serving, the top of the screen is for the priest alone
+      if (role === 'P' && this.preCap === ref) this.preCap = null;      // up already, since he began to move
+      else if (this.kind !== 'play' || role === 'P' || this.player === 'P' || this.player === 'K') { this.cap = [who, t, role]; if (!this.quiet) UI.caption(who, t, role); }      // serving, the top of the screen is for the priest alone
+      if (role === 'P' && this.heardAt == null) this.heardAt = this.time;
       const dur = (t.dur || Math.min(4.5, Math.max(0.8, t.la.length * 0.028))) * SAY_SCALE;
       // a line you have to answer: you hear it out, and meanwhile you can get your answer ready
       const mine = (beat.tracks[role] || []), lastSay = mine.filter(c => c.startsWith('say ')).pop() === 'say ' + ref;
@@ -1746,6 +1805,8 @@
         this.nextPoint = null;
         if (d.player === 'P' && (PRIEST_HANDS.has(verb) || verb === 'face' || verb === 'wait')) { if (verb === 'face') this.lastFace = headingFor('P', args[0]); await this.auto(d, c, beat); continue; }
         if (verb === 'via' || verb === 'face' || verb === 'wait') { if (verb === 'face') this.lastFace = headingFor(d.player, args[0]); continue; }
+        // a sign given by doing something (A1's genuflection with the Missal) is given when you do it, not when you arrive to do it
+        if (verb === 'signal' && list[i + 1] && BODY_VERBS.has(C.parse(list[i + 1]).verb)) { this.sigOnDone = args[0]; continue; }
         if (!KEY_VERBS.has(verb)) { await d.exec(d.player, c, beat); continue; }
         if (verb === 'say' && d.player === 'P' && C.lineText(args[0], Mass).silent) { await d.exec('P', c, beat); continue; }
         if (verb === 'say') { await this.respond(d, args[0], beat); continue; }
@@ -1756,6 +1817,10 @@
           FIG[d.player].bowTarget = args[1] && FIG[args[1]] ? FIG[args[1]].headWorld() : null; continue;
         }
         if (verb === 'go') this.lastGo = args[0];
+        // what you do after the priest is asked of you once he has begun it, or been heard: you cannot be behind someone who has not yet moved.
+        // Done before that, it is done early, and counts when it comes
+        const lead = /^A[12]$/.test(d.player) && d.leadFor(beat, c);
+        if (lead && lead() == null) { this.held = true; try { await d.step(d.until(() => lead() != null)); } finally { this.held = false; } }
         this.nextTogether = togetherKey(list, i);
         await this.expect(d, c, beat);
         if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, c.replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
@@ -1777,7 +1842,9 @@
     expect(d, cmd, beat) {
       const { verb, args } = C.parse(cmd);
       if (verb === 'go') { const f = FIG[d.player]; this.legFrom = [f.x, f.z]; }
-      if (BODY_VERBS.has(verb) || verb === 'cross' || verb === 'go') this.late = null;      // the moment for putting right what you missed has gone by
+      // the moment for putting right what you missed has gone by. But a stand, a kneel or a straightening up that was missed is still owed
+      // through the walking and turning after it, until it is done or another posture is asked for: doing it then is putting it right, not a second slip
+      if ((BODY_VERBS.has(verb) || verb === 'cross' || verb === 'go') && !(this.late && OWED.test(this.late.verb) && !SETTLES[this.late.verb].test(verb) && this.owes(d, this.late))) this.late = null;
       this.cur = { cmd, verb, args, count: 0, need: verb === 'strike' || verb === 'ring' ? (+args[0] || 1) : 1, beat, mistakes: 0, start: d.time, left: this.allow(d, verb, args) };
       d.results.total++;
       UI.remind(this.cur, beat);
@@ -1790,7 +1857,7 @@
       this.early = this.early.filter(e => d.beats.indexOf(e.beat) >= d.index);
       const e = this.early.findIndex(e => e.beat === beat && e.j === this.i && e.cmd === cmd);
       if (e >= 0) {
-        const [x] = this.early.splice(e, 1), cur = this.cur; cur.early = true;
+        const [x] = this.early.splice(e, 1), cur = this.cur; cur.early = true; cur.earlyAt = x.at;
         setTimeout(() => {
           if (this.cur !== cur) return;
           if (x.run) return x.run(cur);
@@ -1813,16 +1880,39 @@
       try { await d.exec(d.player, c, beat); } finally { this.autoing = false; }
     },
 
-    /** Alt, in typing mode: your hands are on the keyboard, so your body moves when you remember to tell it to. */
+    /** The button in the middle of the screen, while you type: your hands are on the keyboard, so your body moves when you press it. */
     moveBody() {
       const d = this.d, c = this.cur, f = d && d.player && FIG[d.player];
       if (!f || d.kind !== 'play' || d.failed || UI.paused || this.autoing || !UI.typing()) return;      // only while there is typing to be done
-      if (c && !BODY_VERBS.has(c.verb)) return UI.toast(c.verb === 'go' ? 'You walk there yourself.' : c.verb === 'cross' ? 'Space makes the sign of the cross.' : 'That one is done by hand.');
-      if (!c) return d.mistake('Nothing for your body to do now', 'Keep still until your cue.', this.beat);
+      if (!c || !this.bodyCue()) return;      // it is only there when there is something to do
       // kneeling or genuflecting, it faces you the right way first
       if (/^(kneel|gen|genhold)$/.test(c.verb)) { const want = c.verb === 'kneel' ? this.lastFace : Math.PI; if (want != null) f.turnTo(want); }
       d.exec(d.player, c.cmd, c.beat).catch(e => { if (!(e instanceof Stopped)) throw e; });      // it takes the time it takes; you have done your part, as with any key
       this.done();
+    },
+
+    /** What the button in the middle of the screen does now, while you type, in a word or three; null if there is nothing for it. */
+    bodyCue() {
+      const c = this.cur, d = this.d;
+      if (!c || !d || d.kind !== 'play' || d.failed || this.autoing || c.count >= c.need || !UI.typing() || !/^A[12]$|^K$/.test(d.player || '')) return null;
+      const a0 = c.args[0], to = a => a === 'P' ? 'the priest' : DIR_TEXT[a] || SPOT_TEXT[a] || a;
+      switch (c.verb) {
+        case 'cross': return 'Sign of the cross';
+        case 'small': return 'Small crosses';
+        case 'strike': return 'Strike your breast' + (c.need - c.count > 1 ? ' ×' + (c.need - c.count) : '');
+        case 'bow': return a0 === 'head' ? 'Bow your head' : a0 === 'deep' ? 'Bow deeply' : 'Bow';
+        case 'up': return 'Straighten up';
+        case 'nod': return 'Bow your head';
+        case 'kneel': return 'Kneel';
+        case 'stand': return 'Stand';
+        case 'sit': return 'Sit';
+        case 'gen': return 'Genuflect';
+        case 'genhold': return 'Genuflect';
+        case 'rise': return 'Rise';
+        case 'faceto': return 'Turn to ' + to(a0);
+        case 'turn': return 'Turn to ' + to(c.args[1]);
+        default: return null;
+      }
     },
 
     /** The next thing you have to do yourself, past whatever simply happens on the way. */
@@ -1847,7 +1937,7 @@
       if (!d || !d.player || !d.beats) return out;
       const now = d.beats[d.index], next = d.beats[d.index + 1];
       const from = (beat, j) => { const list = beat && beat.tracks[d.player]; if (list) for (; j < list.length; j++) out.push({ cmd: list[j], beat, j }); };
-      if (now && this.beat === now) { if (this.list) from(now, this.i + 1); }      // under way: what is after this
+      if (now && this.beat === now) { if (this.list) from(now, this.held ? this.i : this.i + 1); }      // under way: what is after this (or this, while it waits on the priest)
       else from(now, 0);      // the moment before it, while you see it coming
       from(next, 0);
       return out;
@@ -1871,15 +1961,29 @@
       }
       return null;
     },
+    /** A missed posture you have still not taken. */
+    owes(d, l) {
+      const f = d && FIG[d.player];
+      if (!f || !l) return false;
+      if (l.verb === 'stand' || l.verb === 'rise') return f.posture !== 'stand';
+      if (l.verb === 'kneel') return f.posture !== 'kneel';
+      if (l.verb === 'up') return f.bowLevel > 0;
+      return false;
+    },
     /** People do not move on the instant. Done a moment before it is asked for, it counts when it is asked for; done after it was missed,
      *  it is putting that right, and the slip for lateness was already counted. Neither is a slip. True if this was one of those.
      *  `fits(cue)`: whether this would be doing that cue; `run(cur)`: what to do when an early one's moment comes, if it is not done already. */
     excuse(fits, run, n = 1) {
       const l = this.late;
-      if (l && this.t - l.at < 20 && fits(l)) { this.late = null; return true; }
+      if (l && (this.t - l.at < 20 || OWED.test(l.verb)) && fits(l)) {      // a posture still owed has no time limit (the key has already put you in it, so ask the verb, not the body)
+        this.late = null;
+        // stood up at last, with the walk already under way: the walk's time starts now, not while you were still on your knees
+        const c = this.cur; if (c && c.verb === 'go' && /^(stand|rise)$/.test(l.verb)) c.left = Math.max(c.left, this.allow(this.d, 'go', c.args));
+        return true;
+      }
       const nx = this.aheadAction(), POSTURE = /^(kneel|stand|rise|genhold|bow|up)$/;
       if (nx && POSTURE.test(nx.verb) && this.early.some(e => POSTURE.test(C.parse(e.cmd).verb))) return false;      // up, then down again before either was asked for: that is not being early
-      if (nx && fits(nx)) { this.early.push({ cmd: nx.cmd, beat: nx.beat, j: nx.j, run, n }); return true; }
+      if (nx && fits(nx)) { this.early.push({ cmd: nx.cmd, beat: nx.beat, j: nx.j, run, n, at: this.t }); return true; }
       return false;
     },
     /** The next thing you will be asked to do, in this moment or one of the next few: for the reminder before it is due. */
@@ -1976,6 +2080,7 @@
       const goal = going && this.legOpen && this.legGoal ? this.legGoal : target, start = going && this.legOpen && this.legStart ? this.legStart : this.legFrom;
       const detour = going ? (Math.hypot(f.x - start[0], f.z - start[1]) + Math.hypot(f.x - goal[0], f.z - goal[1]) - Math.hypot(goal[0] - start[0], goal[1] - start[1])) / 2 : Infinity;
       let off = going ? Math.min(seg(f.x, f.z, this.legFrom, target), Math.hypot(f.x - target[0], f.z - target[1]), detour) : Math.hypot(f.x - this.anchor[0], f.z - this.anchor[1]);
+      if (!going && this.toPlace) off = Math.min(off, seg(f.x, f.z, this.toPlace, this.anchor));      // where the cue left you, your place, or between
       const leg = !going && off > 0.5 ? this.nextLeg() : null;      // setting off a moment early for where you go next
       if (leg) off = Math.min(off, seg(f.x, f.z, this.anchor, leg), Math.hypot(f.x - leg[0], f.z - leg[1]));
       const limit = going ? 2.6 : 1.3;
@@ -2000,7 +2105,7 @@
       if (off > limit) {
         if (!this.straying) { this.straying = true; this.strayT = 0; d.mistake('You left your place during the Mass', going ? describe(c.cmd)[0] : 'Stay where you belong until your next cue.', this.beat, true); }
         if (!closing) this.strayT += dt;
-        if (canFail && (this.strayT > 3 || off > limit + 3)) return d.fail('You kept wandering about during the Mass.', 'Stay in your place, or on your way to the next one.', this.beat && this.beat.cite), true;
+        if (canFail && (this.strayT > 3 || (off > limit + 3 && !closing))) return d.fail('You kept wandering about during the Mass.', 'Stay in your place, or on your way to the next one.', this.beat && this.beat.cite), true;
       } else if (off < limit * 0.6) this.straying = false;
       return false;
     },
@@ -2047,7 +2152,7 @@
       // only where the priest is kept waiting on you: handing to him, or taking back what he holds out. Late at the credence is a slip, and the Mass goes on
       const his = /^(wine|water|pitcher|bowl|towel|missal|paten|biretta)$/.test(a0);
       if (his && (/^(give|offer|hold)$/.test(c.verb) || (c.verb === 'take' && Props.holder(a0) === 'P'))) return 'The priest was left without ' + (PROP_TEXT[a0] || a0) + '.';
-      if (c.verb === 'pour') return 'The priest was left waiting for the water to be poured.';
+      if (c.verb === 'pour') return 'The priest was left waiting for the ' + (a0 === 'wine' ? 'wine' : 'water') + ' to be poured.';
       if (c.verb === 'ring' && part === 'Consecration') return 'The bell was not rung at the Consecration.';
       return null;
     },
@@ -2083,14 +2188,18 @@
     done(perfect = true) {
       const c = this.cur;
       if (!c) return;
+      if (this.sigOnDone) { this.d.signal(this.d.player, this.sigOnDone, c.beat); this.sigOnDone = null; }
       if (c.verb === 'turn') this.lastFace = headingFor(this.d.player, c.args[1]);
       if (c.verb === 'faceto') this.lastFace = headingFor(this.d.player, c.args[0]);
       if (c.verb === 'go') {
         if (/^w_/.test(c.args[0]) && c.next) this.owed.push({ at: spot(c.args[0]), next: c.next, goal: this.legOpen ? this.legGoal : null });
         else { this.stage += this.owed.length + 1; this.owed = []; }
-        // arrived, your place is that spot; if the moment passed first you are judged from where you actually are
+        // arrived, your place is that spot. Near enough, or not there yet when the moment passed, it is still your place: where you stand
+        // and the rest of the way there are yours, and walking on to it is never wandering off
         const s = spot(c.args[0]), f = FIG[this.d.player];
-        this.anchor = window.__serve.autoplay ? [s[0], s[1]] : [f.x, f.z];      // your place is where you came to stand
+        if (window.__serve.autoplay) { this.anchor = [s[0], s[1]]; this.toPlace = null; }
+        else if (/^w_/.test(c.args[0])) { this.anchor = [f.x, f.z]; this.toPlace = null; }      // a point on the way is only a help
+        else { this.anchor = [s[0], s[1]]; this.toPlace = [f.x, f.z]; }
         this.lastOff = null; this.straying = false;
       }
       // together with the other server: a moment behind is human, and so is taking a second or two to see it; clearly behind is a slip
@@ -2100,6 +2209,14 @@
         if (at != null && (byHand ? Grab.startedAt : this.t) - at > (byHand ? 3 : 2.5) + (c.need - 1) * 0.6 + (c.together.startsWith('sync ') ? 1 : 0)) {
           c.mistakes++;
           this.d.mistake('You were behind the other server', 'Move together with him: ' + describe(c.cmd)[0].toLowerCase() + '.', c.beat);
+        }
+      }
+      // on his sign, done well before he gave it: not together either
+      if (perfect && c.early && c.together && c.together.startsWith('sig:') && c.earlyAt != null && !window.__serve.autoplay) {
+        const at = c.beat.togetherAt && c.beat.togetherAt[c.together];
+        if (at != null && at - c.earlyAt > 2.5) {
+          c.mistakes++;
+          this.d.mistake('You were ahead of the other server', 'Wait for him: ' + describe(c.cmd)[0].toLowerCase() + ' as he does his part.', c.beat);
         }
       }
       if (perfect && !c.mistakes) this.d.results.ok++;
@@ -2322,6 +2439,7 @@
     async runAuto() {
       const c = this.cur; if (!c || this.autoing) return;
       this.autoing = true;
+      if (this.sigOnDone) { this.d.signal(this.d.player, this.sigOnDone, c.beat); this.sigOnDone = null; }      // the sign is in the doing, as it begins
       try { await this.d.exec(this.d.player, c.cmd, c.beat); } catch (e) { if (!(e instanceof Stopped)) throw e; }
       this.autoing = false;
       if (this.cur === c) this.done();
@@ -2445,6 +2563,10 @@
             }
             if (going < 0 && !(c && c.verb === 'go' && c.args[1] === 'back')) this.backed += sp;
             if (this.backed > 0.6 && !this.backSlip) { this.backSlip = true; d.mistake('You walked backwards', 'Turn and walk the way you are going: a single step back at most.', this.beat); }
+            // and the other way about: down from the altar after the Consecration you step back, never turning your back on it
+            if (c && c.verb === 'go' && c.args[1] === 'back' && going > 0 && !c.turnedBack && Math.abs(wrap(f.heading - Math.PI)) > 1.6) {
+              c.turnedBack = true; c.mistakes++; d.mistake('You turned your back on the altar', describe(c.cmd)[0] + '.', this.beat);
+            }
             const away = Math.hypot(f.x + wx * sp - this.moveBase[0], f.z + wz * sp - this.moveBase[1]);
             if (!(c && (c.verb === 'go' || USE_FIT.has(c.verb))) && away > this.moveRoom && !this.shuffleSlip && !this.nextLeg()) { this.shuffleSlip = true; d.mistake('You moved about when you should have kept still', c ? describe(c.cmd)[0] : 'Stay where you are until your next cue.', this.beat); }
           }
@@ -2468,7 +2590,9 @@
         }
       }
       if (f.walkingManual > 0) { f.walkingManual -= dt; f.manualWalk = true; } else f.manualWalk = false;
+      f.lookBack = going < 0 && f.manualWalk ? (f.x >= 0 ? -1.1 : 1.1) : null;      // stepping backwards, you look over your shoulder
       const atLiberty = d.o.casual || d.o.choir || d.o.priest;
+      if (this.late && OWED.test(this.late.verb) && this.t - this.late.at > 20 && !this.owes(d, this.late)) this.late = null;      // taken some other way: nothing left to put right
       if (!atLiberty && !this.autoing && !UI.paused && !window.__serve.autoplay && this.checkPlace(d, f, c, dt)) return;
       if (!atLiberty && !UI.paused && !window.__serve.autoplay) { this.checkFacing(d, f, c, dt); if (d.failed) return; }
       // the moment for his alb is while he is on the steps: once he is at the top it has gone
@@ -2952,14 +3076,22 @@
   Figure.freeAt = (x, z) => !Nav.solid(x, z);
   Figure.replan = (f, w) => Nav.route(f.x, f.z, w.x, w.z, Figure.bodies.filter(o => o !== f && o.root.visible));
 
-  /** Doors swing open for anyone who comes near. */
+  /** Doors swing open for whoever is going through them: not for someone walking past along the wall, as the servers do on their way to the table. */
   function updateDoors(dt) {
     for (const door of Object.values(SITE3D.doors)) {
       const d = door.d;
       const cx = d.axis === 'x' ? d.c : d.at, cz = d.axis === 'x' ? d.at : d.c;
       let near = false;
       // only someone on their feet goes through a door: sitting or kneeling beside one, as in choir by the changing room, leaves it shut
-      for (const f of Object.values(FIG)) if (f.root.visible && f.posture === 'stand' && Math.hypot(f.x - cx, f.z - cz) < 1.5) { near = true; break; }
+      for (const f of Object.values(FIG)) {
+        if (!f.root.visible || f.posture !== 'stand') continue;
+        const along = (d.axis === 'x' ? f.x : f.z) - d.c, across = d.at - (d.axis === 'x' ? f.z : f.x);      // along the wall, and how far short of it
+        if (Math.abs(along) > d.w / 2 + 0.6 || Math.abs(across) > 1.5) continue;
+        const toward = (d.axis === 'x' ? Math.cos(f.heading) : Math.sin(f.heading)) * Math.sign(across);      // facing into the doorway, not along the wall
+        const moving = (f.walk && !f.walk.back) || f.manualWalk;
+        // in the doorway; making for it, or standing at it to go through; or still beside it, once it is open
+        if (Math.abs(across) < 0.45 || (toward > 0.5 && (moving || Math.abs(across) < 0.8)) || (door.open > 0.5 && Math.hypot(along, across) < 1.2)) { near = true; break; }
+      }
       if (!near && PEOPLE.nearDoor(cx, cz)) near = true;
       door.open += ((near ? 1 : 0) - door.open) * Math.min(1, dt * 7);
       for (const it of door.items) it.pivot.rotation.y = -door.open * 1.5 * it.dir;
@@ -3016,16 +3148,9 @@
       if (up && !up.stood && performance.now() - up.t > 200) up.stood = this.rise() || 'walking';
     },
   };
-  let altAlone = false;
-  window.addEventListener('keydown', e => {
-    if (e.key === 'Alt') { altAlone = !e.repeat || altAlone; e.preventDefault(); } else altAlone = false;
-  }, true);
-  window.addEventListener('keyup', e => {
-    if (e.key !== 'Alt') return;
-    e.preventDefault();
-    if (altAlone) { altAlone = false; audio(); Player.moveBody(); }
-  });
-  window.addEventListener('blur', () => { altAlone = false; });
+  { const b = $('#bodybtn');
+    b.addEventListener('mousedown', e => e.preventDefault());      // the typing stays where it is
+    b.addEventListener('pointerdown', e => { e.preventDefault(); audio(); Player.moveBody(); UI.bodyButton(); }); }
   window.addEventListener('keydown', e => {
     const box = UI.asking && UI.asking.input;
     if (box && document.activeElement !== box && e.key.length === 1 && /\p{L}/u.test(e.key) && !e.ctrlKey && !e.metaKey && !e.altKey) { box.focus(); return; }
@@ -3111,6 +3236,14 @@
     },
     /** Is there a line waiting to be typed, or being typed, right now? */
     typing() { return !!(this.asking && this.asking.input); },
+    /** While you type, what your body has to do comes up as a button in the middle of the screen, the moment it is due and not before. */
+    bodyButton() {
+      const el = $('#bodybtn'), label = UI.paused ? null : Player.bodyCue();
+      if ((label || '') === (el.dataset.label || '')) return;
+      el.dataset.label = label || '';
+      el.hidden = !label;
+      if (label) { el.textContent = label; el.classList.remove('fresh'); void el.offsetWidth; el.classList.add('fresh'); }
+    },
     /** One line: the button, what it is for, and if the moment has a short reason, that. */
     remind(c, beat) {
       const el = $('#remind'), playing = opts.reminders && !window.__serve.autoplay && !!director && director.kind === 'play';
@@ -3119,7 +3252,7 @@
       el.hidden = !on; el.classList.toggle('next', !c); document.body.classList.toggle('reminding', on);
       if (!on) return;
       if (!c) { c = C.parse(up.cmd); c.cmd = up.cmd; beat = up.beat; }
-      const [text, hint] = describe(c.cmd), button = up ? 'Next' : this.typing() && BODY_VERBS.has(c.verb) ? 'Alt' : hint;
+      const [text, hint] = describe(c.cmd), button = up ? 'Next' : Player.bodyCue() ? 'Button' : hint;
       // the reason, from the sentences that are about you: what the other server does is not your hint
       const me = director.player, other = me === 'A1' ? 'A2' : 'A1', note = beat && ((beat.notes && beat.notes[me]) || beat.note) || '';
       let why = (note.replace(/^[….\s]+/, '').split(/(?<=[.!?…])\s/).find(x => director.o.servers !== 2 || !new RegExp('\\b' + other + '\\b').test(x) || new RegExp('\\b' + me + '\\b').test(x)) || '').replace(/[….\s]+$/, '');
@@ -3189,7 +3322,6 @@
           input.addEventListener('keydown', e => {
             // the line ends at its last letter; Enter (or a space) says you have finished a last word you did not quite get right
             if (e.key === 'Enter') { e.preventDefault(); if (input.value.trim()) judge(input.value + ' '); }
-            if (e.key === ' ' && Player.cur && Player.cur.verb === 'cross') { e.preventDefault(); e.stopPropagation(); audio(); Player.act('cross'); return; }
             if (!e.key.startsWith('Arrow') && e.key !== 'Control' && e.key !== 'Escape') e.stopPropagation();      // you can still turn and walk while you speak
           });
           const hint = h('button', { class: 'btn', tabindex: -1, onmousedown: e => e.preventDefault(), onclick: () => { rest.textContent = '   ' + Mass.initials(t.la); } }, 'First letters');
@@ -3368,7 +3500,7 @@
     youRing.visible = kind === 'play' && !o.choir;
     Grab.reset();
     Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false; Player.late = null; Player.early = [];
-    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
+    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.toPlace = null; Player.sigOnDone = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
     $('#timebar').hidden = kind !== 'watch';
@@ -3382,6 +3514,7 @@
     ahead.beats = d.beats; ahead.quiet = true;
     const line = ahead.line = new Timeline(ahead);
     director = ahead;      // meanwhile the screen waits, as it does while a watched Mass is laid out
+    Player.d = null;      // and you are not yet serving: where the Mass carries you on the way is not you wandering
     UI.toast('Going on to ' + d.beats[k].part + '…');
     ahead.run();
     await nextTask();
@@ -3389,6 +3522,7 @@
     if (director !== ahead) return;      // something else was started meanwhile
     ahead.stop();
     director = d; Player.d = d;
+    Object.assign(Player, { anchor: null, toPlace: null, sigOnDone: null, lastOff: null, straying: false, altarT: 0, lastGo: null, lastFace: null, cur: null });      // your place is where you are taken up
     if (!line.saves[k]) { UI.toast('The Mass did not reach ' + d.beats[k].part + ': starting from the beginning.'); return d.run(); }
     line.d = d; line.restore(k);
   }
@@ -3485,7 +3619,7 @@
     const did = (...a) => () => Player.act(...a);
     const A = [
       ['Genu\u00adflect', did('gen'), 'gen', 1],
-      ['Kneel', did('kneel'), 'kneel', 1], ['Stand', standOrSit, 'legs', 1], ['Sign of the cross', did('cross'), 'cross', 1], ['Move my body', () => Player.moveBody(), 'body', 1],
+      ['Kneel', did('kneel'), 'kneel', 1], ['Stand', standOrSit, 'legs', 1], ['Sign of the cross', did('cross'), 'cross', 1],
     ];
     for (const [label, tap, name, touchOnly] of A) {
       const b = h('button', { tabindex: -1, 'data-act': name, class: touchOnly ? 'touch-only' : '' }, label);
@@ -3547,6 +3681,7 @@
     if (line) line.advance(real);
     else if (director) { director.tick(sim); director.pollConditions(); }
     Player.update(real);
+    UI.bodyButton();
     RAIL.update(real);
     Explore.update(real);
     const me = director && director.player ? FIG[director.player] : null;
