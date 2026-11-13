@@ -15,7 +15,7 @@ So the browser is handed:
   - the sayings of Saint Carlo Acutis, each already rendered, to be stepped
     through by date;
   - the hundred and fifty psalms of Our Lady's Psalter and the eleven pieces
-    a Saturday may add after them, each already rendered, to be dealt by date;
+    her days add, each already rendered, and which days are hers;
   - per date: the verse of the day, the holiday hymn if there is one, and the
     feast's topics and rank, which is all the calendar the browser needs;
   - the keys of every reading the pages in days/ have already spent.
@@ -44,13 +44,14 @@ import night_prayers
 import prayers
 from generate_page import (
     DAYS_DIR,
+    MARIAN_CANTICLE_LABEL,
     MARIAN_PSALM_LABEL,
-    MARIAN_SATURDAY_LABEL,
     PAGE_TEMPLATE,
     RANK_STEER,
     SETTINGS_CSS,
     SETTINGS_JS,
     SETTINGS_UI,
+    marian_canticle,
     render_lang_prayer,
     render_marian,
     render_optional,
@@ -172,24 +173,34 @@ def acutis_sayings() -> dict:
     }
 
 
-def marian() -> dict:
-    """Our Lady's Psalter, rendered: every psalm, and every piece a Saturday
-    may add. Which of them a day says is generate_page.in_turn, arithmetic on
-    the date that office.js repeats, so the browser is handed the texts and
-    not a psalm per date -- the same bargain as acutis_sayings above. The
-    labels go too, being the one thing about these sections the settings list
-    prints that is not in the section itself.
+def marian(days: list[datetime.date]) -> dict:
+    """Our Lady's Psalter, rendered: every psalm, and every canticle, hymn,
+    creed and litany her days may add.
+
+    The psalm is generate_page.in_turn, arithmetic on the date that office.js
+    repeats, so the browser is handed the texts and not a psalm per date -- the
+    same bargain as acutis_sayings above. Her days are another matter: which
+    days are hers is the whole of the 1960 calendar and its rubrics, so they
+    are handed over by date, each with the piece it carries -- thirty-odd a
+    year. On any other day the piece is in_turn on the date again. The labels
+    go too, being the one thing about these sections the settings list prints
+    that is not in the section itself.
     """
     return {
         "psalms": [
             render_marian(marian_psalter.psalm(n))
             for n in range(1, len(marian_psalter.PSALMS) + 1)
         ],
-        "saturday": [
+        "pieces": [
             {"title": piece.title, "body": render_marian(piece)}
-            for piece in marian_psalter.SATURDAY
+            for piece in marian_psalter.CANTICLES_OF_OUR_LADY
         ],
-        "labels": {"psalm": MARIAN_PSALM_LABEL, "saturday": MARIAN_SATURDAY_LABEL},
+        "herDays": {
+            day.isoformat(): marian_canticle(day)
+            for day in days
+            if calendar_1962.our_ladys_day(day)
+        },
+        "labels": {"psalm": MARIAN_PSALM_LABEL, "canticle": MARIAN_CANTICLE_LABEL},
     }
 
 
@@ -326,7 +337,7 @@ def main() -> None:
         "saints": saints(),
         "verses": {"pool": verses, "byDate": verse_index},
         "acutis": acutis_sayings(),
-        "marian": marian(),
+        "marian": marian(days),
         "hymns": {"pool": hymns, "byDate": hymn_index},
         "steering": steering(days),
         # What the pages in days/ have already prayed. The browser cannot list
@@ -348,7 +359,8 @@ def main() -> None:
     print(f"  {len(data['acutis']['pool'])} sayings of Saint Carlo Acutis, "
           f"stepped {data['acutis']['stride']} at a time")
     print(f"  {len(data['marian']['psalms'])} psalms of Our Lady, "
-          f"{len(data['marian']['saturday'])} pieces for her Saturdays")
+          f"{len(data['marian']['pieces'])} pieces for her "
+          f"{len(data['marian']['herDays'])} days")
     print(f"  {len(data['steering'])} days with feast steering")
     print(f"  {len(data['spent'])} readings already spent by days/")
 

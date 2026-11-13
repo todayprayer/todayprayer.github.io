@@ -1019,7 +1019,7 @@ def in_turn(step: int, length: int) -> int:
 
 # Section labels for the settings list, which stay put while the titles change.
 MARIAN_PSALM_LABEL = "Psalter of Our Lady — St. Bonaventure"
-MARIAN_SATURDAY_LABEL = "Our Lady’s Saturday — canticle, Te Deum, creed or litany"
+MARIAN_CANTICLE_LABEL = "Canticle to Our Lady"
 
 
 def render_marian(piece: marian_psalter.Piece) -> str:
@@ -1058,13 +1058,26 @@ def marian_psalm(day: datetime.date) -> int:
     return in_turn(day.toordinal(), len(marian_psalter.PSALMS)) + 1
 
 
-def marian_saturday(day: datetime.date) -> int | None:
-    """On a Saturday, which piece of marian_psalter.SATURDAY follows the
-    psalm; on any other day, None. Counted in Saturdays, so the eleven come
-    round once in each eleven weeks."""
-    if day.weekday() != 5:
-        return None
-    return in_turn(day.toordinal() // 7, len(marian_psalter.SATURDAY))
+def marian_canticle(day: datetime.date) -> int:
+    """Which of marian_psalter.CANTICLES_OF_OUR_LADY the day carries.
+
+    On Our Lady's days, the ones that show it, they are dealt in turn over her
+    days alone, counted from the start of the year: so two of her days running
+    -- a feast and the Saturday after it -- never have the same one, and the
+    eleven go round her thirty-odd days of the year about three times. Each
+    year deals afresh, its rounds numbered from the year so they never meet
+    another year's. On any other day, where it is written but not shown, it is
+    simply dealt by the date, for the reader who has turned it on every day.
+    """
+    pieces = len(marian_psalter.CANTICLES_OF_OUR_LADY)
+    if not calendar_1962.our_ladys_day(day):
+        return in_turn(day.toordinal(), pieces)
+    first = datetime.date(day.year, 1, 1)
+    earlier = sum(
+        calendar_1962.our_ladys_day(first + datetime.timedelta(days=n))
+        for n in range((day - first).days)
+    )
+    return in_turn(day.year * pieces * 100 + earlier, pieces)
 
 
 @dataclasses.dataclass(frozen=True)
@@ -1204,19 +1217,12 @@ def build_page(
         )
     # A psalm of Our Lady's Psalter follows the hymn, as the psalms follow the
     # hymn in the breviary -- and on a day without one, follows what the hymn
-    # would have followed. On Saturdays, which are hers, one of the canticles
-    # or the hymn, creed or litany at the back of the same book comes after it.
+    # would have followed.
     psalm = marian_psalter.psalm(marian_psalm(day))
     sections.append(
         S("marian-psalm", psalm.title, render_marian(psalm), label=MARIAN_PSALM_LABEL)
     )
-    saturday = marian_saturday(day)
-    if saturday is not None:
-        piece = marian_psalter.SATURDAY[saturday]
-        sections.append(
-            S("marian-saturday", piece.title, render_marian(piece),
-              label=MARIAN_SATURDAY_LABEL, rule="Saturdays")
-        )
+    canticle = marian_psalter.CANTICLES_OF_OUR_LADY[marian_canticle(day)]
     # The Acts, the Act of Contrition and the closing prayer are written into
     # every page but shown by none unless the reader turns them on: they gave
     # their room to the Psalter. The Acts used to stand on weekdays in the
@@ -1241,6 +1247,12 @@ def build_page(
           render_excerpt(hexcerpt, spent=not sunday),
           label="Third reading — history and lives", auto=not sunday, rule="weekdays"),
         S("suffrage", "Suffrage", render_prayer(prayers.SUFFRAGE)),
+        # On Our Lady's days, her feasts and her Saturdays, one of the
+        # canticles, or the Te Deum, creed or litany, from the back of her
+        # Psalter, after the saints have been asked to pray for us.
+        S("marian-canticle", canticle.title, render_marian(canticle),
+          label=MARIAN_CANTICLE_LABEL, auto=calendar_1962.our_ladys_day(day),
+          rule="feasts of Our Lady"),
         S("closing-prayer", "Closing Prayer", render_prayer(prayers.CLOSING_PRAYER),
           auto=False),
         S("doxology", "Doxology", render_prayer(prayers.DOXOLOGY), required=True),

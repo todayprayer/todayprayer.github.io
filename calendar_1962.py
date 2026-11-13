@@ -532,3 +532,108 @@ def feast_for(day: datetime.date) -> Feast | None:
         return None
     name, key = found
     return Feast(name, key, VERSES[key], rank_for(day.month, day.day, key))
+
+
+# --- Our Lady's days ----------------------------------------------------------
+#
+# The days the office keeps for Our Lady: her own feasts, and the Saturday of
+# Our Lady. Both are read off the full general calendar of 1960 and not off
+# SANCTORAL above, which keeps only the principal feasts: whether a Saturday is
+# hers turns on whether any feast of the third class falls on it, and
+# SANCTORAL has most of those missing -- Saint Josaphat on 14 November, which
+# makes that Saturday his and not hers, among them.
+
+# Our Lady's feasts in the 1960 general calendar, of every class, the two that
+# 1960 reduced to commemorations included: they are still hers.
+OUR_LADYS_FEASTS = {
+    (2, 2): "Purification of the Blessed Virgin Mary",
+    (2, 11): "Apparition of the Blessed Virgin Mary Immaculate",
+    (3, 25): "Annunciation of the Blessed Virgin Mary",
+    (5, 31): "Blessed Virgin Mary, Queen",
+    (7, 2): "Visitation of the Blessed Virgin Mary",
+    (7, 16): "Blessed Virgin Mary of Mount Carmel",
+    (8, 5): "Dedication of Our Lady of the Snows",
+    (8, 15): "Assumption of the Blessed Virgin Mary",
+    (8, 22): "Immaculate Heart of the Blessed Virgin Mary",
+    (9, 8): "Nativity of the Blessed Virgin Mary",
+    (9, 12): "Most Holy Name of Mary",
+    (9, 15): "Seven Sorrows of the Blessed Virgin Mary",
+    (9, 24): "Our Lady of Ransom",
+    (10, 7): "Blessed Virgin Mary of the Rosary",
+    (10, 11): "Maternity of the Blessed Virgin Mary",
+    (11, 21): "Presentation of the Blessed Virgin Mary",
+    (12, 8): "Immaculate Conception of the Blessed Virgin Mary",
+}
+
+# Every fixed day of the 1960 general calendar that carries a feast or a vigil
+# of the first, second or third class, by month. Transcribed from the
+# calendar as Wikipedia sets it out day by day ("General Roman Calendar of
+# 1960", read 13 November 2026), where each day states its class; a day that
+# is a feria or carries only a commemoration is not here.
+CLASSED_DAYS = {
+    1: (1, 6, 13, 14, 15, 16, 17, 20, 21, 22, 23, 24, 25, 26, 27, 28, 29, 30, 31),
+    2: (1, 2, 4, 5, 6, 7, 8, 9, 10, 11, 12, 22, 23, 24, 27),
+    3: (4, 6, 7, 8, 9, 10, 12, 17, 18, 19, 21, 24, 25, 27, 28),
+    4: (2, 4, 5, 11, 13, 14, 21, 22, 24, 25, 26, 27, 28, 29, 30),
+    5: (1, 2, 4, 5, 7, 9, 10, 11, 12, 13, 15, 16, 17, 18, 19, 20, 25, 26, 27, 28, 29, 31),
+    6: (1, 4, 5, 6, 10, 11, 12, 13, 14, 17, 18, 19, 21, 22, 23, 24, 25, 26, 28, 29, 30),
+    7: (1, 2, 3, 5, 7, 8, 10, 12, 14, 15, 18, 19, 20, 21, 22, 23, 25, 26, 28, 29, 31),
+    8: (2, 4, 5, 6, 7, 8, 9, 10, 12, 14, 15, 16, 17, 19, 20, 21, 22, 23, 24, 25, 27, 28, 29, 30, 31),
+    9: (2, 3, 5, 8, 10, 12, 14, 15, 16, 18, 19, 21, 22, 23, 27, 28, 29, 30),
+    10: (2, 3, 4, 6, 7, 8, 9, 10, 11, 13, 14, 15, 16, 17, 18, 19, 20, 23, 24, 28),
+    11: (1, 2, 4, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 25, 26, 30),
+    12: (2, 3, 4, 6, 7, 8, 11, 13, 16, 21, 24, 25, 26, 27, 28, 29, 30, 31),
+}
+
+
+def _classed(day: datetime.date) -> bool:
+    """Whether a feast or vigil of the first to third class falls on `day`.
+
+    In a leap year the feasts of 24 to 28 February fall a day later, Saint
+    Matthias on the 25th, the 24th being the intercalary day.
+    """
+    month, date = day.month, day.day
+    if month == 2 and day.year % 4 == 0 and (day.year % 100 or day.year % 400 == 0):
+        if 24 <= date <= 29:
+            date -= 1
+            if date == 23:
+                return False
+    return date in CLASSED_DAYS[month]
+
+
+def saturday_of_our_lady(day: datetime.date) -> bool:
+    """Whether `day` is kept as the Saturday of Our Lady.
+
+    The rule is the Code of Rubrics of 1960, no. 78: "On Saturdays on which
+    the office of a feria of the 4th class occurs, the Saturday celebration
+    of the Blessed Virgin Mary is observed." So a Saturday is hers unless
+    something outranks its feria: a feast or vigil of the third class or
+    higher (CLASSED_DAYS), or a season whose ferias are of a higher class --
+    Advent, Lent and Holy Week (nos. 23-25) -- or an octave, or the Ember
+    Saturday of September (no. 24), the Wednesday, Friday and Saturday after
+    the third Sunday of that month. Septuagesima, Christmastide after the
+    octave and Paschaltide outside its octaves keep it.
+    """
+    if day.weekday() != 5 or _classed(day):
+        return False
+    e = easter(day.year)
+    if e - datetime.timedelta(days=46) <= day <= e + datetime.timedelta(days=6):
+        return False  # Lent, Holy Week, the octave of Easter
+    if e + datetime.timedelta(days=48) <= day <= e + datetime.timedelta(days=55):
+        return False  # the vigil and the octave of Pentecost
+    if day >= _advent_start(day.year):
+        return False  # Advent, and the octave of Christmas
+    third_sunday = _sunday_on_or_after(datetime.date(day.year, 9, 15))
+    if day == third_sunday + datetime.timedelta(days=6):
+        return False  # the Ember Saturday of September
+    return True
+
+
+def our_ladys_day(day: datetime.date) -> bool:
+    """Whether `day` is one of Our Lady's: her feast, the commemoration of her
+    Seven Sorrows on the Friday of Passion Week, or her Saturday."""
+    if (day.month, day.day) in OUR_LADYS_FEASTS:
+        return True
+    if day == easter(day.year) - datetime.timedelta(days=9):
+        return True
+    return saturday_of_our_lady(day)

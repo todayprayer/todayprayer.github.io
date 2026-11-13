@@ -475,19 +475,20 @@
         rule: "holidays" });
     }
     // A psalm of Our Lady's Psalter after the hymn, or after what the hymn
-    // would have followed; on a Saturday, a piece from the back of the book
-    // after it. Which ones is generate_page.marian_psalm and marian_saturday.
+    // would have followed: generate_page.marian_psalm.
     var marian = data.marian;
     var psalmIndex = inTurn(ordinal, marian.psalms.length);
     sections.push({ id: "marian-psalm",
       title: "Psalm " + (psalmIndex + 1) + " of Our Lady",
       body: marian.psalms[psalmIndex],
       label: marian.labels.psalm });
-    if (weekday === 5) {
-      var piece = marian.saturday[inTurn(Math.floor(ordinal / 7), marian.saturday.length)];
-      sections.push({ id: "marian-saturday", title: piece.title, body: piece.body,
-        label: marian.labels.saturday, rule: "Saturdays" });
-    }
+    // After the suffrage, a canticle, or the Te Deum, creed or litany, of the
+    // same book, shown on Our Lady's days: generate_page.marian_canticle. Her
+    // days come from the export, each with its piece; any other day deals one
+    // by the date.
+    var herDay = Object.prototype.hasOwnProperty.call(marian.herDays, iso);
+    var piece = marian.pieces[herDay ? marian.herDays[iso]
+      : inTurn(ordinal, marian.pieces.length)];
     sections.push(
       { id: "creed", title: "Tridentine Creed", body: fixed.creed,
         extra: data.lang_button, auto: sunday, rule: "Sundays" },
@@ -509,6 +510,8 @@
         body: renderExcerpt(hexcerpt, !sunday),
         label: "Third reading — history and lives", auto: !sunday, rule: "weekdays" },
       { id: "suffrage", title: "Suffrage", body: fixed.suffrage },
+      { id: "marian-canticle", title: piece.title, body: piece.body,
+        label: marian.labels.canticle, auto: herDay, rule: "feasts of Our Lady" },
       { id: "closing-prayer", title: "Closing Prayer", body: fixed["closing-prayer"],
         auto: false },
       { id: "doxology", title: "Doxology", body: fixed.doxology, required: true },

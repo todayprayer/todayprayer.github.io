@@ -8,8 +8,8 @@ real — and one of the two will have been prayed.
 So this compares bytes, for a handful of days chosen to exercise the parts
 that differ: a feria, a Sunday (where the Creed is shown and the third
 reading is written but not spent), a saint's day with books of his own, a
-civil holiday (which adds the hymn and holds the Pledge on), and Saturdays
-(which add a piece of Our Lady's Psalter after her psalm).
+civil holiday (which adds the hymn and holds the Pledge on), and Our Lady's
+days (which show a canticle of her Psalter after the suffrage).
 
 Usage:
     python verify_office_js.py
@@ -54,11 +54,17 @@ DEFAULT_DAYS = [
     # Daniel 3 without it.
     "2027-10-24",   # Saint Raphael the Archangel
     "2027-01-17",   # a Sunday in the new year
-    # Saturdays, which add a canticle, the Te Deum, the creed or the litany of
-    # Our Lady's Psalter after the day's psalm -- the only place the port's
-    # shuffle is dealt by the week rather than the day.
-    "2026-12-05",
-    "2027-03-13",
+    # Our Lady's days, which show a canticle, the Te Deum, the creed or the
+    # litany of her Psalter after the suffrage: her Saturdays, which the port
+    # takes from the export, and a feast of hers; and a Saturday that is not
+    # hers, because a feast of the third class has it.
+    "2026-12-05",   # Saturday in Advent: not hers
+    "2027-03-13",   # Saturday in Lent: not hers
+    "2027-04-10",   # a free Saturday in Paschaltide: hers
+    "2027-07-17",   # a free Saturday after Pentecost: hers
+    "2027-09-25",   # the Ember Saturday of September: not hers
+    "2027-07-16",   # Our Lady of Mount Carmel
+    "2027-01-23",   # Saturday of Saint Raymond of Peñafort: not hers
     "2027-06-06",   # far enough out to catch a bad ordinal
 ]
 

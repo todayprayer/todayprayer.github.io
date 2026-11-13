@@ -4,8 +4,8 @@ A hundred and fifty psalms, each opening with the words of the psalm of David
 that bears its number and turning the rest of it to Our Lady, followed by
 canticles after those of the prophets, a hymn after the Te Deum, a creed after
 the Athanasian, and a litany. The morning office says one of the psalms every
-day, and on Saturdays, the day kept for Our Lady, one of the pieces that follow
-them; generate_page decides which.
+day, and on Our Lady's days -- her feasts and her Saturdays -- one of the
+pieces that follow them; generate_page decides which.
 
 Two English editions, because no one English edition has all of it:
 
@@ -16,8 +16,9 @@ Two English editions, because no one English edition has all of it:
     for word against the Catholic Primer's (archive.org item
     St.BonaventureThePsalterOfTheBlessedVirginMary), which is set from the
     same text. The two agree everywhere but four hyphens, where the ebook's
-    are kept, and one typo they share: "ye fathers o$ the peoples" in Psalm 95,
-    corrected here to "of".
+    are kept, and two slips they share, both mended here: "ye fathers o$ the
+    peoples" in Psalm 95, read "of", and a space set before a question mark,
+    "tabernacle of God ?", in Psalm 14.
 
   - That translation has no litany. The litany is from the only English
     edition that does, John Cumming's of 1852 (London: British Reformation
@@ -174,7 +175,7 @@ PSALMS = [
     # 14
     [
         [
-            "O Lady, who shall dwell in the tabernacle of God ? or who shall rest with the leaders of the people?",
+            "O Lady, who shall dwell in the tabernacle of God? or who shall rest with the leaders of the people?",
             "The poor in spirit, and the pure of heart, the meek, the peaceful, and the mourners.",
             "Be mindful, O Lady, that thou speak for us good things: and that thou mayest turn away the indignation of thy Son from us.",
             "O sinners, let us embrace the footprints of Mary, and cast ourselves at her blessed feet.",
@@ -1612,7 +1613,7 @@ PSALMS = [
     ],
 ]
 
-# --- For Saturdays ------------------------------------------------------------
+# --- For Our Lady's days ------------------------------------------------------
 #
 # The canticles, in the book's order, each with its own title. They close with
 # the Glory Be, as the psalms do.
@@ -1996,13 +1997,30 @@ def psalm(number: int) -> Piece:
     )
 
 
-# What a Saturday may add after the psalm: the canticles in the book's order,
-# then the Te Deum, the creed and the litany.
-SATURDAY = (
-    [Piece(title, [("", verses)], GLORIA_PATRI) for title, verses in CANTICLES]
+# The titles the page gives these, shorter than the book's: each canticle by
+# the one whose canticle it follows, as the book names them.
+_CANTICLE_TITLES = [
+    "Canticle of Our Lady after Isaias",
+    "Canticle of Our Lady after Ezechias",
+    "Canticle of Our Lady after Anna",
+    "Canticle of Our Lady after Mary the Prophetess",
+    "Canticle of Our Lady after Habacuc",
+    "Canticle of Our Lady after Moses",
+    "Canticle of Our Lady after the Three Children",
+    "Canticle of Our Lady after Zachary",
+]
+assert len(_CANTICLE_TITLES) == len(CANTICLES)
+
+# What one of Our Lady's days adds after the suffrage: the canticles in the
+# book's order, then the Te Deum, the creed and the litany.
+CANTICLES_OF_OUR_LADY = (
+    [
+        Piece(title, [("", verses)], GLORIA_PATRI)
+        for title, (_, verses) in zip(_CANTICLE_TITLES, CANTICLES)
+    ]
     + [
-        Piece(TE_DEUM_TITLE, [("", TE_DEUM)], [Response("Amen.")]),
-        Piece(CREED_TITLE, [("", CREED)]),
-        Piece(LITANY_TITLE, source=LITANY_SOURCE, items=LITANY),
+        Piece("Te Deum of Our Lady", [("", TE_DEUM)], [Response("Amen.")]),
+        Piece("Creed of Our Lady", [("", CREED)]),
+        Piece("Litany of Our Lady", source=LITANY_SOURCE, items=LITANY),
     ]
 )
