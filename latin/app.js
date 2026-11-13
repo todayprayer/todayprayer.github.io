@@ -45,6 +45,8 @@
     tabs: store.get('tabs', true),
     theme: store.get('theme', 'auto'),
     vary: store.get('vary', false),
+    tense: store.get('tense', 'both'),          // 'pres' | 'perf' | 'both'
+    questions: store.get('questions', true),    // some sentences are -ne questions
     length: store.get('length', 3),
     dir: store.get('dir', 'la-en'),
     view: store.get('view', 'translate'),
@@ -80,8 +82,10 @@
   }
 
   const nounEntry = n => `${n.lemma}, ${n.genSg}`;
-  const verbEntry = v => `${v.first}, ${v.lemma}`;
-  const genderLabel = n => n.gender + '.';
+  const verbEntry = v => `${v.first}, ${v.lemma}, ${v.perf1}`;
+  const genderLabel = n => (n.common ? 'm./f.' : n.gender + '.');
+  /** Options for the sentence generator, from the Translate settings. */
+  const sentenceOpts = () => ({ tense: settings.tense, questions: settings.questions });
   const cellLabel = c => `${L.CASE_NAMES[c.case]} ${c.num === 'sg' ? 'singular' : 'plural'}`;
   const ROLE_BY_CASE = { nom: 'subject', gen: 'possessor (“of …”)', dat: 'indirect object (“to/for …”)', acc: 'direct object; after ad / in: motion to, into', abl: 'after in: place where (“in, on”)' };
   const prepEntry = p => (p.id === 'in' ? 'in + abl. / acc.' : 'ad + acc.');
@@ -98,12 +102,16 @@
     if (a.pos === 'prep') return `${a.id} — ${PREP_GLOSS[a.id]}`;
     if (a.pos === 'conj') return 'et — and';
     const v = L.VERB[a.id];
-    return `${show(verbEntry(v))} — to ${v.en[0][0]}`;
+    return `${show(verbEntry(v))} — ${L.verbGloss(v)}${a.ne ? '  + -ne: a yes/no question' : ''}`;
   }
 
   function verbUsage(v) {
     if (v.linking) return 'a noun in the nominative (“is a …”), or a place (in + abl.)';
+    if (v.modal) return 'an infinitive: “must …, ought to …”';
+    if (v.jussive) return 'a person (acc.) + infinitive: “orders X to …”';
     if (v.takesInf) return 'object, or an infinitive (“love to …”)';
+    if (v.needsDat) return 'a dative: “pleases …”';
+    if (v.datList.length && !v.trans) return 'a dative (“answers …”)';
     if (v.trans && v.datList.length) return 'object + dative (“to …”)';
     if (v.trans) return 'takes an object';
     return 'no object';
@@ -217,8 +225,8 @@
             h('td', null, n.en.map(p => p[0]).join(', '))));
         const verbRows = list => list.filter(v => match(verbEntry(v), v.en.flat())).map(v =>
           h('tr', { class: 'vocab-row', title: 'Show full conjugation', onclick: () => { state.verb = v.id; open('right', 'conj'); } },
-            h('td', { class: 'la' }, show(v.first), h('span', { class: 'muted' }, ', ' + show(v.lemma))),
-            h('td', null, 'to ' + v.en.map(e => e[0]).join(', '), h('div', { class: 'muted', style: 'font-size:12.5px' }, verbUsage(v)))));
+            h('td', { class: 'la' }, show(v.first), h('span', { class: 'muted' }, ', ' + show(v.lemma) + ', ' + show(v.perf1))),
+            h('td', null, v.gloss || 'to ' + v.en.map(e => e[0]).join(', '), h('div', { class: 'muted', style: 'font-size:12.5px' }, verbUsage(v)))));
         const conjRows = L.CONJS.filter(c => match(c.form, [c.en])).map(c =>
           h('tr', { class: 'vocab-row', title: 'How “and” works', onclick: () => open('right', 'syntax') },
             h('td', { class: 'la' }, c.form),
@@ -240,12 +248,15 @@
         });
         return h('div', null,
           head('Vocabulary', 'left'),
-          h('p', { class: 'muted' }, 'Click a word to see all its forms.'),
+          h('p', { class: 'muted' }, 'Click a word to see all its forms. Verbs show their first three principal parts: present, infinitive, perfect.'),
           search,
           section('Nouns · 1st declension', nounRows(decl(1))),
           section('Nouns · 2nd declension', nounRows(decl(2))),
           section('Nouns · 2nd declension neuter', nounRows(decl('2n'))),
-          section('Verbs · 1st conjugation', verbRows(L.VERBS.filter(v => !v.irregular))),
+          section('Nouns · 3rd declension', nounRows(decl(3))),
+          section('Nouns · 3rd declension neuter', nounRows(decl('3n'))),
+          section('Verbs · 1st conjugation', verbRows(L.VERBS.filter(v => !v.irregular && v.conj === 1))),
+          section('Verbs · 2nd conjugation', verbRows(L.VERBS.filter(v => v.conj === 2))),
           section('Verbs · irregular', verbRows(L.VERBS.filter(v => v.irregular))),
           section('Prepositions', prepRows),
           section('Conjunctions', conjRows));
@@ -254,7 +265,7 @@
       decl() {
         const n = L.NOUN[state.noun];
         const select = h('select', { 'aria-label': 'Noun', onchange: e => { state.noun = e.target.value; render('right'); } },
-          [1, 2, '2n'].map(k => h('optgroup', { label: cap(L.DECL_NAMES[k]) },
+          [1, 2, '2n', 3, '3n'].map(k => h('optgroup', { label: cap(L.DECL_NAMES[k]) },
             L.NOUNS.filter(x => x.declKey === k).map(x => h('option', { value: x.id, selected: x.id === n.id }, show(x.lemma) + ' — ' + x.en[0][0])))));
         const cells = L.nounParadigm(n);
         const cell = (c, num) => cells.find(x => x.case === c && x.num === num);
@@ -263,8 +274,12 @@
           1: 'Nouns whose nominative ends in -a and genitive in -ae. Stem = genitive singular minus -ae.',
           2: 'Masculine nouns whose genitive ends in -ī: most have -us in the nominative, a few -er (puer, ager). Stem = genitive singular minus -ī.',
           '2n': 'Neuter nouns in -um, genitive -ī. Same as the masculine except in the nominative and accusative.',
+          3: 'Nouns whose genitive ends in -is. The nominative singular comes in many shapes (pater, rēx, mīles), so learn it with the genitive, which gives the stem: patris → patr-. Masculine or feminine — the ending won’t tell you which.',
+          '3n': 'Neuter nouns whose genitive ends in -is (nōmen, nōminis). The stem comes from the genitive; the other cases are as for masculine and feminine, except the nominative and accusative.',
         }[n.declKey];
-        const nomSgEnding = n.declKey === 2 ? '-us / -er' : '-' + show(table.sg.nom);
+        const nomSgEnding = n.declKey === 2 ? '-us / -er' : table.sg.nom == null ? 'varies' : '-' + show(table.sg.nom);
+        const sgEnding = c => (c === 'nom' ? nomSgEnding : table.sg[c] == null ? '= nom.' : '-' + show(table.sg[c]));
+        const plEnding = c => '-' + show(table.pl[c]) + (n.declKey === 3 && c === 'gen' ? ' (-ium)' : '');
         return h('div', null,
           head(cap(L.DECL_NAMES[n.declKey]), 'right'),
           h('p', { class: 'muted' }, intro),
@@ -274,8 +289,8 @@
               h('thead', null, h('tr', null, h('th', null, 'Case'), h('th', null, 'Sg.'), h('th', null, 'Pl.'), h('th', null, 'In our sentences'))),
               h('tbody', null, L.CASES.map(c => h('tr', null,
                 h('td', null, L.CASE_NAMES[c]),
-                h('td', { class: 'la', style: 'white-space:nowrap' }, h('span', { class: 'end' }, c === 'nom' ? nomSgEnding : '-' + show(table.sg[c]))),
-                h('td', { class: 'la', style: 'white-space:nowrap' }, h('span', { class: 'end' }, '-' + show(table.pl[c]))),
+                h('td', { class: 'la', style: 'white-space:nowrap' }, h('span', { class: 'end' }, sgEnding(c))),
+                h('td', { class: 'la', style: 'white-space:nowrap' }, h('span', { class: 'end' }, plEnding(c))),
                 h('td', { class: 'muted', style: 'font-size:13px' }, ROLE_BY_CASE[c])))))),
           h('section', null,
             h('h3', null, 'Fully declined'),
@@ -304,7 +319,18 @@
               h('div', { class: 'note' }, h('b', null, 'The neuter rule. '), 'Nominative and accusative are always the same, and in the plural both end in -a. So templum can be subject or object; here only esse lets a thing be a subject (templum in oppidō est).'),
               h('div', { class: 'note' }, h('b', null, 'Don’t mix up -a. '), show('dōna is neuter plural (“gifts”), not 1st-declension singular. The genitive dōnī tells you which declension a noun belongs to.')),
             ],
+            3: [
+              h('div', { class: 'note' }, h('b', null, 'Learn the genitive. '), show('The nominative hides the stem: rēx → rēg-is, mīles → mīlit-is, sermō → sermōn-is, nox → noct-is. Every other form is stem + ending.')),
+              h('div', { class: 'note' }, h('b', null, 'Same ending, several cases. '), show('-ēs is nominative or accusative plural, so rēgēs cīvēs vident can mean “the kings see the citizens” or “the citizens see the kings” — the checker accepts both. -ibus is dative or ablative plural. Don’t confuse -ī (dative singular here) with the 2nd-declension genitive.')),
+              h('div', { class: 'note' }, h('b', null, 'Gender must be learned. '), show('pater, rēx, mīles, sermō are masculine; māter, lēx, vōx, nox, urbs, ars are feminine; cīvis can be either.')),
+              h('div', { class: 'note' }, h('b', null, 'i-stems. '), show('cīvis, hostis, urbs, nox and ars have -ium in the genitive plural (cīvium, urbium, noctium) instead of -um. Nouns in -is with the same number of syllables in the genitive (cīvis, cīvis), and one-syllable nouns whose stem ends in two consonants (urbs, urb-; nox, noct-), are i-stems.')),
+            ],
+            '3n': [
+              h('div', { class: 'note' }, h('b', null, 'The neuter rule, again. '), show('Nominative and accusative are the same, singular and plural: nōmen / nōmen, nōmina / nōmina. In the plural both end in -a, as in the 2nd-declension neuter (dōna). So a neuter noun alone can be subject or object; the verb and the other words decide.')),
+              h('div', { class: 'note' }, h('b', null, 'Learn the genitive. '), show('nōmen, nōminis: the stem nōmin- appears everywhere except in the nominative and accusative singular.')),
+            ],
           }[n.declKey],
+          n.common ? h('div', { class: 'note' }, h('b', null, show(n.lemma) + ': '), 'common gender — masculine for a man, feminine for a woman.') : null,
           n.alt && n.id === 'filia' ? h('div', { class: 'note' }, h('b', null, show(n.lemma) + ': '), show(`the dative/ablative plural fīliābus is often used instead of fīliīs, to keep “daughters” apart from fīliīs “sons”. Both are accepted.`)) : null,
           n.id === 'filius' ? h('div', { class: 'note' }, h('b', null, show(n.lemma) + ': '), show(`fīliīs “to/with sons” looks just like fīliīs “to/with daughters”; that is why fīlia has the extra form fīliābus.`)) : null,
           n.id === 'deus' ? h('div', { class: 'note' }, h('b', null, show(n.lemma) + ': '), show(`the plural has short forms: dī or diī beside deī, and dīs or diīs beside deīs. All are accepted. Singular deus is “God” with no article.`)) : null);
@@ -312,51 +338,77 @@
 
       conj() {
         const v = L.VERB[state.verb];
+        const groups = [['1st conjugation', x => !x.irregular && x.conj === 1], ['2nd conjugation', x => x.conj === 2], ['Irregular', x => x.irregular]];
         const select = h('select', { 'aria-label': 'Verb', onchange: e => { state.verb = e.target.value; render('right'); } },
-          L.VERBS.map(x => h('option', { value: x.id, selected: x.id === v.id }, show(x.lemma) + ' — to ' + x.en[0][0])));
+          groups.map(([label, f]) => h('optgroup', { label }, L.VERBS.filter(f).map(x =>
+            h('option', { value: x.id, selected: x.id === v.id }, show(x.lemma) + ' — to ' + x.en[0][0])))));
         const stem = v.irregular ? null : v.forms ? 'd' : v.stem;
-        const row = (sg, pl) => h('tr', null,
-          h('td', null, sg[0]), h('td', { class: 'la' }, sg[1]), h('td', { class: 'la' }, pl[1]));
-        const ending = p => h('span', { class: 'end' }, '-' + show(L.CONJ1[p]));
-        const formCell = p => h('div', null, h('div', { style: 'font-size:17px' }, formWithEnding(L.verbForm(v, p), stem)),
-          h('div', { class: 'muted', style: 'font-size:12.5px' }, L.verbFormEnglish(v, p)));
-        const fullTable = h('table', { class: 'grid', style: 'margin-top:8px' },
+        const ordinal = p => p + (p === '1' ? 'st' : p === '2' ? 'nd' : 'rd');
+        const formCell = (p, tense) => h('div', null,
+          h('div', { style: 'font-size:17px' }, formWithEnding(L.verbForm(v, p, tense), tense === 'perf' ? v.perf : stem)),
+          h('div', { class: 'muted', style: 'font-size:12.5px' }, L.verbFormEnglish(v, p, tense)));
+        const fullTable = tense => h('table', { class: 'grid', style: 'margin-top:8px' },
           h('thead', null, h('tr', null, h('th', null, ''), h('th', null, 'Singular'), h('th', null, 'Plural'))),
           h('tbody', null,
-            ['1', '2', '3'].map(p => h('tr', null, h('td', null, p + (p === '1' ? 'st' : p === '2' ? 'nd' : 'rd')),
-              h('td', null, formCell(p + 'sg')), h('td', null, formCell(p + 'pl')))),
-            h('tr', null, h('td', null, 'Inf.'), h('td', { colspan: 2 }, formCell('inf')))));
+            ['1', '2', '3'].map(p => h('tr', null, h('td', null, ordinal(p)),
+              h('td', null, formCell(p + 'sg', tense)), h('td', null, formCell(p + 'pl', tense)))),
+            tense === 'pres' ? h('tr', null, h('td', null, 'Inf.'), h('td', { colspan: 2 }, formCell('inf', tense))) : null));
+        const endingsTable = (endings, withInf) => h('table', { class: 'grid' },
+          h('thead', null, h('tr', null, h('th', null, 'Person'), h('th', null, 'Singular'), h('th', null, 'Plural'))),
+          h('tbody', null,
+            [['1', '1st (I / we)'], ['2', '2nd (you)'], ['3', '3rd (he, she, it / they)']].map(([p, label]) => h('tr', null,
+              h('td', null, label),
+              ['sg', 'pl'].map(num => h('td', { class: 'la' }, h('span', { class: 'end' }, '-' + show(endings[p + num])))))),
+            withInf ? h('tr', null, h('td', null, 'Infinitive'), h('td', { class: 'la', colspan: 2 },
+              h('span', { class: 'end' }, '-' + show(endings.inf)), h('span', { class: 'muted', style: 'font:13px var(--sans)' }, '  “to …”'))) : null));
+        const parts = h('p', null, 'Principal parts: ', la(show(verbEntry(v))), h('span', { class: 'muted' }, ' — ' + L.verbGloss(v)));
+        const perfSection = [
+          h('section', null, h('h3', null, 'Perfect'), fullTable('perf')),
+          h('div', { class: 'note' }, h('b', null, 'The third principal part '), show('gives the perfect stem: ' + v.perf1 + ' minus -ī → ' + v.perf + '-. The endings are the same for every verb.')),
+        ];
+        const ex = (latin, english) => h('div', { style: 'margin-top:4px' }, la(show(latin)), h('span', { class: 'muted', style: 'font-size:13px' }, ' — ' + english));
         if (v.irregular) {
-          const ex = (latin, english) => h('div', { style: 'margin-top:4px' }, la(show(latin)), h('span', { class: 'muted', style: 'font-size:13px' }, ' — ' + english));
           return h('div', null,
-            head('Irregular: sum, esse', 'right'),
-            h('p', { class: 'muted' }, '“To be.” Present indicative and infinitive. It follows no conjugation, so learn it by heart.'),
-            h('section', null, h('h3', null, 'Fully conjugated'), select, fullTable),
+            head('Irregular: sum, esse, fuī', 'right'),
+            h('p', { class: 'muted' }, '“To be.” The present follows no conjugation, so learn it by heart; the perfect is regular.'),
+            select,
+            h('section', null, h('h3', null, 'Present'), fullTable('pres')),
             h('div', { class: 'note' }, h('b', null, 'Look at the endings. '), show('After the 1st singular they are the ones you know: -s, -t, -mus, -tis, -nt (es, est, sumus, estis, sunt). sum ends in -m instead of -ō.')),
+            perfSection,
             h('div', { class: 'note' }, h('b', null, 'Nominative on both sides. '), 'esse links two nouns in the same case, so it takes no accusative. The predicate noun agrees with the subject in number (and, for people, in gender where it can).',
-              ex('Puer amīcus est.', 'The boy is a friend.'), ex('Puellae fīliae sunt.', 'The girls are daughters.'), ex('Nauta sum.', 'I am a sailor.')),
+              ex('Puer amīcus est.', 'The boy is a friend.'), ex('Puellae fīliae fuērunt.', 'The girls were daughters.'), ex('Nauta sum.', 'I am a sailor.')),
             h('div', { class: 'note' }, h('b', null, 'Where something is. '), 'With in + ablative, esse says where: ',
-              ex('Vīnum in mēnsā est.', 'The wine is on the table.'), ex('In culīnā sumus.', 'We are in the kitchen.')),
+              ex('Vīnum in mēnsā est.', 'The wine is on the table.'), ex('In culīnā fuimus.', 'We were in the kitchen.')),
             h('div', { class: 'note' }, h('b', null, 'Word order. '), show('est often comes in the middle (puer est amīcus) or even first. Either way, the checker works out which nominative is the subject from what makes sense.')));
         }
+        const two = v.conj === 2;
         return h('div', null,
-          head('1st Conjugation', 'right'),
-          h('p', { class: 'muted' }, 'Present indicative active, plus the present infinitive. Infinitive in -āre; present stem = infinitive minus -re (amā-).'),
-          h('section', null,
-            h('h3', null, 'Endings'),
-            h('table', { class: 'grid' },
-              h('thead', null, h('tr', null, h('th', null, 'Person'), h('th', null, 'Singular'), h('th', null, 'Plural'))),
-              h('tbody', null,
-                row(['1st (I / we)', ending('1sg')], [null, ending('1pl')]),
-                row(['2nd (you)', ending('2sg')], [null, ending('2pl')]),
-                row(['3rd (he, she, it / they)', ending('3sg')], [null, ending('3pl')]),
-                h('tr', null, h('td', null, 'Infinitive'), h('td', { class: 'la', colspan: 2 }, h('span', { class: 'end' }, '-' + show(L.CONJ1.inf)), h('span', { class: 'muted', style: 'font:13px var(--sans)' }, '  “to …”')))))),
-          h('section', null, h('h3', null, 'Fully conjugated'), select, fullTable),
+          head(two ? '2nd Conjugation' : '1st Conjugation', 'right'),
+          h('p', { class: 'muted' }, two
+            ? 'Infinitive in -ēre; present stem = infinitive minus -re (monē-). Present and perfect indicative active.'
+            : 'Infinitive in -āre; present stem = infinitive minus -re (amā-). Present and perfect indicative active.'),
+          select, parts,
+          h('section', null, h('h3', null, 'Present endings'), endingsTable(L.CONJ_ENDINGS[v.conj], true)),
+          h('section', null, h('h3', null, 'Present'), fullTable('pres')),
           h('div', { class: 'note' }, h('b', null, 'No pronoun needed. '), 'The ending carries the subject: ambulāmus = “we walk”. A noun subject is always 3rd person.'),
+          two
+            ? h('div', { class: 'note' }, h('b', null, 'The ē of the stem '), show('stays in the 1st singular (monē + ō → moneō, with a short e), where the 1st conjugation loses its a (amō). Elsewhere the endings are the same: -s, -t, -mus, -tis, -nt (monēs, monet, monent).'))
+            : v.id === 'dare'
+              ? h('div', { class: 'note' }, h('b', null, 'dare is irregular in one way: '), 'its a is short — damus, datis, dare (not dāmus). Otherwise it follows the pattern.')
+              : h('div', { class: 'note' }, h('b', null, 'The a of the stem '), 'merges into -ō in the 1st singular (amā + ō → amō) and is short before final -t and -nt (amat, amant).'),
           h('div', { class: 'note' }, h('b', null, 'Three English presents. '), 'amat = “he loves”, “he is loving”, “he does love” — all accepted.'),
-          v.id === 'dare'
-            ? h('div', { class: 'note' }, h('b', null, 'dare is irregular in one way: '), 'its a is short — damus, datis, dare (not dāmus). Otherwise it follows the pattern.')
-            : h('div', { class: 'note' }, h('b', null, 'The a of the stem '), 'merges into -ō in the 1st singular (amā + ō → amō) and is short before final -t and -nt (amat, amant).'));
+          h('section', null, h('h3', null, 'Perfect endings'), endingsTable(L.PERF, false)),
+          perfSection,
+          h('div', { class: 'note' }, h('b', null, 'What the perfect means. '), 'A completed action in the past: vīdit = “he saw”, “he has seen”, “he did see” — all accepted.'),
+          h('div', { class: 'note' }, h('b', null, 'Perfect stems. '), two
+            ? show('Many 2nd-conjugation verbs have -uī (monuī, habuī, timuī), but plenty don’t: vīdī, sēdī, mānsī, iussī, mōvī, respondī, dēlēvī. Learn the third principal part with the verb.')
+            : show('The 1st conjugation almost always has -āvī (amāvī, laudāvī). dare is the exception: dedī.')),
+          v.modal ? h('div', { class: 'note' }, h('b', null, 'dēbēre + infinitive. '), 'With an infinitive it means “must, ought to, should”; in the perfect, “had to” (or “ought to have”, “should have”).',
+            ex('Puerī cantāre dēbent.', 'The boys must sing.'), ex('Ōrāre dēbuimus.', 'We had to pray.')) : null,
+          v.jussive ? h('div', { class: 'note' }, h('b', null, 'iubēre: who does what. '), 'The person told goes in the accusative, and what they must do in the infinitive.',
+            ex('Rēx mīlitēs pugnāre iubet.', 'The king orders the soldiers to fight.')) : null,
+          v.datList.length && !v.trans ? h('div', { class: 'note' }, h('b', null, 'A dative where English has an object. '), show(v.lemma) + ' takes the dative: ',
+            v.id === 'placere' ? ex('Rosa puellae placet.', 'The rose pleases the girl (“is pleasing to the girl”).') : ex('Puella magistrō respondet.', 'The girl answers the teacher.')) : null);
       },
 
       syntax() {
@@ -384,9 +436,23 @@
                 h('tr', null, h('td', null, 'Place where'), h('td', null, 'in + ablative'), h('td', null, ex('In ecclēsiā ōrat.', 'She prays in the church.'))),
                 h('tr', null, h('td', null, 'Motion into'), h('td', null, 'in + accusative'), h('td', null, ex('In ecclēsiam ambulat.', 'He walks into the church.'))),
                 h('tr', null, h('td', null, 'Motion toward'), h('td', null, 'ad + accusative'), h('td', null, ex('Ad īnsulam nāvigāmus.', 'We sail to the island.'))),
-                h('tr', null, h('td', null, 'Infinitive'), h('td', null, '-āre'), h('td', null, ex('Nautae nāvigāre amant.', 'The sailors love to sail.'))),
+                h('tr', null, h('td', null, 'Infinitive'), h('td', null, '-āre / -ēre'), h('td', null, ex('Nautae nāvigāre amant.', 'The sailors love to sail.'))),
+                h('tr', null, h('td', null, 'Who is told to act'), h('td', null, 'Accusative + infinitive, with iubēre'), h('td', null, ex('Rēx mīlitēs pugnāre iubet.', 'The king orders the soldiers to fight.'))),
+                h('tr', null, h('td', null, 'Person pleased, answered'), h('td', null, 'Dative, with placēre, respondēre'), h('td', null, ex('Rosa puellae placet.', 'The rose pleases the girl.'))),
                 h('tr', null, h('td', null, 'Predicate noun'), h('td', null, 'Nominative, with esse'), h('td', null, ex('Puer amīcus est.', 'The boy is a friend.'))),
                 h('tr', null, h('td', null, 'Two nouns, one role'), h('td', null, 'Same case, + et / -que'), h('td', null, ex('Puer et puella ambulant.', 'The boy and the girl walk.')))))),
+          h('section', null,
+            h('h3', null, 'Questions — -ne'),
+            h('ul', null,
+              h('li', null, 'A yes/no question puts the verb first and glues -ne to it: ', la(show('Puer puellam videt.')), ' → ', la(show('Videtne puer puellam?')), ' “Does the boy see the girl?”'),
+              h('li', null, '-ne goes on the first word, never later in the sentence (', la('puer videtne puellam'), ' is wrong). After the verb the words can go in any order.'),
+              h('li', null, 'English moves its helping verb to the front: ', la(show('Estne puer amīcus?')), ' “Is the boy a friend?”; ', la(show('Vīditne puellam?')), ' “Did he see the girl?” / “Has he seen the girl?”'))),
+          h('section', null,
+            h('h3', null, 'Present or perfect?'),
+            h('ul', null,
+              h('li', null, h('b', null, 'Present '), '(stem + -ō, -s, -t, -mus, -tis, -nt): what happens or is happening — ', la(show('videt')), ' “he sees, is seeing, does see”.'),
+              h('li', null, h('b', null, 'Perfect '), '(perfect stem + -ī, -istī, -it, -imus, -istis, -ērunt): a completed act — ', la(show('vīdit')), ' “he saw, has seen, did see”. The perfect stem comes from the third principal part (videō, vidēre, vīdī).'),
+              h('li', null, 'Only the main verb changes tense; an infinitive stays present: ', la(show('cantāre amāvit')), ' “she loved to sing”, ', la(show('ōrāre dēbuimus')), ' “we had to pray”.'))),
           h('section', null,
             h('h3', null, 'et and -que — “and”'),
             h('ul', null,
@@ -400,13 +466,14 @@
             h('ul', null,
               h('li', null, h('b', null, 'X is a Y: '), 'both nouns nominative, same number: ', la(show('puerī servī sunt')), ' “the boys are servants”. No accusative after esse.'),
               h('li', null, h('b', null, 'X is somewhere: '), 'in + ablative: ', la(show('vīnum in mēnsā est')), ' “the wine is on the table”. esse never takes ad or in + accusative — it doesn’t move.'),
-              h('li', null, h('b', null, 'Who can be what: '), 'people can be ', ['agricola', 'nauta', 'poeta', 'regina', 'amicus', 'dominus', 'servus', 'magister', 'filius', 'filia'].map(id => show(L.NOUN[id].lemma)).join(', '),
-                '. agricola, nauta, poēta fit anyone; the rest must match the subject’s gender (a girl is a fīlia, not a fīlius). With no subject noun, anyone can be anyone: ', la(show('puella sum')), '.'),
+              h('li', null, h('b', null, 'Who can be what: '), 'people can be ', ['agricola', 'nauta', 'poeta', 'regina', 'amicus', 'dominus', 'servus', 'magister', 'filius', 'filia',
+                'pater', 'mater', 'rex', 'princeps', 'civis', 'miles', 'inimicus', 'hostis', 'peccator'].map(id => show(L.NOUN[id].lemma)).join(', '),
+                '. agricola, nauta, poēta, cīvis fit anyone; the rest must match the subject’s gender (a girl is a fīlia, not a fīlius). With no subject noun, anyone can be anyone: ', la(show('puella sum')), '. God can be ', la(show('amīcus, pater, rēx, dominus')), '.'),
               h('li', null, h('b', null, 'Things: '), Object.entries(L.THING_PREDS).map(([p, subs]) => `${show(subs.map(id => L.NOUN[id].lemma).join(', '))} can be ${show(L.NOUN[p].lemma)}`).join('; '), '.'))),
           h('section', null,
             h('h3', null, 'Word order'),
             h('ul', null,
-              h('li', null, 'Usual order: subject – indirect object – object – (infinitive) – verb. The verb tends to come last.'),
+              h('li', null, 'Usual order: subject – indirect object – object – (infinitive) – verb. The verb tends to come last — except in a question, where it comes first with -ne.'),
               h('li', null, 'Because endings mark the roles, any order is grammatical; the checker accepts your words in any order.'),
               h('li', null, 'Keep a genitive right next to its noun (before or after it). Here that is a rule, because it decides whose is whose.'),
               h('li', null, 'A preposition comes directly before its noun; only that noun’s genitive may stand between (in rēgīnae īnsulā). One phrase per sentence.'),
@@ -425,15 +492,21 @@
           h('section', null,
             h('h3', null, 'What each verb allows'),
             h('ul', null,
-              h('li', null, h('b', null, 'No object: '), L.VERBS.filter(v => !v.trans && !v.linking).map(v => show(v.lemma)).join(', '), '.'),
-              objects.map(v => h('li', null, h('b', null, show(v.lemma) + ': '),
+              h('li', null, h('b', null, 'No object: '), L.VERBS.filter(v => !v.trans && !v.linking && !v.takesInf && !v.datList.length).map(v => show(v.lemma)).join(', '), '.'),
+              L.VERBS.filter(v => !v.trans && v.datList.length).map(v => h('li', null, h('b', null, show(v.lemma) + ': '),
+                v.needsDat ? 'a dative (required): ' : 'an optional dative: ', nounList(v.datList),
+                v.id === 'placere' ? ['; its subject can be a thing: ', nounList(v.subjs.filter(id => !L.PEOPLE.includes(id)))] : '', '.')),
+              objects.filter(v => !v.jussive).map(v => h('li', null, h('b', null, show(v.lemma) + ': '),
                 v.takesInf ? 'an object or an infinitive; ' : '',
                 'objects ', nounList(v.objs),
                 v.datList.length ? ['; plus an optional dative: ', nounList(v.datList)] : '', '.')),
+              L.VERBS.filter(v => v.modal).map(v => h('li', null, h('b', null, show(v.lemma) + ': '), 'always an infinitive (“must …”, “ought to …”), which may have its own object.')),
+              L.VERBS.filter(v => v.jussive).map(v => h('li', null, h('b', null, show(v.lemma) + ': '), 'a person in the accusative (', nounList(v.objs),
+                ') and an infinitive with no object of its own: ', L.VERBS.filter(x => !x.trans && !x.linking && !x.takesInf).map(x => show(x.lemma)).join(', '), '.')),
               h('li', null, h('b', null, 'esse: '), 'a predicate noun or a place, never an object.'),
               h('li', null, h('b', null, 'Subjects '), 'of action verbs are people: ', L.HUMANS.map(id => show(L.NOUN[id].lemma)).join(', '),
                 '; ', show(L.NOUN.deus.lemma), ' also with ', L.VERBS.filter(v => v.subjs.includes('deus')).map(v => show(v.lemma)).join(', '),
-                '. With esse, things can be subjects too.'))),
+                '. With esse, things can be subjects too, and with ', L.VERBS.filter(v => !v.linking && v.subjs.some(id => !L.PEOPLE.includes(id))).map(v => show(v.lemma)).join(', '), ' (', la(show('bellum cīvēs terret')), ').'))),
           h('div', { class: 'note' }, h('b', null, 'Ambiguity is real. '), 'Fīlia rēgīnae rosam dat can mean “the queen’s daughter gives a rose” or “the daughter gives a rose to the queen”. Any translation that fits a valid reading is marked correct, and the other readings are shown.'));
       },
     };
@@ -517,7 +590,7 @@
       onExpire: () => (input.value.trim() ? check(true) : reveal(true)) });
 
     function next() {
-      cur = L.generateSentence(settings.length, { varyOrder: settings.vary });
+      cur = L.generateSentence(settings.length, { varyOrder: settings.vary, ...sentenceOpts() });
       result = null;
       peek = false;
       input.value = '';
@@ -545,14 +618,14 @@
       if (toEnglish) {
         fill(prompt, ...cur.words.flatMap((w, i) => {
           const tip = tipOf(L.analyze(w)[0]);
-          const text = show(i === 0 ? cap(w) : w) + (i === cur.words.length - 1 ? '.' : '');
+          const text = show(i === 0 ? cap(w) : w) + (i === cur.words.length - 1 ? (cur.m.q ? '?' : '.') : '');
           const span = h('span', { class: 'w', 'data-tip': tip, tabindex: settings.hints ? 0 : null }, text);
           return i ? [' ', span] : [span];
         }));
       } else {
         prompt.textContent = cur.englishPrompt;
         if (settings.wordList || peek || result) {
-          const entries = uniq(cur.words.flatMap(w => { const a = L.analyze(w)[0]; return a.que ? [entryOf(a), '-que'] : [entryOf(a)]; }))
+          const entries = uniq(cur.words.flatMap(w => { const a = L.analyze(w)[0]; return a.que ? [entryOf(a), '-que'] : a.ne ? [entryOf(a), '-ne'] : [entryOf(a)]; }))
             .sort((a, b) => L.norm(a).localeCompare(L.norm(b)));
           hints.append(...entries.map(e => h('span', { class: 'tag' }, la(show(e)))));
         } else {
@@ -657,6 +730,17 @@
       const wordList = $('#opt-wordlist');
       wordList.checked = settings.wordList;
       wordList.addEventListener('change', () => { set('wordList', wordList.checked); renderPrompt(); });
+      $$('[data-tense]').forEach(b => {
+        b.setAttribute('aria-pressed', b.dataset.tense === settings.tense);
+        b.addEventListener('click', () => {
+          set('tense', b.dataset.tense);
+          $$('[data-tense]').forEach(x => x.setAttribute('aria-pressed', x === b));
+          next();
+        });
+      });
+      const questions = $('#opt-questions');
+      questions.checked = settings.questions;
+      questions.addEventListener('change', () => { set('questions', questions.checked); next(); });
       $('#t-form').addEventListener('submit', e => { e.preventDefault(); check(); });
       $('#t-next').addEventListener('click', next);
       $('#t-reveal').addEventListener('click', () => reveal());
@@ -722,6 +806,11 @@
     let q = null, answered = false;
 
     const nounCells = n => L.nounParadigm(n);
+    const verbCells = tense => (tense === 'pres' ? L.PERSONS.concat(['inf']) : L.PERSONS);
+    const allVerbForms = v => L.TENSES.flatMap(t => L.verbParadigm(v, t)).map(x => show(x.form));
+    const formLabel = (p, tense) => (p === 'inf' ? 'Infinitive' : cap(`${L.PERSON_NAMES[p]} ${L.TENSE_NAMES[tense]}`));
+    // dare's present is listed form by form, but its endings are the 1st conjugation's
+    const endingOf = (v, p, tense) => L.verbEnding(v, p, tense) || L.CONJ_ENDINGS[v.conj][p];
     const options = (correct, wrong, latin) => L.shuffle([correct, ...sample(uniq(wrong).filter(w => w !== correct), 3)]).map(text => ({ text, correct: text === correct, latin }));
 
     const TYPES = [
@@ -797,35 +886,60 @@
         };
       },
       function verbForm() {
-        const v = pick(L.VERBS), p = pick(L.PERSONS.concat(['inf']));
-        const label = p === 'inf' ? 'present infinitive' : L.PERSON_NAMES[p];
+        const v = pick(L.VERBS), tense = pick(L.TENSES), p = pick(verbCells(tense));
+        const label = p === 'inf' ? 'present infinitive' : `${L.PERSON_NAMES[p]} ${L.TENSE_NAMES[tense]}`;
         return {
           q: ['The ', h('b', null, label), ` of the Latin for “to ${v.en[0][0]}”?`],
-          options: options(show(L.verbForm(v, p)), L.verbParadigm(v).map(x => show(x.form)), true),
-          explain: [la(show(verbEntry(v))), ' → ', la(show(L.verbForm(v, p))), ` = “${L.verbFormEnglish(v, p)}”`],
+          options: options(show(L.verbForm(v, p, tense)), allVerbForms(v), true),
+          explain: [la(show(verbEntry(v))), ' → ', la(show(L.verbForm(v, p, tense))), ` = “${L.verbFormEnglish(v, p, tense)}”`],
         };
       },
       function verbIdentify() {
-        const v = pick(L.VERBS), p = pick(L.PERSONS.concat(['inf']));
-        const label = p === 'inf' ? 'Infinitive' : cap(L.PERSON_NAMES[p]);
+        const v = pick(L.VERBS), tense = pick(L.TENSES), p = pick(verbCells(tense));
+        const label = formLabel(p, tense), english = L.verbFormEnglish(v, p, tense);
         return {
-          q: ['What form is ', la(show(L.verbForm(v, p)), 'q-la'), '?'],
-          options: options(label, L.PERSONS.map(x => cap(L.PERSON_NAMES[x])).concat(['Infinitive']), false),
-          explain: v.irregular
-            ? [la(show(L.verbForm(v, p))), ` is ${label.toLowerCase()} of the irregular `, la(show(verbEntry(v))), `: “${L.verbFormEnglish(v, p)}”`]
-            : ['Ending ', la('-' + show(L.CONJ1[p]), 'end'), ` → ${label.toLowerCase()}: “${L.verbFormEnglish(v, p)}”`],
+          q: ['What form is ', la(show(L.verbForm(v, p, tense)), 'q-la'), '?'],
+          options: options(label, L.TENSES.flatMap(t => verbCells(t).map(x => formLabel(x, t))), false),
+          explain: v.irregular && tense === 'pres'
+            ? [la(show(L.verbForm(v, p))), ` is ${label.toLowerCase()} of the irregular `, la(show(verbEntry(v))), `: “${english}”`]
+            : ['Ending ', la('-' + show(endingOf(v, p, tense)), 'end'), tense === 'perf' ? [' on the perfect stem ', la(show(v.perf) + '-')] : '',
+              ` → ${label.toLowerCase()}: “${english}”`],
         };
       },
       function verbMeaning() {
-        const v = pick(L.VERBS), p = pick(L.PERSONS);
-        const correct = L.verbFormEnglish(v, p);
-        const wrong = L.PERSONS.map(x => L.verbFormEnglish(v, x)).concat(L.VERBS.map(w => L.verbFormEnglish(w, p)));
+        const v = pick(L.VERBS), tense = pick(L.TENSES), p = pick(L.PERSONS);
+        const correct = L.verbFormEnglish(v, p, tense);
+        const wrong = L.TENSES.flatMap(t => L.PERSONS.map(x => L.verbFormEnglish(v, x, t))).concat(L.VERBS.map(w => L.verbFormEnglish(w, p, tense)));
         return {
-          q: ['What does ', la(show(L.verbForm(v, p)), 'q-la'), ' mean?'],
+          q: ['What does ', la(show(L.verbForm(v, p, tense)), 'q-la'), ' mean?'],
           options: options(correct, wrong, false),
-          explain: v.irregular
+          explain: v.irregular && tense === 'pres'
             ? [la(show(verbEntry(v))), ` — to ${v.en[0][0]}, irregular; `, la(show(L.verbForm(v, p))), ` = ${L.PERSON_NAMES[p]}`]
-            : [la(show(verbEntry(v))), ` — to ${v.en[0][0]}; ending `, la('-' + show(L.CONJ1[p]), 'end'), ` = ${L.PERSON_NAMES[p]}`],
+            : [la(show(verbEntry(v))), ` — ${L.verbGloss(v)}; ending `, la('-' + show(endingOf(v, p, tense)), 'end'), ` = ${L.PERSON_NAMES[p]} ${L.TENSE_NAMES[tense]}`],
+        };
+      },
+      function perfectStem() {
+        // wrong answers are the patterns a learner might guess: -āvī, -uī, -ī, -sī, -ēvī on the present stem
+        const v = pick(L.VERBS.filter(x => !x.irregular));
+        const guesses = ['āvī', 'uī', 'ī', 'sī', 'ēvī'].map(e => v.stem + e).filter(g => L.norm(g) !== L.norm(v.perf1));
+        return {
+          q: ['The perfect (third principal part) of ', la(show(`${v.first}, ${v.lemma}`), 'q-la'), '?'],
+          options: options(show(v.perf1), guesses.map(show), true),
+          explain: [la(show(verbEntry(v))), ' — perfect stem ', la(show(v.perf) + '-'), ': ', la(show(L.verbForm(v, '3sg', 'perf'))), ` = “${L.verbFormEnglish(v, '3sg', 'perf')}”`],
+        };
+      },
+      function neQuestion() {
+        // a short statement; the answer moves the verb to the front and adds -ne
+        const st = L.generateSentence(pick([2, 3]), { tense: settings.tense });
+        const words = st.words.map(w => show(w));
+        const vi = st.words.findIndex(w => L.analyze(w).some(a => a.pos === 'verb'));
+        const verb = words[vi], rest = words.filter((_, i) => i !== vi);
+        const correct = L.sentenceCase([verb + 'ne', ...rest], true);
+        const wrong = [L.sentenceCase([...rest, verb + 'ne'], true), L.sentenceCase(['ne', verb, ...rest], true), L.sentenceCase([verb, ...rest], true)];
+        return {
+          q: ['Make it a question: ', la(show(st.latin), 'q-la')],
+          options: L.shuffle([correct, ...wrong]).map(text => ({ text, correct: text === correct, latin: true })),
+          explain: ['Put the verb first and add -ne to it: ', la(correct), ` — “${L.englishOf({ ...st.m, q: true })}”`],
         };
       },
       function queJoin() {
@@ -852,7 +966,7 @@
       function verbLatin() {
         const v = pick(L.VERBS);
         return {
-          q: ['Which Latin verb means ', h('b', null, `to ${v.en[0][0]}`), '?'],
+          q: ['Which Latin verb means ', h('b', null, L.verbGloss(v)), '?'],
           options: options(show(v.lemma), L.VERBS.map(x => show(x.lemma)), true),
           explain: [la(show(verbEntry(v))), ` — to ${v.en.map(e => e[0]).join(', ')}`],
         };
@@ -922,9 +1036,9 @@
         });
         pairs = [...groups].map(([form, labels]) => ({ form, label: pick(labels) }));
       } else {
-        const v = pick(L.VERBS);
-        lemma = `The verb meaning “to ${v.en[0][0]}”.`;
-        pairs = L.verbParadigm(v).map(x => ({ form: show(x.form), label: L.verbFormEnglish(v, x.p) }));
+        const v = pick(L.VERBS), tense = pick(L.TENSES);
+        lemma = `The verb meaning “to ${v.en[0][0]}”, ${L.TENSE_NAMES[tense]} tense.`;
+        pairs = L.verbParadigm(v, tense).map(x => ({ form: show(x.form), label: L.verbFormEnglish(v, x.p, tense) }));
       }
       pairs.forEach((p, i) => { p.id = i; });
       left = L.shuffle(pairs.slice());
@@ -1008,7 +1122,7 @@
     let s, tiles, placed, result, timedOut;
 
     function setup() {
-      s = L.generateSentence(settings.builderLength);
+      s = L.generateSentence(settings.builderLength, sentenceOpts());
       const words = s.words.map(w => show(w.toLowerCase()));
       const distractors = [];
       const wanted = Math.min(4, Math.max(2, Math.ceil(words.length / 2)));
@@ -1016,9 +1130,10 @@
         if (distractors.length >= wanted) break;
         const a = L.analyze(w)[0];
         if (a.pos === 'conj') continue;
-        // a -que word's decoy is the same word without -que (puella for puellaque), so only one -que tile shows
-        const pool = a.que ? [show(w.toLowerCase()).slice(0, -3)]
-          : (a.pos === 'noun' ? L.nounParadigm(L.NOUN[a.id]) : a.pos === 'prep' ? L.PREPS : L.verbParadigm(L.VERB[a.id])).map(x => show(x.form));
+        // a -que or -ne word's decoy is the same word without it (puella for puellaque, videt for videtne)
+        const pool = a.que || a.ne ? [show(w.toLowerCase()).slice(0, a.que ? -3 : -2)]
+          : (a.pos === 'noun' ? L.nounParadigm(L.NOUN[a.id]) : a.pos === 'prep' ? L.PREPS
+            : L.verbParadigm(L.VERB[a.id]).concat(L.verbParadigm(L.VERB[a.id], 'perf'))).map(x => show(x.form));
         const options = pool.filter(f => !words.includes(f) && !distractors.includes(f));
         if (options.length) distractors.push(pick(options));
       }
@@ -1079,7 +1194,7 @@
       const bank = tiles.map(t => t.id).filter(id => !placed.includes(id));
       fill(el, 
         h('h2', null, 'Sentence builder'),
-        h('p', { class: 'sub' }, 'Build the Latin from the tiles — some are decoys in the wrong form. Click or drag; order is up to you.'),
+        h('p', { class: 'sub' }, 'Build the Latin from the tiles — some are decoys in the wrong form. Click or drag; order is up to you (a question starts with its -ne verb). Tense and questions follow the Translate settings.'),
         h('div', { class: 'controls' },
           h('div', { class: 'range' }, h('label', { for: 'b-len' }, 'Length'),
             h('input', { type: 'range', id: 'b-len', min: 2, max: L.MAX_WORDS, value: settings.builderLength,
@@ -1128,11 +1243,11 @@
           return { accept: [x.form].concat(x.alts), value: '' };
         }) }));
       } else {
-        const v = pick(L.VERBS);
-        item = { kind, title: [la(show(verbEntry(v))), ` — to ${v.en[0][0]}`], cols: ['Singular', 'Plural'] };
+        const v = pick(L.VERBS), tense = pick(L.TENSES);
+        item = { kind, title: [la(show(verbEntry(v))), ` — ${L.verbGloss(v)} · `, h('b', null, L.TENSE_NAMES[tense])], cols: ['Singular', 'Plural'] };
         rows = ['1', '2', '3'].map(p => ({ label: p + (p === '1' ? 'st' : p === '2' ? 'nd' : 'rd') + ' person',
-          cells: ['sg', 'pl'].map(num => ({ accept: [L.verbForm(v, p + num)], value: '' })) }))
-          .concat([{ label: 'Infinitive', cells: [{ accept: [L.verbForm(v, 'inf')], value: '' }] }]);
+          cells: ['sg', 'pl'].map(num => ({ accept: [L.verbForm(v, p + num, tense)], value: '' })) }))
+          .concat(tense === 'pres' ? [{ label: 'Infinitive', cells: [{ accept: [L.verbForm(v, 'inf')], value: '' }] }] : []);
       }
       checked = false;
       timedOut = false;

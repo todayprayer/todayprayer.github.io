@@ -432,6 +432,12 @@ body.no-tabs .drawer:not(.open) .handles { display: none; }
         <input type="range" id="len" min="1" max="8" step="1">
         <output id="len-out" for="len"></output>
       </div>
+      <div class="seg" role="group" aria-label="Tense">
+        <button data-tense="pres">Present</button>
+        <button data-tense="perf">Perfect</button>
+        <button data-tense="both">Both</button>
+      </div>
+      <label class="chip-toggle"><input type="checkbox" class="switch" id="opt-questions"> Questions</label>
       <label class="chip-toggle" id="vary-wrap"><input type="checkbox" class="switch" id="opt-vary"> Vary word order</label>
       <label class="chip-toggle" id="wordlist-wrap"><input type="checkbox" class="switch" id="opt-wordlist"> Show word list</label>
     </div>

@@ -6,9 +6,10 @@
  * checker can never disagree.
  *
  * Meaning representation ("M"), shared by generator, parser and English matcher:
- *   { verb, person, num, inf, subj, obj, dat, pp, pred }
+ *   { verb, person, num, tense, q, inf, subj, obj, dat, pp, pred }
  *   verb   finite verb id (e.g. 'amare'); person 1..3; num 'sg' | 'pl'
- *   inf    complementary infinitive id or null (only after verbs with takesInf)
+ *   tense  'pres' | 'perf' (missing = present); q true for a question (verb first, with -ne)
+ *   inf    complementary infinitive id or null (only after verbs with takesInf; iubēre's object is its subject)
  *   subj   explicit subject NP or null (null = subject implied by the verb ending)
  *   obj    direct object NP or null; dat indirect object NP or null
  *   pp     prepositional phrase or null: NP plus { prep: 'in' | 'ad', case: 'abl' | 'acc' }
@@ -40,15 +41,32 @@
     sg: { nom: 'um', gen: 'ī', dat: 'ō', acc: 'um', abl: 'ō' },
     pl: { nom: 'a', gen: 'ōrum', dat: 'īs', acc: 'a', abl: 'īs' },
   };
-  const DECLS = { 1: DECL1, 2: DECL2, '2n': DECL2N };
-  const DECL_NAMES = { 1: '1st declension', 2: '2nd declension', '2n': '2nd declension neuter' };
+  // 3rd declension: the nominative singular varies (pater, rēx, nōmen) and is listed on the noun (null here).
+  // Neuters have accusative = nominative in the singular (null), and -a in both in the plural.
+  const DECL3 = {
+    sg: { nom: null, gen: 'is', dat: 'ī', acc: 'em', abl: 'e' },
+    pl: { nom: 'ēs', gen: 'um', dat: 'ibus', acc: 'ēs', abl: 'ibus' },
+  };
+  const DECL3N = {
+    sg: { nom: null, gen: 'is', dat: 'ī', acc: null, abl: 'e' },
+    pl: { nom: 'a', gen: 'um', dat: 'ibus', acc: 'a', abl: 'ibus' },
+  };
+  const DECLS = { 1: DECL1, 2: DECL2, '2n': DECL2N, 3: DECL3, '3n': DECL3N };
+  const DECL_NAMES = { 1: '1st declension', 2: '2nd declension', '2n': '2nd declension neuter', 3: '3rd declension', '3n': '3rd declension neuter' };
 
   const PERSONS = ['1sg', '2sg', '3sg', '1pl', '2pl', '3pl'];
   const PERSON_NAMES = {
     '1sg': '1st person singular', '2sg': '2nd person singular', '3sg': '3rd person singular',
     '1pl': '1st person plural', '2pl': '2nd person plural', '3pl': '3rd person plural',
   };
+  const TENSES = ['pres', 'perf'];
+  const TENSE_NAMES = { pres: 'present', perf: 'perfect' };
+  const TENSE_EN = { pres: 'present', perf: 'perfect (past)' };
   const CONJ1 = { '1sg': 'ō', '2sg': 'ās', '3sg': 'at', '1pl': 'āmus', '2pl': 'ātis', '3pl': 'ant', inf: 'āre' };
+  const CONJ2 = { '1sg': 'eō', '2sg': 'ēs', '3sg': 'et', '1pl': 'ēmus', '2pl': 'ētis', '3pl': 'ent', inf: 'ēre' };
+  const CONJ_ENDINGS = { 1: CONJ1, 2: CONJ2 };
+  // Perfect active: the same endings on every verb's perfect stem (amāv-, monu-, vīd-, fu-).
+  const PERF = { '1sg': 'ī', '2sg': 'istī', '3sg': 'it', '1pl': 'imus', '2pl': 'istis', '3pl': 'ērunt' };
 
   // ─── Vocabulary ───────────────────────────────────────────────────────────
   // kind: 'person' nouns can act (subjects), receive (indirect objects) and own (genitives).
@@ -102,10 +120,32 @@
     { id: 'aurum', decl: 2, stem: 'aur', gender: 'n', kind: 'thing', sgOnly: true, en: [['gold', 'gold']] },
     { id: 'beneficium', decl: 2, stem: 'benefici', gender: 'n', kind: 'thing',
       en: [['kindness', 'kindnesses'], ['favor', 'favors'], ['favour', 'favours'], ['benefit', 'benefits']] },
+    { id: 'turba', stem: 'turb', gender: 'f', kind: 'thing', en: [['crowd', 'crowds'], ['throng', 'throngs'], ['mob', 'mobs']] },
+    // inimīcus is a personal enemy, hostis an enemy in war; "enemy" and "foe" fit both, but each has its own prompt word.
+    { id: 'inimicus', decl: 2, stem: 'inimīc', gender: 'm', kind: 'person', en: [['enemy', 'enemies'], ['foe', 'foes']] },
+    // 3rd declension. nom: the nominative singular, which can't be built from the stem (genitive minus -is).
+    // iStem: genitive plural in -ium (urbium, not *urbum). common: either gender (cīvis, m./f.).
+    { id: 'pater', decl: 3, nom: 'pater', stem: 'patr', gender: 'm', kind: 'person', en: [['father', 'fathers']] },
+    { id: 'mater', decl: 3, nom: 'māter', stem: 'mātr', gender: 'f', kind: 'person', en: [['mother', 'mothers']] },
+    { id: 'peccator', decl: 3, nom: 'peccātor', stem: 'peccātōr', gender: 'm', kind: 'person', en: [['sinner', 'sinners']] },
+    { id: 'princeps', decl: 3, nom: 'prīnceps', stem: 'prīncip', gender: 'm', kind: 'person',
+      en: [['leader', 'leaders'], ['chief', 'chiefs'], ['prince', 'princes']] },
+    { id: 'civis', decl: 3, nom: 'cīvis', stem: 'cīv', gender: 'm', common: true, iStem: true, kind: 'person', en: [['citizen', 'citizens']] },
+    { id: 'miles', decl: 3, nom: 'mīles', stem: 'mīlit', gender: 'm', kind: 'person', en: [['soldier', 'soldiers']] },
+    { id: 'rex', decl: 3, nom: 'rēx', stem: 'rēg', gender: 'm', kind: 'person', en: [['king', 'kings']] },
+    { id: 'hostis', decl: 3, nom: 'hostis', stem: 'host', gender: 'm', iStem: true, kind: 'person', en: [['foe', 'foes'], ['enemy', 'enemies']] },
+    { id: 'lex', decl: 3, nom: 'lēx', stem: 'lēg', gender: 'f', kind: 'thing', en: [['law', 'laws']] },
+    { id: 'sermo', decl: 3, nom: 'sermō', stem: 'sermōn', gender: 'm', kind: 'thing',
+      en: [['speech', 'speeches'], ['word', 'words'], ['conversation', 'conversations'], ['sermon', 'sermons']] },
+    { id: 'vox', decl: 3, nom: 'vōx', stem: 'vōc', gender: 'f', kind: 'thing', en: [['voice', 'voices']] },
+    { id: 'nox', decl: 3, nom: 'nox', stem: 'noct', gender: 'f', iStem: true, kind: 'thing', en: [['night', 'nights']] },
+    { id: 'urbs', decl: 3, nom: 'urbs', stem: 'urb', gender: 'f', iStem: true, kind: 'thing', en: [['city', 'cities']] },
+    { id: 'ars', decl: 3, nom: 'ars', stem: 'art', gender: 'f', iStem: true, kind: 'thing', en: [['art', 'arts'], ['skill', 'skills']] },
+    { id: 'nomen', decl: 3, nom: 'nōmen', stem: 'nōmin', gender: 'n', kind: 'thing', en: [['name', 'names']] },
   ];
   NOUNS.forEach(n => {
     n.decl = n.decl || 1;
-    n.declKey = n.decl === 2 && n.gender === 'n' ? '2n' : n.decl;
+    n.declKey = n.gender === 'n' && n.decl > 1 ? n.decl + 'n' : n.decl;
   });
 
   // Conjunctions: et between two nouns, or -que on the end of the second ("puer puellaque").
@@ -133,50 +173,99 @@
   const PEOPLE = NOUNS.filter(n => n.kind === 'person').map(n => n.id);
   const HUMANS = PEOPLE.filter(id => id !== 'deus');
   // in + ablative: where people are, or where something happens
-  const PLACES = ['insula', 'via', 'ecclesia', 'ager', 'templum', 'oppidum', 'culina'];
+  const PLACES = ['insula', 'via', 'ecclesia', 'ager', 'templum', 'oppidum', 'culina', 'urbs'];
+  const THINGS = NOUNS.filter(n => n.kind === 'thing').map(n => n.id);
 
-  // English verb forms: [base, 3rd singular, -ing]
+  // English verb forms: [base, 3rd singular, -ing, past, past participle]. A base in "be …" (be silent)
+  // is conjugated through "to be": is silent, was silent, has been silent.
+  // conj: 1 or 2 (present endings); perf: perfect stem (default for the 1st conjugation: stem + āv)
   // where / into / to: nouns allowed after in + abl., in + acc., ad + acc. (default: where = PLACES)
   // subjs: who can do it (default: people, but not God); dats: who can receive (indirect objects)
+  // datBare: English takes the dative as a plain object ("answers the teacher", not "answers to"); needsDat: must have one
+  // takesInf: may take a complementary infinitive; needsInf: must. modal: dēbēre, "must / ought to".
+  // jussive: iubēre, whose object is the one who does the infinitive ("iubet mīlitēs pugnāre").
   const VERBS = [
-    { id: 'amare', stem: 'am', en: [['love', 'loves', 'loving'], ['like', 'likes', 'liking']],
+    { id: 'amare', stem: 'am', en: [['love', 'loves', 'loving', 'loved', 'loved'], ['like', 'likes', 'liking', 'liked', 'liked']],
       objs: PEOPLE.concat(['rosa', 'aqua', 'via', 'fabula', 'vita', 'ecclesia', 'insula', 'culina', 'equus', 'cibus',
-        'gladius', 'liber', 'ager', 'bellum', 'donum', 'vinum', 'regnum', 'templum', 'oppidum', 'aurum']),
+        'gladius', 'liber', 'ager', 'bellum', 'donum', 'vinum', 'regnum', 'templum', 'oppidum', 'aurum', 'urbs', 'ars', 'lex']),
       subjs: PEOPLE, takesInf: true },
-    { id: 'laudare', stem: 'laud', en: [['praise', 'praises', 'praising']],
+    { id: 'laudare', stem: 'laud', en: [['praise', 'praises', 'praising', 'praised', 'praised']],
       objs: PEOPLE.concat(['rosa', 'fabula', 'vita', 'ecclesia', 'insula', 'equus', 'cibus', 'gladius', 'liber',
-        'donum', 'vinum', 'regnum', 'consilium', 'templum', 'oppidum', 'beneficium']) },
-    { id: 'vocare', stem: 'voc', en: [['call', 'calls', 'calling'], ['summon', 'summons', 'summoning']],
-      objs: PEOPLE.concat(['equus']), subjs: PEOPLE,
-      to: ['ecclesia', 'mensa', 'insula', 'culina', 'templum', 'oppidum', 'ager'], into: ['ecclesia', 'culina', 'templum', 'oppidum'] },
-    { id: 'pugnare', stem: 'pugn', en: [['fight', 'fights', 'fighting']],
-      where: ['insula', 'via', 'ager', 'oppidum', 'bellum'] },
-    { id: 'ambulare', stem: 'ambul', en: [['walk', 'walks', 'walking']],
-      to: ['insula', 'ecclesia', 'via', 'aqua', 'mensa', 'ager', 'templum', 'oppidum', 'culina'].concat(HUMANS),
-      into: ['ecclesia', 'aqua', 'via', 'ager', 'templum', 'oppidum', 'culina'] },
-    { id: 'orare', stem: 'ōr', en: [['pray', 'prays', 'praying']] },
-    { id: 'cantare', stem: 'cant', en: [['sing', 'sings', 'singing']] },
-    { id: 'laborare', stem: 'labōr', en: [['work', 'works', 'working'], ['labor', 'labors', 'laboring'],
-      ['labour', 'labours', 'labouring'], ['toil', 'toils', 'toiling']] },
-    { id: 'portare', stem: 'port', en: [['carry', 'carries', 'carrying'], ['bear', 'bears', 'bearing']],
+        'donum', 'vinum', 'regnum', 'consilium', 'templum', 'oppidum', 'beneficium', 'urbs', 'ars', 'lex', 'vox', 'sermo', 'nomen']) },
+    { id: 'vocare', stem: 'voc', en: [['call', 'calls', 'calling', 'called', 'called'], ['summon', 'summons', 'summoning', 'summoned', 'summoned']],
+      objs: PEOPLE.concat(['equus', 'turba']), subjs: PEOPLE,
+      to: ['ecclesia', 'mensa', 'insula', 'culina', 'templum', 'oppidum', 'ager', 'urbs'], into: ['ecclesia', 'culina', 'templum', 'oppidum', 'urbs'] },
+    { id: 'pugnare', stem: 'pugn', en: [['fight', 'fights', 'fighting', 'fought', 'fought']],
+      where: ['insula', 'via', 'ager', 'oppidum', 'bellum', 'urbs'] },
+    { id: 'ambulare', stem: 'ambul', en: [['walk', 'walks', 'walking', 'walked', 'walked']],
+      to: ['insula', 'ecclesia', 'via', 'aqua', 'mensa', 'ager', 'templum', 'oppidum', 'culina', 'urbs'].concat(HUMANS),
+      into: ['ecclesia', 'aqua', 'via', 'ager', 'templum', 'oppidum', 'culina', 'urbs'] },
+    { id: 'orare', stem: 'ōr', en: [['pray', 'prays', 'praying', 'prayed', 'prayed']] },
+    { id: 'cantare', stem: 'cant', en: [['sing', 'sings', 'singing', 'sang', 'sung']] },
+    { id: 'laborare', stem: 'labōr', en: [['work', 'works', 'working', 'worked', 'worked'], ['labor', 'labors', 'laboring', 'labored', 'labored'],
+      ['labour', 'labours', 'labouring', 'laboured', 'laboured'], ['toil', 'toils', 'toiling', 'toiled', 'toiled']] },
+    { id: 'portare', stem: 'port', en: [['carry', 'carries', 'carrying', 'carried', 'carried'], ['bear', 'bears', 'bearing', 'bore', 'borne']],
       objs: ['rosa', 'aqua', 'mensa', 'cibus', 'gladius', 'liber', 'vinum', 'aurum', 'donum'],
-      to: ['insula', 'ecclesia', 'mensa', 'culina', 'templum', 'oppidum', 'ager'].concat(HUMANS),
-      into: ['ecclesia', 'culina', 'templum', 'oppidum'] },
-    { id: 'narrare', stem: 'narr', en: [['tell', 'tells', 'telling'], ['narrate', 'narrates', 'narrating'],
-      ['relate', 'relates', 'relating'], ['recount', 'recounts', 'recounting']],
+      to: ['insula', 'ecclesia', 'mensa', 'culina', 'templum', 'oppidum', 'ager', 'urbs'].concat(HUMANS),
+      into: ['ecclesia', 'culina', 'templum', 'oppidum', 'urbs'] },
+    { id: 'narrare', stem: 'narr', en: [['tell', 'tells', 'telling', 'told', 'told'], ['narrate', 'narrates', 'narrating', 'narrated', 'narrated'],
+      ['relate', 'relates', 'relating', 'related', 'related'], ['recount', 'recounts', 'recounting', 'recounted', 'recounted']],
       objs: ['fabula', 'vita', 'consilium'], dats: PEOPLE.concat(['ecclesia']) },
-    { id: 'navigare', stem: 'nāvig', en: [['sail', 'sails', 'sailing']],
-      where: ['aqua'], to: ['insula', 'oppidum'] },
-    { id: 'dare', stem: 'd', en: [['give', 'gives', 'giving']],
-      objs: ['rosa', 'aqua', 'mensa', 'cibus', 'gladius', 'liber', 'vinum', 'aurum', 'donum', 'equus', 'consilium'],
+    { id: 'navigare', stem: 'nāvig', en: [['sail', 'sails', 'sailing', 'sailed', 'sailed']],
+      where: ['aqua'], to: ['insula', 'oppidum', 'urbs'] },
+    { id: 'dare', stem: 'd', perf: 'ded', en: [['give', 'gives', 'giving', 'gave', 'given']],
+      objs: ['rosa', 'aqua', 'mensa', 'cibus', 'gladius', 'liber', 'vinum', 'aurum', 'donum', 'equus', 'consilium', 'lex', 'nomen'],
       dats: PEOPLE.concat(['ecclesia', 'templum']), subjs: PEOPLE,
       // dăre keeps a short a: damus, datis, dare (not *dāmus)
       forms: { '1sg': 'dō', '2sg': 'dās', '3sg': 'dat', '1pl': 'damus', '2pl': 'datis', '3pl': 'dant', inf: 'dare' } },
     // Linking verb: takes a predicate nominative ("puer amīcus est") or a place ("in culīnā est"), never an object.
     // Who may be what, and what may be where, is decided by predOk / placeOk below.
-    { id: 'esse', irregular: true, linking: true, en: [['be', 'is', 'being']],
+    { id: 'esse', irregular: true, linking: true, perf: 'fu', en: [['be', 'is', 'being', 'was', 'been']],
       where: PLACES.concat(['mensa']),
       forms: { '1sg': 'sum', '2sg': 'es', '3sg': 'est', '1pl': 'sumus', '2pl': 'estis', '3pl': 'sunt', inf: 'esse' } },
+
+    // 2nd conjugation: infinitive in -ēre, stem vowel ē kept in the 1st singular (moneō).
+    { id: 'monere', conj: 2, stem: 'mon', perf: 'monu', en: [['warn', 'warns', 'warning', 'warned', 'warned'], ['advise', 'advises', 'advising', 'advised', 'advised']],
+      objs: HUMANS, subjs: PEOPLE },
+    { id: 'habere', conj: 2, stem: 'hab', perf: 'habu', en: [['have', 'has', 'having', 'had', 'had'], ['own', 'owns', 'owning', 'owned', 'owned']],
+      objs: ['rosa', 'mensa', 'cibus', 'gladius', 'liber', 'equus', 'aurum', 'donum', 'vinum', 'ager', 'consilium', 'nomen', 'ars',
+        'amicus', 'filius', 'filia', 'servus', 'inimicus'] },
+    { id: 'videre', conj: 2, stem: 'vid', perf: 'vīd', en: [['see', 'sees', 'seeing', 'saw', 'seen']],
+      objs: PEOPLE.concat(['rosa', 'aqua', 'via', 'mensa', 'ecclesia', 'insula', 'equus', 'cibus', 'gladius', 'liber', 'ager',
+        'donum', 'templum', 'oppidum', 'aurum', 'urbs', 'turba', 'periculum']), subjs: PEOPLE },
+    { id: 'debere', conj: 2, stem: 'dēb', perf: 'dēbu', modal: true, takesInf: true, needsInf: true,
+      en: [['owe', 'owes', 'owing', 'owed', 'owed']], gloss: 'ought, must (+ infinitive); owe' },
+    // "temeo, temere, temui" in the request read as teneō (m for n); timeō is listed on its own.
+    { id: 'tenere', conj: 2, stem: 'ten', perf: 'tenu', en: [['hold', 'holds', 'holding', 'held', 'held']],
+      objs: ['rosa', 'cibus', 'gladius', 'liber', 'aurum', 'donum', 'vinum', 'urbs', 'oppidum', 'regnum'] },
+    { id: 'timere', conj: 2, stem: 'tim', perf: 'timu', en: [['fear', 'fears', 'fearing', 'feared', 'feared'], ['dread', 'dreads', 'dreading', 'dreaded', 'dreaded']],
+      objs: ['hostis', 'inimicus', 'rex', 'deus', 'dominus', 'miles', 'magister', 'pater', 'mater', 'princeps',
+        'bellum', 'periculum', 'gladius', 'nox', 'aqua', 'turba', 'lex', 'vox'] },
+    { id: 'terrere', conj: 2, stem: 'terr', perf: 'terru', en: [['frighten', 'frightens', 'frightening', 'frightened', 'frightened'],
+      ['terrify', 'terrifies', 'terrifying', 'terrified', 'terrified'], ['scare', 'scares', 'scaring', 'scared', 'scared']],
+      objs: HUMANS.concat(['equus', 'turba']), subjs: HUMANS.concat(['bellum', 'periculum', 'nox', 'vox', 'gladius', 'turba']) },
+    { id: 'manere', conj: 2, stem: 'man', perf: 'māns', en: [['remain', 'remains', 'remaining', 'remained', 'remained'], ['stay', 'stays', 'staying', 'stayed', 'stayed']] },
+    { id: 'sedere', conj: 2, stem: 'sed', perf: 'sēd', en: [['sit', 'sits', 'sitting', 'sat', 'sat']] },
+    { id: 'iubere', conj: 2, stem: 'iub', perf: 'iuss', jussive: true, takesInf: true, needsInf: true,
+      en: [['order', 'orders', 'ordering', 'ordered', 'ordered'], ['command', 'commands', 'commanding', 'commanded', 'commanded'],
+        ['tell', 'tells', 'telling', 'told', 'told']],
+      objs: HUMANS, subjs: PEOPLE },
+    { id: 'respondere', conj: 2, stem: 'respond', perf: 'respond', datBare: true,
+      en: [['answer', 'answers', 'answering', 'answered', 'answered'], ['reply', 'replies', 'replying', 'replied', 'replied']],
+      dats: PEOPLE },
+    // Things please people: "rosa puellae placet". The person pleased is in the dative.
+    { id: 'placere', conj: 2, stem: 'plac', perf: 'placu', datBare: true, needsDat: true, en: [['please', 'pleases', 'pleasing', 'pleased', 'pleased']],
+      dats: PEOPLE, subjs: HUMANS.concat(['rosa', 'cibus', 'vinum', 'donum', 'fabula', 'liber', 'aurum', 'equus', 'ars', 'vox', 'sermo', 'templum', 'urbs']) },
+    { id: 'tacere', conj: 2, stem: 'tac', perf: 'tacu', en: [['be silent', 'is silent', 'being silent', 'was silent', 'been silent'],
+      ['be quiet', 'is quiet', 'being quiet', 'was quiet', 'been quiet'], ['keep silent', 'keeps silent', 'keeping silent', 'kept silent', 'kept silent']] },
+    // dēlēvī: dēleō keeps its ē and adds v, like the 1st conjugation
+    { id: 'delere', conj: 2, stem: 'dēl', perf: 'dēlēv', en: [['destroy', 'destroys', 'destroying', 'destroyed', 'destroyed']],
+      objs: ['urbs', 'oppidum', 'templum', 'ecclesia', 'regnum', 'liber', 'ager', 'mensa', 'nomen', 'lex'], where: ['bellum', 'insula'] },
+    { id: 'docere', conj: 2, stem: 'doc', perf: 'docu', en: [['teach', 'teaches', 'teaching', 'taught', 'taught']],
+      objs: HUMANS.concat(['ars', 'lex']), subjs: PEOPLE },
+    { id: 'movere', conj: 2, stem: 'mov', perf: 'mōv', en: [['move', 'moves', 'moving', 'moved', 'moved']],
+      objs: ['mensa', 'liber', 'gladius', 'equus', 'aurum', 'donum', 'rosa', 'turba'],
+      to: ['mensa', 'culina', 'urbs'], into: ['culina', 'ecclesia', 'templum'] },
   ];
 
   const NOUN = Object.fromEntries(NOUNS.map(n => [n.id, n]));
@@ -185,26 +274,41 @@
   // Which nouns may stand in the genitive with which head ("fīlia rēgīnae", not "nauta fīliae").
   const OWNERS = {
     agricola: ['regina', 'dominus'], nauta: ['regina', 'dominus'], poeta: ['regina', 'dominus'], puella: [],
-    filia: ['agricola', 'regina', 'nauta', 'poeta', 'dominus', 'magister', 'vir'],
-    regina: ['agricola', 'nauta', 'poeta', 'insula', 'oppidum'],
+    filia: ['agricola', 'regina', 'nauta', 'poeta', 'dominus', 'magister', 'vir', 'pater', 'mater', 'rex', 'miles', 'civis'],
+    regina: ['agricola', 'nauta', 'poeta', 'insula', 'oppidum', 'urbs', 'civis'],
     rosa: HUMANS, fabula: HUMANS,
-    aqua: HUMANS.concat(['ecclesia']), mensa: HUMANS.concat(['ecclesia']), vita: HUMANS.concat(['ecclesia']),
-    via: HUMANS.concat(['vita', 'insula', 'ager', 'oppidum']),
-    ecclesia: ['agricola', 'puella', 'nauta', 'poeta', 'insula', 'oppidum'],
-    insula: ['agricola', 'regina', 'nauta', 'poeta', 'dominus'],
+    aqua: HUMANS.concat(['ecclesia', 'urbs']), mensa: HUMANS.concat(['ecclesia']), vita: HUMANS.concat(['ecclesia']),
+    via: HUMANS.concat(['vita', 'insula', 'ager', 'oppidum', 'urbs']),
+    ecclesia: ['agricola', 'puella', 'nauta', 'poeta', 'insula', 'oppidum', 'urbs', 'civis', 'peccator'],
+    insula: ['agricola', 'regina', 'nauta', 'poeta', 'dominus', 'rex'],
     culina: HUMANS,
     puer: [], vir: [],
     amicus: PEOPLE,
     dominus: ['servus', 'insula', 'oppidum', 'ager', 'equus'],
-    deus: ['agricola', 'nauta', 'poeta', 'insula', 'oppidum', 'bellum', 'vinum'],
-    servus: ['dominus', 'regina', 'agricola', 'poeta', 'magister', 'deus'],
-    filius: ['agricola', 'regina', 'nauta', 'poeta', 'dominus', 'magister', 'vir', 'deus'],
-    magister: ['puer', 'puella', 'filius', 'filia'],
+    deus: ['agricola', 'nauta', 'poeta', 'insula', 'oppidum', 'bellum', 'vinum', 'urbs', 'pater', 'peccator'],
+    servus: ['dominus', 'regina', 'agricola', 'poeta', 'magister', 'deus', 'rex', 'princeps'],
+    filius: ['agricola', 'regina', 'nauta', 'poeta', 'dominus', 'magister', 'vir', 'deus', 'pater', 'mater', 'rex', 'miles', 'civis'],
+    magister: ['puer', 'puella', 'filius', 'filia', 'miles', 'civis'],
     equus: HUMANS, cibus: HUMANS, gladius: HUMANS, liber: HUMANS, ager: HUMANS,
-    bellum: ['regina', 'dominus'],
-    donum: PEOPLE, vinum: HUMANS, regnum: ['regina', 'dominus', 'deus'], consilium: PEOPLE,
-    templum: ['deus', 'oppidum', 'insula'], oppidum: ['insula', 'regina', 'dominus'],
-    periculum: ['bellum', 'via', 'aqua', 'insula'], aurum: HUMANS.concat(['templum']), beneficium: PEOPLE,
+    bellum: ['regina', 'dominus', 'rex', 'princeps', 'urbs'],
+    donum: PEOPLE, vinum: HUMANS, regnum: ['regina', 'dominus', 'deus', 'rex', 'princeps'], consilium: PEOPLE,
+    templum: ['deus', 'oppidum', 'insula', 'urbs'], oppidum: ['insula', 'regina', 'dominus', 'rex', 'princeps'],
+    periculum: ['bellum', 'via', 'aqua', 'insula', 'nox', 'turba'], aurum: HUMANS.concat(['templum', 'urbs']), beneficium: PEOPLE,
+    turba: ['civis', 'miles', 'puer', 'puella', 'servus', 'agricola', 'nauta', 'peccator'],
+    inimicus: HUMANS.concat(['deus']),
+    pater: HUMANS, mater: HUMANS,
+    peccator: [],
+    princeps: ['urbs', 'oppidum', 'civis', 'miles', 'nauta', 'insula'],
+    civis: ['urbs', 'oppidum', 'insula', 'regnum'],
+    miles: ['rex', 'regina', 'princeps', 'dominus'],
+    rex: ['insula', 'oppidum', 'urbs', 'civis', 'nauta', 'agricola'],
+    hostis: ['rex', 'regina', 'princeps', 'urbs', 'oppidum', 'regnum', 'civis'],
+    lex: ['deus', 'rex', 'regina', 'urbs', 'regnum', 'dominus', 'princeps'],
+    sermo: HUMANS, vox: HUMANS.concat(['deus', 'turba']),
+    nox: [],
+    urbs: ['rex', 'regina', 'princeps', 'civis'],
+    ars: ['poeta', 'agricola', 'nauta', 'magister', 'miles'],
+    nomen: PEOPLE.concat(['urbs', 'insula', 'oppidum', 'equus']),
   };
   Object.keys(OWNERS).forEach(k => { OWNERS[k] = OWNERS[k].filter(x => x !== k); });
   const POSSESSORS = [...new Set(Object.values(OWNERS).flat())];
@@ -213,14 +317,17 @@
 
   // Predicate nouns for a person ("puer amīcus est"). The 1st-declension jobs fit anyone;
   // the rest must match the subject's gender (a girl is a fīlia, not a fīlius).
-  const ROLES = ['agricola', 'nauta', 'poeta', 'regina', 'amicus', 'dominus', 'servus', 'magister', 'filius', 'filia'];
-  const COMMON = ['agricola', 'nauta', 'poeta'];
+  const ROLES = ['agricola', 'nauta', 'poeta', 'regina', 'amicus', 'dominus', 'servus', 'magister', 'filius', 'filia',
+    'pater', 'mater', 'rex', 'princeps', 'civis', 'miles', 'inimicus', 'hostis', 'peccator'];
+  const COMMON = ['agricola', 'nauta', 'poeta', 'civis'];
+  // What God may be called ("Deus rēx est").
+  const DIVINE = ['amicus', 'pater', 'rex', 'dominus'];
   // Predicate nouns for things: subjects each one may describe ("vīnum dōnum est", "bellum perīculum est").
   const THING_PREDS = {
-    donum: ['rosa', 'aurum', 'vinum', 'cibus', 'gladius', 'liber', 'equus', 'vita'],
-    periculum: ['bellum', 'aqua', 'via', 'gladius'],
+    donum: ['rosa', 'aurum', 'vinum', 'cibus', 'gladius', 'liber', 'equus', 'vita', 'lex', 'ars'],
+    periculum: ['bellum', 'aqua', 'via', 'gladius', 'nox', 'turba'],
     fabula: ['vita'],
-    beneficium: ['cibus', 'aqua', 'vita'],
+    beneficium: ['cibus', 'aqua', 'vita', 'lex'],
   };
   /** Can subject s (noun id, or null for a pronoun subject) be called p? */
   function predOk(s, p) {
@@ -229,15 +336,15 @@
     if (!PEOPLE.includes(p) || p === 'deus') return false;
     if (s == null) return true;                                   // "nauta sum", "puerī sumus"
     if (!ROLES.includes(p) || !PEOPLE.includes(s)) return false;
-    if (s === 'deus') return p === 'amicus';
+    if (s === 'deus') return DIVINE.includes(p);
     return COMMON.includes(p) || NOUN[p].gender === NOUN[s].gender;
   }
   // Where things can be (people can be in any of PLACES).
   const THING_PLACES = {
     rosa: ['mensa', 'ager', 'ecclesia'], aqua: ['culina', 'mensa'], mensa: ['culina'], cibus: ['mensa', 'culina'],
     vinum: ['mensa', 'culina'], aurum: ['templum', 'mensa'], gladius: ['mensa'], liber: ['mensa', 'ecclesia'],
-    equus: ['ager', 'via'], donum: ['mensa', 'templum'], templum: ['oppidum', 'insula'], ecclesia: ['oppidum', 'insula'],
-    oppidum: ['insula'], ager: ['insula'],
+    equus: ['ager', 'via'], donum: ['mensa', 'templum'], templum: ['oppidum', 'insula', 'urbs'], ecclesia: ['oppidum', 'insula', 'urbs'],
+    oppidum: ['insula'], ager: ['insula'], urbs: ['insula'], turba: ['via', 'urbs', 'templum', 'ecclesia'],
   };
   /** Can subject s (noun id, or null for a pronoun subject) be in place p? */
   function placeOk(s, p) {
@@ -251,6 +358,8 @@
     n.genSg = nounForm(n, 'gen', 'sg');
   });
   VERBS.forEach(v => {
+    v.conj = v.conj || 1;
+    v.perf = v.perf || v.stem + 'āv';
     v.trans = !!v.objs;
     v.datList = v.dats || [];
     v.subjs = v.subjs || HUMANS;
@@ -259,17 +368,35 @@
     v.into = v.into || [];
     v.lemma = verbForm(v, 'inf');
     v.first = verbForm(v, '1sg');
+    v.perf1 = verbForm(v, '1sg', 'perf');
   });
-  /** Who can be the subject of a finite verb (and of its infinitive, if any). */
-  const subjectsFor = (finite, inf) => finite.subjs.filter(n => !inf || inf.subjs.includes(n));
+  /** Who can be the subject of a finite verb (and of its infinitive, if any; iubēre's infinitive belongs to its object). */
+  const subjectsFor = (finite, inf) => finite.subjs.filter(n => !inf || finite.jussive || inf.subjs.includes(n));
+  /** Can inf stand as the infinitive of finite? */
+  const infOk = (finite, inf) => finite.takesInf && inf !== finite && !inf.linking && !inf.needsInf && (!finite.jussive || !inf.trans);
 
   // ─── Morphology ───────────────────────────────────────────────────────────
 
-  function nounForm(n, c, num) { return c === 'nom' && num === 'sg' && n.nom ? n.nom : n.stem + DECLS[n.declKey][num][c]; }
-  /** The ending added to the stem, or null where the form is not stem + ending (puer, ager). */
-  function nounEnding(n, c, num) { return c === 'nom' && num === 'sg' && n.nom ? null : DECLS[n.declKey][num][c]; }
+  function nounForm(n, c, num) {
+    const e = nounEnding(n, c, num);
+    return e == null ? n.nom : n.stem + e;
+  }
+  /** The ending added to the stem, or null where the form is not stem + ending (puer, ager, rēx, nōmen). */
+  function nounEnding(n, c, num) {
+    if (c === 'nom' && num === 'sg' && n.nom) return null;
+    if (n.iStem && c === 'gen' && num === 'pl') return 'ium';
+    return DECLS[n.declKey][num][c];   // null: a 3rd-declension neuter accusative, the same as the nominative
+  }
   function nounAlts(n, c, num) { return (n.alt && n.alt[num + '.' + c]) || []; }
-  function verbForm(v, p) { return v.forms ? v.forms[p] : v.stem + CONJ1[p]; }
+  function verbForm(v, p, tense = 'pres') {
+    if (tense === 'perf') return p === 'inf' ? null : v.perf + PERF[p];
+    return v.forms ? v.forms[p] : v.stem + CONJ_ENDINGS[v.conj][p];
+  }
+  /** The ending added to the stem (present) or perfect stem, or null for an irregular present form. */
+  function verbEnding(v, p, tense = 'pres') {
+    if (tense === 'perf') return PERF[p];
+    return v.forms ? null : CONJ_ENDINGS[v.conj][p];
+  }
 
   /** Lowercase, strip macrons/accents and punctuation, treat v as u. Used for all comparisons. */
   function norm(s) {
@@ -294,7 +421,8 @@
     [nounForm(n, c, num)].concat(nounAlts(n, c, num)).forEach(f => addForm(f, { pos: 'noun', id: n.id, case: c, num }));
   })));
   VERBS.forEach(v => {
-    PERSONS.forEach(p => addForm(verbForm(v, p), { pos: 'verb', id: v.id, person: +p[0], num: p.slice(1) }));
+    TENSES.forEach(tense => PERSONS.forEach(p =>
+      addForm(verbForm(v, p, tense), { pos: 'verb', id: v.id, person: +p[0], num: p.slice(1), tense })));
     addForm(verbForm(v, 'inf'), { pos: 'inf', id: v.id });
   });
   PREPS.forEach(p => addForm(p.form, { pos: 'prep', id: p.id }));
@@ -302,7 +430,8 @@
 
   /**
    * Analyses of one word. Macrons the user typed are respected (rosā ≠ rosa); missing ones are not required.
-   * A noun with -que on the end ("puellaque") gets its noun analyses marked que: true.
+   * A noun with -que on the end ("puellaque") gets its noun analyses marked que: true;
+   * a finite verb with -ne on the end ("videtne") is marked ne: true (it asks a question).
    */
   function analyze(word) {
     const typed = word.normalize('NFC').toLowerCase().replace(/[^\p{L}]/gu, '');
@@ -311,13 +440,16 @@
     if (typed.length > 3 && typed.endsWith('que')) {
       lookup(typed.slice(0, -3)).filter(a => a.pos === 'noun').forEach(a => out.push({ ...a, que: true }));
     }
+    if (typed.length > 3 && typed.endsWith('ne')) {
+      lookup(typed.slice(0, -2)).filter(a => a.pos === 'verb').forEach(a => out.push({ ...a, ne: true }));
+    }
     const seen = new Set();
     return out.filter(a => { const k = JSON.stringify(a); return !seen.has(k) && seen.add(k); });
   }
 
   function describe(a) {
     if (a.pos === 'noun') return CASE_NAMES[a.case] + ' ' + NUM_NAMES[a.num].toLowerCase() + (a.que ? ' + -que' : '');
-    if (a.pos === 'verb') return PERSON_NAMES[a.person + a.num];
+    if (a.pos === 'verb') return PERSON_NAMES[a.person + a.num] + ' ' + TENSE_NAMES[a.tense] + (a.ne ? ' + -ne' : '');
     if (a.pos === 'prep') return 'Preposition';
     if (a.pos === 'conj') return 'Conjunction';
     return 'Present infinitive';
@@ -358,7 +490,8 @@
           const head = a.que ? i - 1 : i - 2;
           if (a.pos === 'noun' && head >= 0 && ['nom', 'acc', 'dat'].includes(a.case)) out.push({ a, role: 'and', head });
         }
-        else if (a.pos === 'verb') out.push({ a, role: 'verb' });
+        // a question puts the verb first, with -ne on it
+        else if (a.pos === 'verb') { if (!a.ne || i === 0) out.push({ a, role: 'verb' }); }
         else if (a.pos === 'inf') out.push({ a, role: 'inf' });
         else if (a.pos === 'prep') out.push({ a, role: 'prep' });
         else if (a.pos === 'conj') out.push({ a, role: 'conj' });
@@ -407,9 +540,9 @@
     const ii = at('inf');
     let head = finite;
     if (ii >= 0) {
-      if (!finite.takesInf || pick[ii].a.id === finite.id || VERB[pick[ii].a.id].linking) return null;
+      if (!infOk(finite, VERB[pick[ii].a.id])) return null;
       head = VERB[pick[ii].a.id];
-    }
+    } else if (finite.needsInf) return null;
 
     // joined nouns: "et" must introduce one; each joins a subject, object or indirect object in its own case
     const ands = {};
@@ -438,7 +571,7 @@
     };
     const both = x => (x ? (x.and ? [x.n, x.and.n] : [x.n]) : []);
     const subj = np('subj'), obj = np('obj'), dat = np('dat'), pred = np('pred');
-    const { person, num } = pick[vi].a;
+    const { person, num, tense, ne } = pick[vi].a;
 
     // two joined subjects take a plural verb
     if (subj && (person !== 3 || num !== (subj.and ? 'pl' : subj.num))) return null;
@@ -464,11 +597,13 @@
       if (pred) return null;
       const subjects = subjectsFor(finite, ii >= 0 ? head : null);
       if (subj && !both(subj).every(n => subjects.includes(n))) return null;
-      if (head.trans ? !obj || !both(obj).every(n => head.objs.includes(n)) : obj) return null;
-      if (dat && !both(dat).every(n => head.datList.includes(n))) return null;
+      // iubēre: its object is whoever is told to do the (intransitive) infinitive
+      const objs = finite.jussive ? finite.objs.filter(n => head.subjs.includes(n)) : head.trans ? head.objs : null;
+      if (objs ? !obj || !both(obj).every(n => objs.includes(n)) : obj) return null;
+      if (dat ? !both(dat).every(n => head.datList.includes(n)) : head.needsDat) return null;
     }
 
-    return { verb: finite.id, person, num, inf: ii >= 0 ? head.id : null, subj, obj, dat, pp, pred };
+    return { verb: finite.id, person, num, tense, q: !!ne, inf: ii >= 0 ? head.id : null, subj, obj, dat, pp, pred };
   }
 
   /** Identity of a meaning. Joined nouns count in either order, and et / -que is style, not meaning. */
@@ -479,7 +614,7 @@
       return [x.n, x.num, x.gen ? [x.gen.n, x.gen.num] : null];
     };
     const pp = m.pp ? [m.pp.prep, m.pp.case].concat(np(m.pp)) : null;
-    return JSON.stringify([m.verb, m.person, m.num, m.inf, np(m.subj), np(m.obj), np(m.dat), pp, np(m.pred)]);
+    return JSON.stringify([m.verb, m.person, m.num, m.tense || 'pres', !!m.q, m.inf, np(m.subj), np(m.obj), np(m.dat), pp, np(m.pred)]);
   }
 
   // ─── Rendering ────────────────────────────────────────────────────────────
@@ -496,7 +631,10 @@
     return genFirst ? [g, head] : [head, g];
   }
 
-  /** Latin word list for a meaning. order: 'canonical' (S-IO-O-Pred-PP-Inf-V) or a shuffled arrangement. */
+  /**
+   * Latin word list for a meaning: canonical order (S-IO-O-Pred-PP-Inf-V) or, with vary, shuffled.
+   * A question puts the verb first with -ne on it, and the rest follows in the same order.
+   */
   function latinWords(m, rng, vary) {
     const v = VERB[m.verb];
     const parts = [];
@@ -506,14 +644,16 @@
     if (m.pred) parts.push(npLatin({ ...m.pred, role: 'nom' }, vary && rng() < 0.3));
     if (m.pp) parts.push([PREP[m.pp.prep].form].concat(npLatin({ ...m.pp, role: m.pp.case }, vary && rng() < 0.3)));
     if (m.inf) parts.push([verbForm(VERB[m.inf], 'inf')]);
-    parts.push([verbForm(v, m.person + m.num)]);
+    const verb = verbForm(v, m.person + m.num, m.tense);
+    if (!m.q) parts.push([verb]);
     if (vary) shuffle(parts, rng);
+    if (m.q) parts.unshift([verb + 'ne']);
     return parts.flat();
   }
 
-  function sentenceCase(words) {
+  function sentenceCase(words, question) {
     const s = words.join(' ');
-    return s.charAt(0).toUpperCase() + s.slice(1) + '.';
+    return s.charAt(0).toUpperCase() + s.slice(1) + (question ? '?' : '.');
   }
 
   const PRONOUN_DISPLAY = { '1sg': 'I', '2sg': 'you (sg.)', '3sg': 'he/she', '1pl': 'we', '2pl': 'you (pl.)', '3pl': 'they' };
@@ -537,29 +677,78 @@
   }
 
   const BE_EN = { '1sg': 'am', '2sg': 'are', '3sg': 'is', '1pl': 'are', '2pl': 'are', '3pl': 'are' };
+  const WAS_EN = agr => (agr === '1sg' || agr === '3sg' ? 'was' : 'were');
+  const HAVE_EN = agr => (agr === '3sg' ? 'has' : 'have');
+  const DO_EN = agr => (agr === '3sg' ? 'does' : 'do');
 
   /** English of a prepositional phrase alone: "on the island", "into the church". */
   function ppEnglish(pp) {
     return ppWord(ppKind(pp.prep, pp.case), pp.n) + ' ' + npEnglish(pp);
   }
 
+  /**
+   * The English forms of one sense of a finite verb, as { aux, main }. aux is the word a question puts
+   * before the subject ("does", "did", "has", "is"), or '' if there is none ("walks", "walked").
+   * The Latin perfect is an English simple past or present perfect: "he sang", "he did sing", "he has sung".
+   * progressive: allow "is walking" (not before an infinitive: not "is loving to sing").
+   */
+  function senseForms([base, s, ing, past, pp], agr, tense, progressive) {
+    if (base.startsWith('be ')) {
+      const adj = base.slice(3);
+      return tense === 'perf' ? [{ aux: WAS_EN(agr), main: adj }, { aux: HAVE_EN(agr), main: 'been ' + adj }] : [{ aux: BE_EN[agr], main: adj }];
+    }
+    if (tense === 'perf') return [{ aux: '', main: past }, { aux: 'did', main: base }, { aux: HAVE_EN(agr), main: pp }];
+    const out = [{ aux: '', main: agr === '3sg' ? s : base }, { aux: DO_EN(agr), main: base }];
+    if (progressive) out.push({ aux: BE_EN[agr], main: ing });
+    return out;
+  }
+  function finiteForms(v, agr, tense, progressive) {
+    if (v.linking) return tense === 'perf' ? [{ aux: WAS_EN(agr), main: '' }, { aux: HAVE_EN(agr), main: 'been' }] : [{ aux: BE_EN[agr], main: '' }];
+    return v.en.flatMap(e => senseForms(e, agr, tense, progressive));
+  }
+  /** dēbēre + one sense of its infinitive: "must sing", "ought to sing" / "had to sing", "should have sung". */
+  function modalForms([base, , , , pp], agr, tense) {
+    if (tense === 'perf') {
+      return [{ aux: '', main: 'had to ' + base }, { aux: 'did', main: 'have to ' + base },
+        { aux: 'should', main: 'have ' + pp }, { aux: 'ought', main: 'to have ' + pp }];
+    }
+    return [{ aux: 'must', main: base }, { aux: 'ought', main: 'to ' + base }, { aux: 'should', main: base },
+      { aux: '', main: HAVE_EN(agr) + ' to ' + base }, { aux: DO_EN(agr), main: 'have to ' + base }];
+  }
+  /**
+   * Every English verb phrase for a meaning, as { aux, main, tail }; the first is the one displayed
+   * (the first with an aux, for a question). tail: iubēre's infinitive, which follows the object
+   * ("orders the soldiers to fight").
+   */
+  function verbPhrases(m, agr) {
+    const v = VERB[m.verb], tense = m.tense || 'pres';
+    if (!m.inf) return finiteForms(v, agr, tense, true).map(x => ({ ...x, tail: '' }));
+    const inf = VERB[m.inf];
+    if (v.modal) return inf.en.flatMap(e => modalForms(e, agr, tense)).map(x => ({ ...x, tail: '' }));
+    if (v.jussive) return finiteForms(v, agr, tense, true).flatMap(x => inf.en.map(e => ({ ...x, tail: 'to ' + e[0] })));
+    const infs = inf.en.flatMap(e => ['to ' + e[0], e[2]]);
+    return finiteForms(v, agr, tense, false).flatMap(x => infs.map(i => ({ ...x, main: (x.main + ' ' + i).trim(), tail: '' })));
+  }
+
   /** One natural English rendering. opts.pronoun overrides the 3rd-person-singular pronoun. */
   function englishOf(m, opts = {}) {
     const agr = m.person + m.num;
     const subj = m.subj ? npEnglish(m.subj) : (agr === '3sg' && opts.pronoun) || PRONOUN_DISPLAY[agr];
-    const finite = VERB[m.verb].en[0];
-    const out = [subj, VERB[m.verb].linking ? BE_EN[agr] : agr === '3sg' ? finite[1] : finite[0]];
-    if (m.inf) out.push('to ' + VERB[m.inf].en[0][0]);
+    const vps = verbPhrases(m, agr);
+    const vp = m.q ? vps.find(x => x.aux) : vps[0];
+    const out = m.q ? [vp.aux, subj, vp.main] : [subj, vp.aux, vp.main];
     if (m.obj) out.push(npEnglish(m.obj));
-    if (m.dat) out.push('to ' + npEnglish(m.dat));
+    if (m.dat) out.push((m.obj || !VERB[m.inf || m.verb].datBare ? 'to ' : '') + npEnglish(m.dat));
     if (m.pred) out.push(predEnglish(m.pred));
+    out.push(vp.tail);
     if (m.pp) out.push(ppEnglish(m.pp));
-    return sentenceCase(out);
+    return sentenceCase(out.filter(Boolean), m.q);
   }
 
   // ─── English answer matching ──────────────────────────────────────────────
   // Each meaning compiles to one anchored regex covering the acceptable phrasings:
   // optional articles, "X's Y" / "Y of X", simple / progressive / emphatic present,
+  // simple past / "did" / "has" for the perfect, questions with the aux first ("does the boy see"),
   // "gives A to B" / "gives B A", "loves to sing" / "loves singing", synonyms.
 
   const esc = s => s.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -569,9 +758,6 @@
     '1sg': 'i', '2sg': 'you', '3sg': "(?:he|she|it|he/she|she/he|he or she|she or he)",
     '1pl': 'we', '2pl': "(?:you|you all|y'all|ye|you guys|you people)", '3pl': 'they',
   };
-  const BE = { '1sg': 'am', '3sg': 'is' };
-  const PAST = { sing: 'sang', give: 'gave', tell: 'told', fight: 'fought', bear: 'bore' }; // only for hints
-  const DO = { '3sg': 'does' };
 
   function nounRe(n, num) { return alt(NOUN[n].en.map(p => esc(p[num === 'sg' ? 0 : 1].toLowerCase()))); }
   function possRe(n, num) { return alt(NOUN[n].en.map(p => esc((num === 'sg' ? p[0] + "'s" : p[1] + "'").toLowerCase()))); }
@@ -590,35 +776,28 @@
     ]);
   }
 
-  function finiteRe(v, agr, allowProgressive) {
-    const forms = [];
-    VERB[v].en.forEach(([base, s, ing]) => {
-      forms.push(agr === '3sg' ? s : base);
-      forms.push(`${DO[agr] || 'do'} ${base}`);
-      if (allowProgressive) forms.push(`${BE[agr] || 'are'} ${ing}`);
-    });
-    return alt(forms.map(esc));
-  }
-
   function englishRegex(m) {
     const agr = m.person + m.num;
     const subj = m.subj ? npRe(m.subj) : PRONOUN_RE[agr];
-    let verb;
-    if (VERB[m.verb].linking) {
-      verb = BE_EN[agr];
-    } else if (m.inf) {
-      const infs = [];
-      VERB[m.inf].en.forEach(([base, , ing]) => { infs.push('to ' + base, ing); });
-      verb = finiteRe(m.verb, agr, false) + ' ' + alt(infs.map(esc));
-    } else {
-      verb = finiteRe(m.verb, agr, true);
-    }
     let rest = '';
     if (m.pred) rest = ' ' + npRe(m.pred);
     else if (m.obj && m.dat) rest = ' ' + alt([`${npRe(m.obj)} (?:to|for) ${npRe(m.dat)}`, `${npRe(m.dat)} ${npRe(m.obj)}`]);
     else if (m.obj) rest = ' ' + npRe(m.obj);
-    else if (m.dat) rest = ' (?:to|for) ' + npRe(m.dat);
-    const core = `${subj} ${verb}${rest}`;
+    else if (m.dat) rest = (VERB[m.inf || m.verb].datBare ? ' (?:(?:to|for) )?' : ' (?:to|for) ') + npRe(m.dat);
+    // One clause per (aux, tail), with its verb forms as alternatives. A question needs an aux,
+    // which goes before the subject: "does the boy see", "did he sing", "is she silent".
+    const groups = new Map();
+    verbPhrases(m, agr).forEach(({ aux, main, tail }) => {
+      if (m.q && !aux) return;
+      const k = (m.q ? aux : '') + '|' + tail;
+      if (!groups.has(k)) groups.set(k, new Set());
+      groups.get(k).add(m.q ? main : [aux, main].filter(Boolean).join(' '));
+    });
+    const core = alt([...groups].map(([k, verbs]) => {
+      const [aux, tail] = k.split('|');
+      const verb = alt([...verbs].map(x => (x ? ' ' + esc(x) : '')));
+      return (m.q ? esc(aux) + ' ' : '') + subj + verb + rest + (tail ? ' ' + esc(tail) : '');
+    }));
     if (!m.pp) return new RegExp(`^${core}$`);
     // the phrase goes at the end, or first ("On the island the sailors sing")
     const pp = ppRe(m.pp);
@@ -637,6 +816,7 @@
       .replace(/ i'm /g, ' i am ')
       .replace(/ (he|she|it)'s /g, ' $1 is ')
       .replace(/ (we|you|they)'re /g, ' $1 are ')
+      .replace(/ (i|we|you|they)'ve /g, ' $1 have ')
       .trim();
   }
 
@@ -703,22 +883,27 @@
         optional: ['subj', 'subjGen', 'subjEt', 'subjQue', 'ppGen'], kinds: ['where'] });
       return;
     }
-    const infs = finite.takesInf ? [null].concat(VERBS.filter(v => v !== finite && !v.linking)) : [null];
+    const infs = finite.takesInf ? (finite.needsInf ? [] : [null]).concat(VERBS.filter(v => infOk(finite, v))) : [null];
     infs.forEach(inf => {
       const head = inf || finite;
+      // the object: the infinitive's, or iubēre's own (the one told to act)
+      const objs = finite.jussive ? finite.objs.filter(n => inf.subjs.includes(n)) : head.trans ? head.objs : null;
       const optional = ['subj', 'subjGen', 'subjEt', 'subjQue'];
-      if (head.trans) optional.push('objGen', 'objEt', 'objQue');
-      if (head.datList.length) optional.push('dat', 'datGen', 'datEt', 'datQue');
+      if (objs) optional.push('objGen', 'objEt', 'objQue');
+      if (head.datList.length) optional.push(...(head.needsDat ? [] : ['dat']), 'datGen', 'datEt', 'datQue');
       const kinds = Object.keys(PP_KINDS).filter(k => head[k].length);
       if (kinds.length) optional.push('pp', 'ppGen');
-      const base = 1 + (inf ? 1 : 0) + (head.trans ? 1 : 0);
-      FRAMES.push({ finite, inf, head, comp: null, required: [], base, optional, kinds });
+      const base = 1 + (inf ? 1 : 0) + (objs ? 1 : 0) + (head.needsDat ? 1 : 0);
+      FRAMES.push({ finite, inf, head, objs, comp: null, required: head.needsDat ? ['dat'] : [], base, optional, kinds });
     });
   });
   FRAMES.forEach(f => { f.lengths = frameLengths(f); });
 
+  const QUESTION_ODDS = 0.3;
+
   /**
    * Random sentence with exactly `length` Latin words.
+   * opts: rng, varyOrder, tense ('pres' | 'perf' | 'both'; default present), questions (some are -ne questions).
    * Returns { m, latin, words, english, englishPrompt, readings }.
    */
   function generateSentence(length, opts = {}) {
@@ -733,7 +918,7 @@
       let mine = frames.filter(f => f.finite === finite);
       const plain = mine.filter(f => !f.inf);
       if (plain.length && plain.length < mine.length) mine = rng() < 0.5 ? plain : mine.filter(f => f.inf);
-      const { inf, head, comp, required, base, optional, kinds } = pickOne(mine, rng);
+      const { inf, head, objs, comp, required, base, optional, kinds } = pickOne(mine, rng);
 
       const slots = new Set(required);
       const allowed = drawFeatures(rng);
@@ -774,13 +959,13 @@
       const person = subj ? 3 : 1 + Math.floor(rng() * 3);
       const vnum = subj ? (subj.and ? 'pl' : subj.num) : num();
 
-      const obj = head.trans ? np(head.objs, slots.has('objGen'), joinOf('obj')) : null;
+      const obj = objs ? np(objs, slots.has('objGen'), joinOf('obj')) : null;
       const dat = slots.has('dat') ? np(head.datList, slots.has('datGen'), joinOf('dat')) : null;
       let pred = null;
       if (comp === 'pred') {
         // with a genitive, only kinship-like roles read well: "the sons of the queen", not "the queen's poets"
         const preds = NOUNS.map(n => n.id).filter(p => predOk(subj ? subj.n : null, p) &&
-          (!slots.has('predGen') || !PEOPLE.includes(p) || ['filius', 'filia', 'servus', 'amicus'].includes(p)));
+          (!slots.has('predGen') || !PEOPLE.includes(p) || ['filius', 'filia', 'servus', 'amicus', 'pater', 'mater', 'inimicus'].includes(p)));
         pred = np(preds, slots.has('predGen'));
         if (!pred) continue;
         pred.num = vnum;
@@ -793,12 +978,14 @@
         if (!phrase) continue;
         pp = { prep: PP_KINDS[kind].prep, case: PP_KINDS[kind].case, ...phrase };
       }
-      if ([subj, obj, dat, pp, pred].some(x => x && ((x.gen && !x.gen.n) || (x.and && !x.and.n))) || (head.trans && !obj)) continue;
+      if ([subj, obj, dat, pp, pred].some(x => x && ((x.gen && !x.gen.n) || (x.and && !x.and.n))) || (objs && !obj)) continue;
 
-      const m = { verb: finite.id, person, num: vnum, inf: inf ? inf.id : null, subj, obj, dat, pp, pred };
+      const tense = opts.tense === 'perf' || (opts.tense === 'both' && rng() < 0.5) ? 'perf' : 'pres';
+      const q = !!opts.questions && rng() < QUESTION_ODDS;
+      const m = { verb: finite.id, person, num: vnum, tense, q, inf: inf ? inf.id : null, subj, obj, dat, pp, pred };
       const words = latinWords(m, rng, !!opts.varyOrder);
       if (new Set(words.map(norm)).size !== words.length) continue;   // fīliīs et fīliīs
-      const latin = sentenceCase(words);
+      const latin = sentenceCase(words, q);
 
       // Self-check: the parser must recover this exact meaning from the Latin.
       const parsed = parseLatin(latin);
@@ -830,6 +1017,22 @@
     }
     if (!parsed.tokens.length) { out.notes.push('Type a Latin sentence.'); return out; }
     parsed.unknown.forEach(w => out.notes.push(`“${w}” isn't a form in the current vocabulary.`));
+
+    // Right but for the question, or the tense: say just that.
+    const m = target.m, tense = m.tense || 'pres', verb = target.words.find(w => analyze(w).some(a => a.pos === 'verb'));
+    const differsIn = (k, v) => parsed.readings.some(r => key(r) === key({ ...m, [k]: v }));
+    const misplacedNe = parsed.tokens.some((t, i) => i > 0 && t.analyses.some(a => a.ne));
+    if (misplacedNe || (m.q && differsIn('q', false))) {
+      out.notes.push(m.q
+        ? `A question puts the verb first and adds -ne to it: “${sentenceCase(target.words, true)}”`
+        : 'This is a statement — no -ne on the verb.');
+      return out;
+    }
+    if (!m.q && differsIn('q', true)) { out.notes.push('This is a statement — leave the -ne off the verb.'); return out; }
+    if (differsIn('tense', tense === 'perf' ? 'pres' : 'perf')) {
+      out.notes.push(`The verb is ${TENSE_EN[tense]} here: “${verb}”.`);
+      return out;
+    }
 
     // Diff the user's words against the model answer, matching on exact forms first.
     const roleOf = latinRoles(target);
@@ -890,8 +1093,22 @@
       if (!text) out.notes.push('Type an English translation.');
       return out;
     }
+    // A translation right but for the question or the tense gets just that hint.
+    const m = target.m, tense = m.tense || 'pres', other = tense === 'perf' ? 'pres' : 'perf';
+    const verbWord = target.words.find(w => analyze(w).some(a => a.pos === 'verb'));
+    const fits = change => readings.some(r => englishRegex({ ...r, ...change }).test(text));
+    if (fits({ q: !m.q })) {
+      out.notes.push(m.q
+        ? `The -ne on “${verbWord}” makes this a question: “${englishOf(m)}”`
+        : 'This is a statement, not a question — there is no -ne on the verb.');
+      return out;
+    }
+    if (fits({ tense: other })) {
+      out.notes.push(`“${verbWord}” is in the ${TENSE_EN[tense]} tense here — “${englishOf(m).slice(0, -1)}”, not the ${TENSE_NAMES[other]}.`);
+      return out;
+    }
+
     // Hints against the intended reading: nouns in the wrong number, missing verb.
-    const m = target.m;
     const words = new Set(text.split(' ').map(w => w.replace(/'s?$/, '')));
     const nps = [m.subj, m.obj, m.dat, m.pp, m.pred].flatMap(x => (x ? [x, x.gen, x.and] : [])).filter(Boolean);
     nps.forEach(np => {
@@ -905,11 +1122,11 @@
     });
     [m.verb, m.inf].filter(Boolean).forEach(v => {
       const vb = VERB[v];
-      if (vb.linking ? ['am', 'is', 'are', 'be'].some(w => words.has(w)) : vb.en.some(f => f.some(w => words.has(w)))) return;
-      const past = vb.linking ? ['was', 'were'] : vb.en.flatMap(([base]) => [PAST[base], base + 'd', base + 'ed', base.replace(/y$/, 'ied')]);
-      const present = vb.linking ? englishOf(m) : englishOf({ ...m, inf: null, obj: null, dat: null, verb: v });
-      if (past.some(w => words.has(w))) out.notes.push(`${vb.lemma} is in the present tense here — “${present.replace(/\.$/, '')}”, not the past.`);
-      else out.notes.push(`The verb ${vb.lemma} (“to ${vb.en[0][0]}”) isn't translated.`);
+      // the words that show the verb is there: "silent" for "is silent", not "is"
+      const BE_WORDS = ['be', 'am', 'is', 'are', 'being', 'was', 'were', 'been'];
+      const forms = vb.linking ? BE_WORDS
+        : vb.en.flat().flatMap(f => f.split(' ').filter(w => !BE_WORDS.includes(w))).concat(vb.modal ? ['must', 'ought', 'should', 'had', 'have', 'has'] : []);
+      if (!forms.some(w => words.has(w))) out.notes.push(`The verb ${vb.lemma} (“${verbGloss(vb)}”) isn't translated.`);
     });
     if (m.pp && !out.notes.length) {
       const kind = ppKind(m.pp.prep, m.pp.case);
@@ -920,7 +1137,7 @@
     }
     if (!m.subj && !out.notes.length) {
       const agr = m.person + m.num;
-      if (!new RegExp(`^${PRONOUN_RE[agr]} `).test(text)) out.notes.push(`The ending of “${verbForm(VERB[m.verb], agr)}” shows the subject: ${PERSON_NAMES[agr]} (“${PRONOUN_DISPLAY[agr]}”).`);
+      if (!new RegExp(`(?:^| )${PRONOUN_RE[agr]} `).test(text)) out.notes.push(`The ending of “${verbForm(VERB[m.verb], agr, tense)}” shows the subject: ${PERSON_NAMES[agr]} (“${PRONOUN_DISPLAY[agr]}”).`);
     }
     if (!out.notes.length) out.notes.push('The words are right but the roles don\'t match — check who does what to whom (case endings).');
     return out;
@@ -947,6 +1164,10 @@
       if (o.role === 'gen') role = 'possessor of ' + target.words[o.head];
       if (o.role === 'pobj') role = `object of ${PREP[pick[i - 1].role === 'prep' ? pick[i - 1].a.id : pick[i - 2].a.id].form} (${PP_KINDS[kind].name})`;
       if (o.role === 'and') role = `${ROLE_NAMES[pick[o.head].role]}, joined to ${target.words[o.head]} by ${a.que ? '-que' : 'et'}`;
+      const jussive = VERB[pick.find(x => x.role === 'verb').a.id].jussive;
+      if (o.role === 'verb' && a.ne) role = 'main verb; -ne makes a yes/no question';
+      if (o.role === 'obj' && jussive) role = 'direct object — the one told to act';
+      if (o.role === 'inf' && jussive) role = 'infinitive — what they are told to do';
       if (a.pos === 'conj') {
         return { word: w, lemma: 'et', gloss: 'and', form: 'Conjunction', role: `joins ${target.words[i - 1]} and ${target.words[i + 1]}` };
       }
@@ -959,8 +1180,8 @@
       const entry = a.pos === 'noun' ? NOUN[a.id] : VERB[a.id];
       return {
         word: w,
-        lemma: a.pos === 'noun' ? `${entry.lemma}, ${entry.genSg}` : `${entry.first}, ${entry.lemma}`,
-        gloss: a.pos === 'noun' ? entry.en[0][0] + (a.que ? ' + “and”' : '') : 'to ' + entry.en[0][0],
+        lemma: a.pos === 'noun' ? `${entry.lemma}, ${entry.genSg}` : `${entry.first}, ${entry.lemma}, ${entry.perf1}`,
+        gloss: a.pos === 'noun' ? entry.en[0][0] + (a.que ? ' + “and”' : '') : verbGloss(entry) + (a.ne ? ' + -ne (question)' : ''),
         form: describe(a),
         role,
       };
@@ -972,24 +1193,32 @@
   function nounParadigm(n) {
     return NUMS.flatMap(num => CASES.map(c => ({ case: c, num, form: nounForm(n, c, num), alts: nounAlts(n, c, num) })));
   }
-  function verbParadigm(v) {
-    return PERSONS.map(p => ({ p, form: verbForm(v, p) })).concat([{ p: 'inf', form: verbForm(v, 'inf') }]);
+  /** Present: the six persons and the infinitive. Perfect: the six persons. */
+  function verbParadigm(v, tense = 'pres') {
+    const forms = PERSONS.map(p => ({ p, tense, form: verbForm(v, p, tense) }));
+    return tense === 'pres' ? forms.concat([{ p: 'inf', tense, form: verbForm(v, 'inf') }]) : forms;
   }
 
-  /** English meaning of a single verb form, e.g. vocant → "they call". */
-  function verbFormEnglish(v, p) {
-    if (p === 'inf') return 'to ' + v.en[0][0];
+  /** "to see"; dēbēre has its own gloss. */
+  function verbGloss(v) { return v.gloss || 'to ' + v.en[0][0]; }
+
+  /** English meaning of a single verb form, e.g. vocant → "they call", vīdit → "he/she/it saw". */
+  function verbFormEnglish(v, p, tense = 'pres') {
+    if (p === 'inf') return v.modal ? 'to have to, to owe' : 'to ' + v.en[0][0];
     const pron = { '1sg': 'I', '2sg': 'you (sg.)', '3sg': 'he/she/it', '1pl': 'we', '2pl': 'you (pl.)', '3pl': 'they' }[p];
-    return pron + ' ' + (v.linking ? BE_EN[p] : v.en[0][p === '3sg' ? 1 : 0]);
+    if (v.modal) return pron + (tense === 'perf' ? ' had to' : ' must');
+    const f = finiteForms(v, p, tense, false)[0];
+    return [pron, f.aux, f.main].filter(Boolean).join(' ');
   }
 
   const API = {
-    CASES, NUMS, CASE_NAMES, NUM_NAMES, PERSONS, PERSON_NAMES, DECL1, DECL2, DECL2N, DECLS, DECL_NAMES, CONJ1, ROLE_NAMES,
+    CASES, NUMS, CASE_NAMES, NUM_NAMES, PERSONS, PERSON_NAMES, TENSES, TENSE_NAMES, ROLE_NAMES,
+    DECL1, DECL2, DECL2N, DECL3, DECL3N, DECLS, DECL_NAMES, CONJ1, CONJ2, CONJ_ENDINGS, PERF,
     NOUNS, VERBS, NOUN, VERB, PEOPLE, HUMANS, PLACES, POSSESSORS, OWNERS, MAX_WORDS, CONJS,
     PREPS, PREP, PP_KINDS, PREP_SENSE, ppKind, ppEnglish, predOk, placeOk, THING_PREDS, THING_PLACES,
-    nounForm, nounEnding, nounAlts, verbForm, nounParadigm, verbParadigm, verbFormEnglish,
+    nounForm, nounEnding, nounAlts, verbForm, verbEnding, verbGloss, nounParadigm, verbParadigm, verbFormEnglish,
     norm, stripMacrons, hasMacron, analyze, describe, tokenize,
-    parseLatin, key, englishOf, englishRegex, normEnglish,
+    parseLatin, key, englishOf, englishRegex, normEnglish, sentenceCase,
     generateSentence, checkLatin, checkEnglish, breakdown,
     makeRng, pickOne, shuffle,
   };
