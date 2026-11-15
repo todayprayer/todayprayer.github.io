@@ -107,7 +107,10 @@
     stand: [0, 0, 0, 0, DIM.hip, 0],
     gen: [-0.12, 1.62, 1.5, 1.5, 0.5, -0.04],      // right knee to the floor, left foot planted ahead
     kneel: [0.0, 1.57, 0.0, 1.57, 0.5, 0],
-    sit: [1.5, 1.5, 1.5, 1.5, 0.47, -0.12],
+    sit: [1.5, 1.5, 1.5, 1.5, 0.47, -0.12],      // the cart's driving seat
+    // on a chair or bench: sat back from where you stood in front of it, the seat under you (the hips a little above its top), thighs on it
+    // sloping a touch to the knees, shins straight down, and the feet on the floor
+    chair: [1.39, 1.39, 1.39, 1.39, 0.58, -0.45],
   };
 
   /** Hand targets in spine space (figure faces +z, right hand is −x). */
@@ -391,6 +394,7 @@
       this.walk = null; this.turn = null; this.legAnim = null;
       this.phase = 0;
       this.lift = null;                 // world point the left/right hand reaches for (chasuble, alb)
+      this.grip = null;                 // hands kept on something held out: { R, L } world points (functions), how the hands lie, and a lean
       this.pose = {};                   // what the player is moving by hand: R, L (world points), spine, neck (pitches)
       this.lookAt = null;
       this.build(kind, opts);
@@ -651,7 +655,8 @@
       await this.legsTo(['stand'], 0.7);
     }
     async genHold() { this.posture = 'genhold'; await this.legsTo(['gen'], 0.7); }
-    async sit() { this.posture = 'sit'; await this.legsTo(['sit'], 1.0); }
+    /** Sit down: on a chair or bench behind you, from a step in front of it; or `how` = 'sit' at the wheel of the cart. */
+    async sit(how = 'chair') { this.posture = 'sit'; await this.legsTo([how], 1.0); }
 
     applyLegs() {
       const [hr, kr, hl, kl, py, pz] = this.legPose;
@@ -748,7 +753,9 @@
         const v = this.walk && this.walk.v ? this.walk.v : this.manualWalk ? 1 : 0, kk = Math.min(1, dt * 5);
         this.sway = (this.sway || 0) + ((moving ? Math.sin(this.phase) * 0.028 : 0) - (this.sway || 0)) * kk;
         this.drag = (this.drag || 0) + ((moving ? 0.045 * Math.min(1.2, v) : 0) - (this.drag || 0)) * Math.min(1, dt * 3);
-        this.skirtPivot.rotation.set(this.drag, 0, this.sway);
+        // seated, the robe lies forward over the thighs instead of hanging down through the seat
+        const seated = Math.max(0, Math.min(1, Math.min(this.legPose[0], this.legPose[2]) / 1.39));
+        this.skirtPivot.rotation.set(this.drag - 1.15 * seated, 0, this.sway);
       }
 
       // height follows the steps, smoothly
@@ -811,6 +818,7 @@
 
       const k = Math.min(1, dt * 4.5 / Figure.slow);
       const kp = this.pose.spine != null || this.pose.neck != null ? Math.min(1, dt * 20) : k;
+      if (gSpine == null && this.grip && this.grip.spine != null && !bowPitch) gSpine = this.grip.spine;      // leaning in to hold it out over the altar
       this.spinePitch += ((this.pose.spine != null ? this.pose.spine : gSpine != null ? gSpine : bowPitch) - this.spinePitch) * kp;
       this.spineYaw += (spineYawT - this.spineYaw) * k;
       this.neckPitch += ((this.pose.neck != null ? this.pose.neck : gNeck != null ? gNeck : neckBow + nodAmt) - this.neckPitch) * kp;
@@ -825,7 +833,9 @@
         const side = this.liftHand || 'L';
         want[side] = this.toSpine(this.lift());
       }
+      if (this.grip) for (const sd of ['R', 'L']) if (this.grip[sd]) want[sd] = this.toSpine(this.grip[sd]());
       if (gHands) want = { R: gHands.R || want.R, L: gHands.L || want.L };
+      if (this.grip && this.grip.hands) for (const sd of ['R', 'L']) if (!gSpec[sd] && this.grip.hands[sd]) gSpec[sd] = this.grip.hands[sd];
       for (const side of ['R', 'L']) {
         if (this.pose[side]) want[side] = this.toSpine(this.pose[side]);      // your own hand on it
         const w = want[side], kh = Math.min(1, dt * (this.pose[side] ? 30 : 7 / Figure.slow));
@@ -894,7 +904,7 @@
         spinePitch: this.spinePitch, neckPitch: this.neckPitch, neckYaw: this.neckYaw, spineYaw: this.spineYaw,
         bowLevel: this.bowLevel, bowTarget: this.bowTarget && this.bowTarget.clone(), nodT: this.nodT, nodTarget: this.nodTarget && this.nodTarget.clone(),
         base: this.base, held: Object.assign({}, this.held), out: this.out, outHand: this.outHand, handR: this.handT.R.clone(), handL: this.handT.L.clone(),
-        phase: this.phase, stepHold: this.stepHold, lift: this.lift, liftHand: this.liftHand, patenFor: this.patenFor,
+        phase: this.phase, stepHold: this.stepHold, lift: this.lift, liftHand: this.liftHand, grip: this.grip, patenFor: this.patenFor,
         birettaOn: !!this.biretta && this.biretta.visible, manipleOn: !!this.maniple && this.maniple.visible,
       };
     }

@@ -1,5 +1,5 @@
 /*
- * What you hear and the small things you notice: boots on hard floors, sparrows in the trees and on the ground, the far hum of the Valley,
+ * What you hear and the small things you notice: boots on hard floors, sparrows in the trees and on the ground,
  * sirens, aeroplanes, the train; butterflies over the garden and ladybirds that settle on Our Lady.
  * Boots, sparrows and the crying baby are recordings; the rest is synthesised here. Whatever is outdoors comes through one bus, all but shut when you are inside the church; only a siren carries through the walls.
  */
@@ -8,10 +8,23 @@
   const THREE = root.THREE, Plan = root.Plan;
   const rnd = (a, b) => a + Math.random() * (b - a);
   const pick = l => l[Math.floor(Math.random() * l.length)];
+  // Firefox does not follow a setTargetAtTime renewed every frame: a level driven that way can sit near where it began (the outdoor sounds at full
+  // inside the church: the bangs at the start of a Mass). So levels are smoothed here, by the audio clock, and handed over each frame as a short
+  // straight ramp. A level never set before goes straight to where it should be; one that is to swell in from nothing starts from quiet()
+  const glide = (a, param, target, tc) => {
+    const t = a.currentTime, first = param.__t == null, from = first ? target : param.__lv;
+    const lv = first ? target : from + (target - from) * (1 - Math.exp(-Math.max(0, t - param.__t) / tc));
+    param.__t = t; param.__lv = lv;
+    param.cancelScheduledValues(t); param.setValueAtTime(from, t); param.linearRampToValueAtTime(lv, t + 0.06);
+  };
+  /** Down to nothing over dur seconds, once. */
+  const fade = (a, param, dur) => { const t = a.currentTime, from = param.__lv == null ? param.value : param.__lv; param.cancelScheduledValues(t); param.setValueAtTime(from, t); param.linearRampToValueAtTime(0, t + dur); param.__lv = 0; param.__t = t + dur; };
+  /** A sound that is to swell in from nothing. */
+  const quiet = (a, g) => { g.gain.value = 0; g.gain.setValueAtTime(0, a.currentTime); g.gain.__lv = 0; g.gain.__t = a.currentTime; };
 
   function build(scene, deps) {
     const { audio, stepLevel, camera, figures, sky, statue, parent } = deps;
-    let ctx = null, outBus = null, sirenBus = null, outFilter = null, roomIn = null, dryIn = null, hum = null, stepsBuf = [], lastStepBuf = null, voices = null;
+    let ctx = null, outBus = null, sirenBus = null, outFilter = null, roomIn = null, dryIn = null, stepsBuf = [], lastStepBuf = null, voices = null;
 
     // ── the bus, and a room for the church ──
     function start() {
@@ -29,7 +42,6 @@
       roomIn = a.createGain(); roomIn.gain.value = 0.07; roomIn.connect(conv).connect(a.mix.master);
       dryIn = a.createGain(); dryIn.gain.value = 1; dryIn.connect(a.mix.master);
       stepsBuf = loadSteps(a);
-      hum = cityHum(a);
       return ctx;
     }
 
@@ -72,18 +84,11 @@
       return { b, loopEnd: n / sr };
     }
     function loopOf(a, nb) { const s = a.createBufferSource(); s.buffer = nb.b; s.loop = true; s.loopEnd = nb.loopEnd; s.start(); return s; }
-    function cityHum(a) {
-      const nb = noiseBuf(a, 10, (d, n) => { let b = 0; for (let i = 0; i < n; i++) { b = (b + (Math.random() * 2 - 1) * 0.02) / 1.02; d[i] = b * 3; } });
-      const f = a.createBiquadFilter(), h = a.createBiquadFilter(); f.type = 'lowpass'; f.frequency.value = 150; h.type = 'highpass'; h.frequency.value = 45;
-      const g = a.createGain(); g.gain.value = 0;
-      loopOf(a, nb).connect(f).connect(h).connect(g).connect(outBus);
-      return g;
-    }
     // ── what the road sounds like: tyres on asphalt, rising and falling as they pass; and the air brakes of a bus ──
     let tyres = null;
     function tyreBed(a) {
       const nb = noiseBuf(a, 6, (d, n) => { let b = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; b = (b + w * 0.09) / 1.09; d[i] = b * 1.5; } });
-      const f = a.createBiquadFilter(), g = a.createGain(), p = a.createStereoPanner(); f.type = 'bandpass'; f.frequency.value = 520; f.Q.value = 0.5; g.gain.value = 0;
+      const f = a.createBiquadFilter(), g = a.createGain(), p = a.createStereoPanner(); f.type = 'bandpass'; f.frequency.value = 520; f.Q.value = 0.5; quiet(a, g);
       loopOf(a, nb).connect(f).connect(g).connect(p).connect(outBus);
       return { f, g, p };
     }
@@ -132,12 +137,12 @@
       if (!ctx) return;
       if (!railBed) {
         const nb = noiseBuf(ctx, 5, (d, n, sr) => { let b = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; b = (b + w * 0.05) / 1.05; const clack = (i % Math.floor(sr * 0.62)) < sr * 0.03 ? 0.6 : 0; d[i] = b * 2.4 * (1 + clack); } });
-        const f = ctx.createBiquadFilter(), g = ctx.createGain(), p = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = 340; g.gain.value = 0;
+        const f = ctx.createBiquadFilter(), g = ctx.createGain(), p = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = 340; quiet(ctx, g);
         loopOf(ctx, nb).connect(f).connect(g).connect(p).connect(outBus); railBed = { g, p, f };
       }
       const d = Math.hypot(x - camera.position.x, z - camera.position.z), k = Math.min(1, Math.abs(speed) / 18);
-      railBed.g.gain.setTargetAtTime(aboard ? 0 : k * 0.16 / (1 + d * d / 3500), ctx.currentTime, 0.3);
-      railBed.p.pan.setTargetAtTime(panOf(x, z) * 0.6, ctx.currentTime, 0.3);
+      glide(ctx, railBed.g.gain, aboard ? 0 : k * 0.16 / (1 + d * d / 3500), 0.3);
+      glide(ctx, railBed.p.pan, panOf(x, z) * 0.6, 0.3);
       bellT -= dt;
       if (gate && bellT < 0) {
         bellT = 0.62; const gd = Math.hypot(gate.x - camera.position.x, gate.z - camera.position.z), lvl = 0.018 / (1 + gd * gd * 0.002);
@@ -159,12 +164,12 @@
       if (!ctx) return;
       if (!rideBed) {
         const nb = noiseBuf(ctx, 5, (d, n) => { let b = 0; for (let i = 0; i < n; i++) { b = (b + (Math.random() * 2 - 1) * 0.03) / 1.03; d[i] = b * 2.6; } });
-        const f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'lowpass'; f.frequency.value = 160; g.gain.value = 0;
+        const f = ctx.createBiquadFilter(), g = ctx.createGain(); f.type = 'lowpass'; f.frequency.value = 160; quiet(ctx, g);
         loopOf(ctx, nb).connect(f).connect(g).connect(dryIn); rideBed = { f, g };
       }
       const k = Math.min(1, Math.abs(speed) / (kind === 'train' ? 22 : 12));
-      rideBed.g.gain.setTargetAtTime(kind ? (kind === 'train' ? 0.05 : 0.07) * (0.25 + k * 0.75) : 0, ctx.currentTime, 0.35);
-      rideBed.f.frequency.setTargetAtTime(110 + k * 220, ctx.currentTime, 0.4);
+      glide(ctx, rideBed.g.gain, kind ? (kind === 'train' ? 0.05 : 0.07) * (0.25 + k * 0.75) : 0, 0.35);
+      glide(ctx, rideBed.f.frequency, 110 + k * 220, 0.4);
     }
 
     // ── birds you can actually see: sparrows and finches up in the trees and hopping on the ground, a crow or two, now and then a loose flock across the sky ──
@@ -240,7 +245,7 @@
     /** kind: 'police' wail and yelp, 'fire' a deep mechanical wail and air horn, 'ems' yelp and hi-lo. Returns { update(x, z, vx, vz), stop() }. */
     function siren(kind) {
       if (!ctx) return null;
-      const a = ctx, master = a.createGain(), pan = a.createStereoPanner(), lp = a.createBiquadFilter(); master.gain.value = 0;
+      const a = ctx, master = a.createGain(), pan = a.createStereoPanner(), lp = a.createBiquadFilter(); quiet(a, master);
       lp.type = 'lowpass'; lp.frequency.value = 3200; lp.Q.value = 0.5;
       const o1 = a.createOscillator(), o2 = a.createOscillator(); o1.type = 'square'; o2.type = 'sawtooth';
       const m1 = a.createGain(), m2 = a.createGain(); m1.gain.value = 0.34; m2.gain.value = 0.2;
@@ -262,19 +267,19 @@
         update(x, z, dt) {
           t += dt;
           const dx = x - camera.position.x, dz = z - camera.position.z, d = Math.hypot(dx, dz);
-          pan.pan.setTargetAtTime(panOf(x, z) * 0.75, a.currentTime, 0.2);
+          glide(a, pan.pan, panOf(x, z) * 0.75, 0.2);
           // the pitch falls as it passes
           const closing = prevD == null ? 0 : (prevD - d) / Math.max(dt, 0.001); prevD = d;
           // once it has gone by it drops away quickly, and the buildings take the top off it the further it gets
           going += ((closing < -1 ? 1 : 0) - going) * Math.min(1, dt * 1.2);
-          master.gain.setTargetAtTime(0.11 / (1 + (d / 85) * (d / 85)) * (1 - going * 0.65), a.currentTime, 0.25);
-          lp.frequency.setTargetAtTime(900 + 2300 * Math.exp(-d / 260), a.currentTime, 0.3);
+          glide(a, master.gain, 0.11 / (1 + (d / 85) * (d / 85)) * (1 - going * 0.65), 0.25);
+          glide(a, lp.frequency, 900 + 2300 * Math.exp(-d / 260), 0.3);
           const dop = 340 / (340 - Math.max(-30, Math.min(30, closing)));
-          if (t > nextMode) { mode = (mode + 1) % 2; t = 0; nextMode = rnd(4, 8); lfo.frequency.setValueAtTime(mode ? (kind === 'ems' ? 2.6 : 3.2) : (kind === 'fire' ? 0.16 : 0.24), a.currentTime); depth.gain.setTargetAtTime(mode ? 340 : reach, a.currentTime, 0.1); }
-          o1.detune.setTargetAtTime(1200 * Math.log2(dop), a.currentTime, 0.15); o2.detune.setTargetAtTime(1200 * Math.log2(dop) + 14, a.currentTime, 0.15);
+          if (t > nextMode) { mode = (mode + 1) % 2; t = 0; nextMode = rnd(4, 8); lfo.frequency.setValueAtTime(mode ? (kind === 'ems' ? 2.6 : 3.2) : (kind === 'fire' ? 0.16 : 0.24), a.currentTime); glide(a, depth.gain, mode ? 340 : reach, 0.1); }
+          glide(a, o1.detune, 1200 * Math.log2(dop), 0.15); glide(a, o2.detune, 1200 * Math.log2(dop) + 14, 0.15);
           nextHorn -= dt; if (kind !== 'police' && nextHorn < 0) { nextHorn = rnd(6, 14); if (d < 900) horn(); }
         },
-        stop() { const end = a.currentTime + 1.2; master.gain.setTargetAtTime(0, a.currentTime, 0.3); o1.stop(end); o2.stop(end); lfo.stop(end); },
+        stop() { const end = a.currentTime + 1.2; fade(a, master.gain, 0.9); o1.stop(end); o2.stop(end); lfo.stop(end); },
       };
     }
 
@@ -306,7 +311,7 @@
       flying.push(p);
       if (ctx) {
         const nb = noiseBuf(ctx, 6, (d, n) => { let b = 0; for (let i = 0; i < n; i++) { const w = Math.random() * 2 - 1; b = (b + w * 0.05) / 1.05; d[i] = b * 1.8 + w * 0.05; } });
-        const s = loopOf(ctx, nb), f = ctx.createBiquadFilter(), g = ctx.createGain(), pn = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = kind === 'small' ? 600 : 900; g.gain.value = 0;
+        const s = loopOf(ctx, nb), f = ctx.createBiquadFilter(), g = ctx.createGain(), pn = ctx.createStereoPanner(); f.type = 'lowpass'; f.frequency.value = kind === 'small' ? 600 : 900; quiet(ctx, g);
         s.connect(f).connect(g).connect(pn).connect(outBus);
         let prop = null;
         if (kind === 'small') { prop = ctx.createOscillator(); prop.type = 'sawtooth'; prop.frequency.value = 86; const pg = ctx.createGain(); pg.gain.value = 0.16; prop.connect(pg).connect(f); prop.start(); }
@@ -432,27 +437,26 @@
           if (p.snd && ctx) {
             const dx = p.m.position.x - camera.position.x, dz = p.m.position.z - camera.position.z, d = Math.hypot(dx, dz, p.alt);
             const lvl = (p.kind === 'jet' ? 0.07 : p.kind === 'biz' ? 0.05 : 0.035) / (1 + d * d / 500000);
-            p.snd.g.gain.setTargetAtTime(lvl * Math.min(1, p.left / 8), ctx.currentTime, 0.5);
-            p.snd.pn.pan.setTargetAtTime(panOf(p.m.position.x, p.m.position.z) * 0.6, ctx.currentTime, 0.5);
-            p.snd.f.frequency.setTargetAtTime(p.kind === 'small' ? 600 : 500 + 900 * Math.exp(-d / 1400), ctx.currentTime, 0.5);
+            glide(ctx, p.snd.g.gain, lvl * Math.min(1, p.left / 8), 0.5);
+            glide(ctx, p.snd.pn.pan, panOf(p.m.position.x, p.m.position.z) * 0.6, 0.5);
+            glide(ctx, p.snd.f.frequency, p.kind === 'small' ? 600 : 500 + 900 * Math.exp(-d / 1400), 0.5);
           }
           if (p.left < 0) {
             scene.remove(p.m); flying.splice(i, 1);
-            if (p.snd && ctx) { p.snd.g.gain.setTargetAtTime(0, ctx.currentTime, 0.2); p.snd.s.stop(ctx.currentTime + 1); if (p.snd.prop) p.snd.prop.stop(ctx.currentTime + 1); }
+            if (p.snd && ctx) { fade(ctx, p.snd.g.gain, 0.6); p.snd.s.stop(ctx.currentTime + 1); if (p.snd.prop) p.snd.prop.stop(ctx.currentTime + 1); }
           }
         }
-        if (!opts.sound) { if (outBus) { outBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); sirenBus.gain.setTargetAtTime(0, ctx.currentTime, 0.2); } return; }
+        if (!opts.sound) { if (outBus) { glide(ctx, outBus.gain, 0, 0.2); glide(ctx, sirenBus.gain, 0, 0.2); } return; }
         if (!start()) return;
         // a church keeps the world out: inside, the beds stop and all that comes through the walls is a siren, dimly
         const inside = !!sky.heardIndoors, aboard = !!opts.aboard;
-        outBus.gain.setTargetAtTime(inside ? 0.025 : aboard ? 0.3 : 1, ctx.currentTime, 0.6);
-        sirenBus.gain.setTargetAtTime(inside ? 0.2 : aboard ? 0.5 : 1, ctx.currentTime, 0.6);
-        outFilter.frequency.setTargetAtTime(inside ? 520 : aboard ? 1400 : 18000, ctx.currentTime, 0.6);
-        hum.gain.setTargetAtTime(inside ? 0 : (0.004 + daylight * 0.005) * (1 - wet * 0.4), ctx.currentTime, 2);
+        glide(ctx, outBus.gain, inside ? 0.025 : aboard ? 0.3 : 1, 0.6);
+        glide(ctx, sirenBus.gain, inside ? 0.2 : aboard ? 0.5 : 1, 0.6);
+        glide(ctx, outFilter.frequency, inside ? 520 : aboard ? 1400 : 18000, 0.6);
         // the road: the nearest moving vehicles
         if (!tyres) tyres = tyreBed(ctx);
         { let nx = 0, nz = 0, best = 0; for (const c of opts.cars || []) { if (Math.abs(c.speed || 0) < 0.5) continue; const dx = c.x - camera.position.x, dz = c.z - camera.position.z, e = Math.min(1, Math.abs(c.speed) / 10) * (c.heavy ? 1.5 : 1) / (1 + (dx * dx + dz * dz) * 0.02); if (e > best) { best = e; nx = c.x; nz = c.z; } }
-          tyres.g.gain.setTargetAtTime(inside ? 0 : Math.min(0.03, best * 0.03), ctx.currentTime, 0.25); if (best) tyres.p.pan.setTargetAtTime(panOf(nx, nz) * 0.7, ctx.currentTime, 0.25); }
+          glide(ctx, tyres.g.gain, inside ? 0 : Math.min(0.03, best * 0.03), 0.25); if (best) glide(ctx, tyres.p.pan, panOf(nx, nz) * 0.7, 0.25); }
         // boots
         for (const f of figures()) {
           if (!f.root.visible) { prevPhase.delete(f); continue; }

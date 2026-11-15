@@ -36,7 +36,7 @@
     const swell = ctx.createGain(); swell.gain.value = 0.86;
     const lfo = ctx.createOscillator(), depth = ctx.createGain(); lfo.frequency.value = 0.05; depth.gain.value = 0.14;
     lfo.connect(depth).connect(swell.gain); lfo.start();
-    const gain = ctx.createGain(); gain.gain.value = 1;
+    const gain = ctx.createGain(); gain.gain.value = 0;      // silent until it rains: it is given its level only by the ramps below
     src.connect(filter).connect(swell).connect(gain); src.start();
     return { out: gain, gain, filter };
   }
@@ -186,14 +186,15 @@
     }));
     rain.frustumCulled = false; rain.visible = false; rain.renderOrder = 5; scene.add(rain);
 
-    const sound = { ctx: null, gain: null, filter: null, want: -1, tone: -1 };
+    // the level is ramped in straight lines from where it is now, which is kept here: no exponential approach, and nothing for it to start from but silence
+    const sound = { ctx: null, gain: null, filter: null, want: 0, tone: -1, from: 0, t0: 0, t1: 0 };
+    const levelAt = t => t >= sound.t1 ? sound.want : sound.from + (sound.want - sound.from) * (t - sound.t0) / (sound.t1 - sound.t0);
     function startSound(ctx) {
       if (sound.ctx || !ctx) return;
       sound.ctx = ctx;
       const bed = rainBed(ctx);
       bed.out.connect(ctx.mix.rain);
       sound.gain = bed.gain; sound.filter = bed.filter;
-      sound.gain.gain.value = 0;
     }
 
     const now = { cover: 0.3, sun: 1, ambient: 1, dark: 0, rain: 0, tint: 1 };
@@ -261,8 +262,12 @@
           const on = opts && opts.sound ? now.rain : 0;
           // never a jolt: it swells and fades over seconds, starting, stopping, and going in or out of doors alike
           const inside = this.heardIndoors != null ? this.heardIndoors : this.indoors, want = on * (inside ? RAIN_IN : RAIN_OUT), tone = inside ? 520 : 5200, t = sound.ctx.currentTime;
-          if (Math.abs(want - sound.want) > 0.0005) { sound.want = want; sound.gain.gain.setTargetAtTime(want, t, opts && opts.sound ? 3 : 0.2); }
-          if (tone !== sound.tone) { sound.tone = tone; sound.filter.frequency.setTargetAtTime(tone, t, 2.5); }
+          if (Math.abs(want - sound.want) > 0.0005) {
+            const g = sound.gain.gain, from = levelAt(t), dur = opts && opts.sound ? 4 : 0.3;
+            g.cancelScheduledValues(t); g.setValueAtTime(from, t); g.linearRampToValueAtTime(want, t + dur);
+            Object.assign(sound, { from, want, t0: t, t1: t + dur });
+          }
+          if (tone !== sound.tone) { const fq = sound.filter.frequency; fq.cancelScheduledValues(t); fq.setValueAtTime(sound.tone < 0 ? tone : sound.tone, t); fq.linearRampToValueAtTime(tone, t + 2.5); sound.tone = tone; }
         }
       },
     };

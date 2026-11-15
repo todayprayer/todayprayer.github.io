@@ -385,26 +385,63 @@
         c.fillStyle = '#0c3016'; c.fillRect(0, 0, w, h);
         for (let y = 0; y < h; y += 2) { c.fillStyle = 'rgba(255,255,255,0.025)'; c.fillRect(0, y, w, 1); }
         c.strokeStyle = '#c9a23a'; c.lineWidth = 6; c.strokeRect(6, 6, w - 12, h - 12);
-        c.fillStyle = '#d4ad48'; c.fillRect(w / 2 - 7, h * 0.62, 14, h * 0.3); c.fillRect(w / 2 - 26, h * 0.7, 52, 12);      // the cross, on the front fall
+        c.fillStyle = '#d4ad48'; c.fillRect(w / 2 - 7, h * 0.69, 14, h * 0.25); c.fillRect(w / 2 - 26, h * 0.745, 52, 12);      // the cross, on the front fall: all of it within the front third, its head towards the middle
       });
       const geo = new THREE.PlaneGeometry(S, S, N, N); geo.rotateX(-Math.PI / 2);
       const base = geo.attributes.position.array.slice();
-      const cloth = new THREE.Mesh(geo, M(0xffffff, { map: silk, side: THREE.DoubleSide, roughness: 0.55 }));
+      // the face, with its cross and braid, on top as it lies (and outward over the chalice); underneath, the plain lining
+      const cloth = new THREE.Mesh(geo, M(0xffffff, { map: silk, side: THREE.FrontSide, roughness: 0.55 }));
       cloth.castShadow = true; cloth.receiveShadow = true; g.add(cloth);
-      const st = { drape: 1, f1: 0, f2: 0, lift: 0 }, smooth = t => t * t * (3 - 2 * t);
+      const lining = new THREE.Mesh(geo, M(0x1c4a2a, { side: THREE.BackSide, roughness: 0.7 }));
+      lining.receiveShadow = true; g.add(lining);
+      // hold: how far it is taken up by its back edge (0: as the other three say). Held up there, at (px, py, pz) in its own frame, it hangs from that edge:
+      // straight down to the mensa (its top is y 0 here, its front edge at z = edge), along it, and over the front; or, held out beyond the edge, straight down
+      const st = { drape: 1, f1: 0, f2: 0, lift: 0, hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1 }, smooth = t => t * t * (3 - 2 * t);
+      const hung = (x, z, out) => {
+        const rel = z + S / 2, over = st.table && st.pz < st.edge;
+        const d1 = over ? Math.max(0, st.py) : Infinity, d2 = over ? st.edge - st.pz : 0;
+        if (rel <= d1) return out.set(x + st.px, st.py - rel + 0.004, st.pz);
+        if (rel <= d1 + d2) return out.set(x + st.px, 0.004, st.pz + rel - d1);
+        return out.set(x + st.px, 0.004 - (rel - d1 - d2), st.edge + OUT);
+      };
+      // over the front, it hangs clear of the altar cloth's lace (2.5 cm out) and of the capitals below
+      const OUT = 0.038;
+      // roll: opened from its fold where it lies at the front of the mensa, the cross third on top. Its front edge is drawn down over the edge, and the cloth follows
+      // it off the folded strip: the front third slides over and hangs, face out, and the rest comes out from under the strip, face up, to lie back on the mensa.
+      // What is still folded stays hidden under the strip. At 1 it is the cloth hung over the edge (hold with pz −S/2), exactly
+      const rolled = (x, z, out) => {
+        const l = S / 2 - z, H = S / 2 - st.edge, s = st.roll, h = s * H, vis = S / 3 + s * (S - H - S / 3), top = 0.004 + 0.0105 * (1 - s);
+        if (l < h) return out.set(x, 0.004 - (h - l), st.edge + OUT);
+        if (l < h + vis) return out.set(x, top, st.edge - (l - h));
+        const rem = S - h - vis, k = rem > 1e-6 ? (l - h - vis) / rem : 1;
+        return out.set(x * 0.97, 0.003, st.edge - vis + 0.01 + k * (vis - 0.02));
+      };
+      const q = new THREE.Vector3();
       /** Where a point of the cloth (x, z across it, from its centre) lies now, in the veil's own frame. */
       const shape = (x, z, out) => {
-        // laid flat, and folded: the left third over the middle, then the right third over both
-        let fx = x, fy = 0.004;
-        if (x < -third) { const d = x + third; fx = -third + d * Math.cos(st.f1); fy = -d * Math.sin(st.f1) + 0.004 + st.f1 / Math.PI * 0.004; }
-        else if (x > third) { const d = x - third; fx = third + d * Math.cos(st.f2); fy = d * Math.sin(st.f2) + 0.004 + st.f2 / Math.PI * 0.009; }
+        if (st.roll >= 0) return rolled(x, z, out);
+        // laid flat, and folded in thirds into a strip lying across, the face kept outward: the back third turned down and under the middle (f1), then
+        // the middle, with the back third inside it, turned down and under the front third (f2). The front third, the cross on it upright, stays on top
+        // face up where it was; the lining is never seen. What is folded under lifts it a little. Resting on something (rest), nothing goes below the
+        // surface: opened out there, the folds slide out from under the front third, face up, rather than swinging down through the altar
+        const k1 = st.f1 / Math.PI, k2 = st.f2 / Math.PI, lift = 0.0035 * k1 + 0.007 * k2, floor = 0.004;
+        let fx = x, fy = floor + lift, fz = z;
+        if (z < third) {
+          let mz = z, my = 0, lowest = floor;      // in the middle third's own frame, before it turns
+          if (z < -third) { const u = -third - z; mz = -third - u * Math.cos(st.f1); my = -u * Math.sin(st.f1) - 0.0035 * k1; }
+          else lowest = floor + 0.0035 * k1;      // the middle lies on the back third while that is under it
+          const dz = mz - third, c = Math.cos(st.f2), s = Math.sin(st.f2);
+          fz = third + dz * c - my * s; fy = floor + lift - 0.007 * k2 + dz * s + my * c;
+          if (st.rest) fy = Math.max(fy, lowest);
+        }
         // over the chalice: flat on the pall, then falling all round, a little out from the cup
         const r = Math.max(Math.abs(x), Math.abs(z)), pall = 0.066;
         let dx = x, dz = z, dy = 0.258;
         if (r > pall) { const e = r - pall, hz = pall + e * 0.17; dx = x * hz / r; dz = z * hz / r; dy = 0.258 - e * 1.33; }
         dy -= 0.25 * st.lift;      // held up by the hands, it hangs from them rather than standing on a cup
         const k = smooth(st.drape);
-        out.set(fx + (dx - fx) * k, fy + (dy - fy) * k, z + (dz - z) * k);
+        out.set(fx + (dx - fx) * k, fy + (dy - fy) * k, fz + (dz - fz) * k);
+        if (st.hold > 0) { hung(x, z, q); out.lerp(q, smooth(Math.min(1, st.hold))); }
         return out;
       };
       const p = new THREE.Vector3();
@@ -414,7 +451,11 @@
         a.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
       };
       const STATES = { draped: { drape: 1, f1: 0, f2: 0, lift: 0 }, held: { drape: 0, f1: 0, f2: 0, lift: 0 }, flat: { drape: 0, f1: 0, f2: 0, lift: 0 }, folded: { drape: 0, f1: Math.PI, f2: Math.PI, lift: 0 } };
-      g.userData.setState = s => { Object.assign(st, STATES[s] || STATES.flat); apply(); };
+      const UNHELD = { hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1 };
+      g.userData.setState = s => { Object.assign(st, UNHELD, STATES[s] || STATES.flat); apply(); };
+      g.userData.S = S;
+      /** Laid on the altar, opened out, the cross panel hanging over its front edge: `edge` is that edge in the veil's own frame. */
+      g.userData.lay = edge => { Object.assign(st, STATES.flat, { hold: 1, px: 0, py: 0, pz: -S / 2, edge, table: 1, rest: 0, roll: -1 }); apply(); };
       /** Part way between shapes, as a hand moves it. */
       g.userData.set = o => { Object.assign(st, o); apply(); };
       g.userData.shape = () => Object.assign({}, st);
@@ -423,7 +464,67 @@
       g.userData.pointWorld = (x, z) => { g.updateMatrixWorld(true); return shape(x, z, new THREE.Vector3()).applyMatrix4(g.matrixWorld); };
       g.userData.setState('draped');
     });
-    make('burse', 'L', g => { box(0.2, 0.025, 0.2, green, g, 0, 0.012, 0); box(0.05, 0.003, 0.05, M(0xd4ad48, { metalness: 0.6 }), g, 0, 0.026, 0); });
+    make('burse', 'L', g => {
+      // two stiff boards in green silk, joined along the bottom: a pocket for the corporal, the front one worked with a cross.
+      // Lying down, the mouth is towards the back (−z); stood up in the hand, the mouth is at the top and the cross faces out
+      const gold = M(0xd4ad48, { metalness: 0.6, roughness: 0.4 }), lining = M(0xf2efe6, { roughness: 0.8 }), W = 0.21;
+      const body = new THREE.Group(); g.add(body);
+      box(W, 0.007, W, green, body, 0, -0.004, 0);
+      box(W - 0.01, 0.002, W - 0.01, lining, body, 0, 0.0005, 0);      // the inside
+      const hinge = new THREE.Group(); hinge.position.set(0, 0, W / 2); body.add(hinge);
+      box(W, 0.007, W, green, hinge, 0, 0.005, -W / 2);
+      box(W - 0.01, 0.002, W - 0.01, lining, hinge, 0, 0.0005, -W / 2);
+      box(0.03, 0.002, 0.12, gold, hinge, 0, 0.0095, -W / 2); box(0.09, 0.002, 0.03, gold, hinge, 0, 0.0095, -W / 2 - 0.025);      // the cross
+      const inside = box(W - 0.03, 0.004, W * 0.75, M(0xfdfcf8, { roughness: 0.9 }), body, 0, 0.004, W * 0.1); inside.visible = false;      // the corporal, folded within
+      // up: 0 lying flat, 1 stood on its folded edge; open: the front board drawn away from the back, the mouth gaping
+      g.userData.setPose = (up, open) => {
+        body.rotation.x = up * Math.PI / 2; body.position.set(0, 0.012 + up * (W / 2 - 0.012), 0);
+        hinge.rotation.x = open * 0.42;
+      };
+      g.userData.setFull = on => { inside.visible = on; };
+      g.userData.W = W;
+      /** The middle of its mouth, in the world: where the corporal goes in. */
+      g.userData.mouthWorld = () => { g.updateMatrixWorld(true); return new THREE.Vector3(0, 0.004, -W / 2 + 0.01).applyMatrix4(body.matrixWorld); };
+      g.userData.setPose(0, 0);
+    });
+    make('corporal', 'R', g => {
+      // the square of linen the Host and chalice stand on: spread from the burse at the Offertory, folded in three each way after the Ablutions.
+      // A small cross is worked near its front edge, towards the priest
+      const S = 0.5, N = 18, third = S / 6;
+      const linen = canvasTex(128, 128, (c, w, h) => {
+        c.fillStyle = '#fbfaf4'; c.fillRect(0, 0, w, h);
+        c.strokeStyle = 'rgba(120,110,90,0.45)'; c.lineWidth = 2; c.strokeRect(3, 3, w - 6, h - 6);      // its hem, which is what shows it on a white altar cloth
+        for (let y = 0; y < h; y += 3) { c.fillStyle = 'rgba(0,0,0,0.018)'; c.fillRect(0, y, w, 1); }
+        c.fillStyle = '#b8302a'; c.fillRect(w / 2 - 2, h * 0.8, 4, h * 0.12); c.fillRect(w / 2 - 6, h * 0.83, 12, 3);
+      });
+      const geo = new THREE.PlaneGeometry(S, S, N, N); geo.rotateX(-Math.PI / 2);
+      const base = geo.attributes.position.array.slice();
+      const cloth = new THREE.Mesh(geo, M(0xffffff, { map: linen, side: THREE.DoubleSide, roughness: 0.85 }));
+      cloth.receiveShadow = true; g.add(cloth);
+      // fz: the front third, then the back third, laid over the middle; fx: then the right and the left
+      const st = { fz: 0, fx: 0 };
+      // the outer third of one coordinate (a across the crease, b up) turned up and over its crease at +third, onto what lies inside it
+      const p = { a: 0, b: 0 };
+      const fold = (t, lift) => {
+        if (t <= 0 || p.a <= third) return;
+        const d = p.a - third, c = Math.cos(t * Math.PI), s = Math.sin(t * Math.PI);
+        p.a = third + d * c - p.b * s; p.b = d * s + p.b * c + lift * t;
+      };
+      const apply = () => {
+        const a = geo.attributes.position, z1 = Math.min(1, st.fz * 2), z2 = Math.max(0, st.fz * 2 - 1), x1 = Math.min(1, st.fx * 2), x2 = Math.max(0, st.fx * 2 - 1);
+        for (let i = 0; i < a.count; i++) {
+          let x = base[i * 3], z = base[i * 3 + 2];
+          p.a = z; p.b = 0.002; fold(z1, 0.0065); p.a = -p.a; fold(z2, 0.009); z = -p.a;      // front over, then back over
+          p.a = x; fold(x1, 0.0165); p.a = -p.a; fold(x2, 0.024); x = -p.a;      // then right over, then left: each fold well above the layers beneath
+          a.setXYZ(i, x, p.b, z);
+        }
+        a.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
+      };
+      g.userData.set = o => { Object.assign(st, o); apply(); };
+      g.userData.state = () => Object.assign({}, st);
+      g.userData.third = third;
+      g.userData.set({ fz: 0, fx: 0 });
+    });
     make('biretta', 'R', g => {
       box(0.19, 0.09, 0.19, M(0x101010), g, 0, 0.045, 0);
       for (const [x, z, ry] of [[0, -0.05, 0], [-0.05, 0.03, Math.PI / 2], [0.05, 0.03, Math.PI / 2]]) box(0.15, 0.05, 0.012, M(0x101010), g, x, 0.11, z).rotation.y = ry;

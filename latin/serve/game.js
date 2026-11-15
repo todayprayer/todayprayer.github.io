@@ -137,6 +137,10 @@
   // ─── the camera ────────────────────────────────────────────────────────────
   // At the altar it is fixed, as if held above the gate. Everywhere else it follows on an arm behind the walker,
   // shortened whenever a wall would come between them.
+  // from above and between the server and the priest, over their heads, looking down on to the Gospel half of the mensa: from the end of the altar
+  // the server's own back hides his hands; from here both men's hands, the burse, the corporal and the veil's face over the front edge are all in sight
+  const SHOT_VEIL = { pos: V(-0.36, 3.0, 0.22), look: V(-0.34, 1.36, -0.66), fov: 46 };
+  const SHOT_OFFER = { pos: V(0.42, 3.0, 0.42), look: V(0.5, 1.38, -0.62), fov: 46 };      // the Offertory: high between the priest and the server, over the veil handed across and folded
   const Cam = {
     massFov: 60, walkFov: 60, fixed: true, yaw: 0, view: 0, offset: 0, pitch: 0, armBase: 3.2, armRoom: 3.2, snap: true,
     goal: V(...CAM.pos), look: V(...CAM.look), lookNow: V(...CAM.look),
@@ -182,6 +186,29 @@
       const bx = -ux * Math.cos(down) + px * 0.6, bz = -uz * Math.cos(down) + pz * 0.6, bl = Math.hypot(bx, bz, Math.sin(down));
       this.taskFixed = { goal: V(mid.x + bx / bl * D, mid.y + Math.sin(down) / bl * D, mid.z + bz / bl * D), look: mid };
       return this.taskFixed;
+    },
+    /** At the Offertory, while the veil is handed across and folded; and after the Ablutions, while the veil, the burse and the corporal are seen to on the Gospel side: from high at that end of the altar, the priest's
+     *  hands, the chalice, the burse held open and the veil over the front edge all in the one picture, whoever you are and wherever the camera was. */
+    shot() {
+      const d = director, b = d && d.beats && d.beats[d.index];
+      if (!b || d.failed || d.ended) return null;
+      const cmds = Object.values(b.tracks).map(l => l.join(';')).join(';');
+      // at the Offertory: from when the server comes up for the veil the priest holds out, until he has laid it down, folded, on the Epistle side
+      if (/fold veil/.test(cmds)) {
+        if (Props.loc.veil === 'altar.veil') return null;
+        if (Props.holder('veil') === 'P') {      // only once the server coming for it is nearly there
+          const who = Object.keys(b.tracks).find(r => b.tracks[r].includes('fold veil')), f = FIG[who], at = spot('veilTop');
+          if (!f || Math.hypot(f.x - at[0], f.z - at[1]) > 1.2) return null;
+        }
+        return SHOT_OFFER;
+      }
+      if (!/put veil altar\.veilG|hold burse|g foldCorporal|g veilChalice|g burseOnChalice/.test(cmds)) return null;
+      if (/g burseOnChalice/.test(cmds) && Props.loc.burse === 'chalice') return null;      // done: back to the Mass
+      if (/put veil altar\.veilG/.test(cmds) && Props.loc.veil !== 'altar.veilG') {      // only once the server bringing it is nearly there
+        const who = Object.keys(b.tracks).find(r => b.tracks[r].includes('put veil altar.veilG')), f = FIG[who], at = spot('veilG');
+        if (!f || Math.hypot(f.x - at[0], f.z - at[1]) > 1.2) return null;
+      }
+      return SHOT_VEIL;
     },
     /** Is someone at this place within view of the fixed camera? */
     atAltar(x, z) { return Math.abs(x) < 5.9 && z < C.LAYOUT.rail + 1.5; },
@@ -259,12 +286,18 @@
           this.goal.lerp(this.taskGoal, w); this.look.lerp(this.taskLook, w);
         }
       }
+      // a close shot of the work in hand: it glides there and back, and a drag of your own takes it away
+      const sh = this.offset || this.pitch ? null : this.shot();
+      if (sh) this.shotIs = sh;      // gliding back out, from the shot it was
+      const SH = this.shotIs || SHOT_VEIL;
+      this.shotW = this.snap ? (sh ? 1 : 0) : Math.max(0, Math.min(1, (this.shotW || 0) + (sh ? dt : -dt) * 0.9));
+      if (this.shotW > 0) { const w = this.shotW * this.shotW * (3 - 2 * this.shotW); this.goal.lerp(SH.pos, w); this.look.lerp(SH.look, w); }
       const s = this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? 2.6 : 9));
       camera.position.lerp(this.goal, s);
       this.lookNow.lerp(this.look, this.snap || !this.fixed && always ? 1 : 1 - Math.exp(-dt * (this.fixed ? (this.offset || this.pitch ? 18 : 2.6) : 11)));
       camera.lookAt(this.lookNow);
       let near = this.near0 || (this.near0 = camera.near);
-      if (!this.fixed && always && !this.taskW) {      // over your shoulder at a task the camera is not on the arm behind you, and nothing of yours may be cut away
+      if (!this.fixed && always && !this.taskW && !this.shotW) {      // over your shoulder at a task the camera is not on the arm behind you, and nothing of yours may be cut away
         const ax = Math.sin(this.yaw), az = Math.cos(this.yaw), d = Math.min(this.armBase, this.armRoom);
         for (const [cx, cz] of C.LAYOUT.columns) {
           const along = (cx - f.x) * ax + (cz - f.z) * az, across = (cx - f.x) * az - (cz - f.z) * ax;
@@ -275,7 +308,7 @@
         }
       }
       if (Math.abs(camera.near - near) > 0.004) { camera.near = near; camera.updateProjectionMatrix(); }
-      const fov = this.fixed ? this.massFov : this.walkFov;
+      const fov0 = this.fixed ? this.massFov : this.walkFov, fov = this.shotW > 0 ? fov0 + (SH.fov - fov0) * this.shotW * this.shotW * (3 - 2 * this.shotW) : fov0;
       if (Math.abs(camera.fov - fov) > 0.02) { camera.fov += (fov - camera.fov) * (this.snap ? 1 : Math.min(1, dt * 3)); camera.updateProjectionMatrix(); }
       this.snap = false;
     },
@@ -732,6 +765,21 @@
   const FOLLOW = { cross: /^(cross|g bless)/, strike: /^strike/, bow: /^bow /, up: /^up$/, nod: /^(nod|bow)/, small: /^small/, gen: /^gen/, genhold: /^gen/, kneel: null, stand: null, rise: null };
   const LEADS_INTO = /^(bow|up|cross|small|strike|nod|kiss|g) ?/;      // what the priest does as his line begins, not before it
   // a posture still owed is settled once a cue asks for something it does not lead into: a missed stand by kneeling or sitting (a genuflection needs you standing), and so on
+  /** A walk with another straight after it is walked on from, not arrived at: no turning first to the way that spot faces. */
+  const onward = (list, i) => /^go /.test(list[i]) && /^(go|via) (?!.* back$)/.test(list[i + 1] || '') ?list[i].replace(/^go /, 'via ') : list[i];
+  /** The walk that list[i] is part of (the walking on either side of it, unbroken): where in the list it begins, and its steps; null if list[i] is no walk. */
+  const walkOf = (list, i) => {
+    const walking = j => /^(go|via) /.test(list[j] || '');
+    if (!walking(i)) return null;
+    let a = i, b = i;
+    while (walking(a - 1)) a--;
+    while (walking(b + 1)) b++;
+    return { a, steps: list.slice(a, b + 1) };
+  };
+  /** If that walk goes by the side of the altar, where in the list it begins; else −1. */
+  const bySide = (list, i) => { const w = walkOf(list, i); return w && w.steps.some(c => /^via w_side[EG]\b/.test(c)) ? w.a : -1; };
+  /** Whether that walk goes round to or from the table. */
+  const byTable = (list, i) => { const w = walkOf(list, i); return !!w && w.steps.some(c => /^via w_tab/.test(c)); };
   const OWED = /^(stand|rise|kneel|up)$/;
   const SETTLES = { stand: /^(stand|rise|kneel|sit)$/, rise: /^(stand|rise|kneel|sit)$/, kneel: /^(kneel|stand|rise|sit|gen|genhold)$/, up: /^(bow|up)$/ };
   const BODY_VERBS = new Set(['kneel', 'stand', 'sit', 'gen', 'genhold', 'rise', 'bow', 'up', 'nod', 'small', 'strike', 'turn', 'faceto']);
@@ -754,17 +802,28 @@
         const m = actx.mix = { master: actx.createGain(), bells: actx.createGain(), outdoors: actx.createGain(), rain: actx.createGain() };
         for (const k of ['bells', 'outdoors', 'rain']) m[k].connect(m.master);
         m.master.connect(actx.destination);
-        m.master.gain.value = hushed ? 0 : opts.volume; m.bells.gain.value = opts.volBells; m.outdoors.gain.value = opts.volOutdoors; m.rain.gain.value = opts.volRain;
+        // set as events, not bare values: once a ramp follows, Firefox ignores a bare value and ramps from full
+        const t = actx.currentTime, set = (g, v) => { g.gain.value = v; g.gain.setValueAtTime(v, t); g.gain.__lv = v; };
+        set(m.master, hushed ? 0 : opts.volume); set(m.bells, opts.volBells); set(m.outdoors, opts.volOutdoors); set(m.rain, opts.volRain);
       }
       if (actx.state === 'suspended' && !frozen) actx.resume();
     } catch (e) { return null; }
     return inDemo() ? null : actx;      // the Mass behind the title plays in silence
   }
+  // levels are set as straight ramps from where they are (kept here), never by setTargetAtTime: Firefox does not reliably follow that
+  function rampTo(g, v, t, dur) { const p = g.gain, from = p.__lv == null ? p.value : p.__lv; p.cancelScheduledValues(t); p.setValueAtTime(from, t); p.linearRampToValueAtTime(v, t + dur); p.__lv = v; }
   function setLevels() {
     if (!actx) return;
     const m = actx.mix, t = actx.currentTime;
-    m.master.gain.setTargetAtTime(hushed ? 0 : opts.volume, t, 0.02);
-    m.bells.gain.setTargetAtTime(opts.volBells, t, 0.02); m.outdoors.gain.setTargetAtTime(opts.volOutdoors, t, 0.02); m.rain.gain.setTargetAtTime(opts.volRain, t, 0.02);
+    rampTo(m.master, hushed ? 0 : opts.volume, t, 0.05);
+    rampTo(m.bells, opts.volBells, t, 0.05); rampTo(m.outdoors, opts.volOutdoors, t, 0.05); rampTo(m.rain, opts.volRain, t, 0.05);
+  }
+  /** Smoothed here and handed over as a short straight ramp, frame by frame (see ambient.js). */
+  function glide(a, param, target, tc) {
+    const t = a.currentTime, first = param.__t == null, from = first ? target : param.__lv;
+    const lv = first ? target : from + (target - from) * (1 - Math.exp(-Math.max(0, t - param.__t) / tc));
+    param.__t = t; param.__lv = lv;
+    param.cancelScheduledValues(t); param.setValueAtTime(from, t); param.linearRampToValueAtTime(lv, t + 0.06);
   }
   /** quiet: nothing to be heard, though the world may go on. stop: the sound itself stops where it is, and picks up from there. */
   function setStill(quiet, stop) {
@@ -802,6 +861,8 @@
       FIG.P.setBiretta(true); FIG.P.setManiple(true);
       PROPS.missal.obj.userData.setOpen(false); PROPS.missal.obj.userData.maniple.visible = false;
       PROPS.veil.obj.userData.setState('draped');
+      this.pinVeil = null; this.pinBurse = null; this.keepVeil = false; this.burseOpen = 0; this.burseUp = null;
+      this.corp = 'burse'; PROPS.corporal.obj.userData.set({ fz: 0, fx: 0 }); PROPS.burse.obj.userData.setFull(true);      // the corporal comes to the altar in the burse
       PROPS.towel.obj.userData.setDraped(true);
       PROPS.sc.obj.userData.setLit(false);
       PROPS.chalice.obj.userData.host.visible = false;
@@ -813,7 +874,7 @@
     notOut(who, p) { if (who && this.out[who] && this.out[who].delete(p) && !this.out[who].size) FIG[who].out = false; },
     attach(p, role) {
       const prev = this.holder(p);
-      this.notOut(prev, p);
+      this.notOut(prev, p); this.letGo(prev, p);
       this.loc[p] = 'hand:' + role;
       const pr = PROPS[p], mine = this.held(role).filter(q => q !== p);
       const used = new Set(mine.map(q => this.slot[q]));
@@ -823,18 +884,31 @@
       else if (slot === 'R' && (used.has('R') || used.has('both'))) slot = 'L';
       else if (slot === 'L' && (used.has('L') || used.has('both'))) slot = 'R';
       this.slot[p] = slot;
-      if (p === 'veil' && !this.keepVeil) PROPS.veil.obj.userData.setState(this.veilFolded ? 'folded' : 'held');
+      if (p === 'veil' && !this.keepVeil && !this.hanging()) PROPS.veil.obj.userData.setState(this.veilFolded ? 'folded' : 'held');
       if (p === 'towel') PROPS.towel.obj.userData.setDraped(slot === 'arm');
       this.syncHands(role); if (prev && prev !== role) this.syncHands(prev);
     },
     place(p, where, keepShape) {
       const prev = this.holder(p);
-      this.notOut(prev, p);
+      this.notOut(prev, p); this.letGo(prev, p);
+      if (p === 'burse') { this.pinBurse = null; this.burseOpen = 0; }
       this.loc[p] = where; this.slot[p] = null;
       if (p === 'towel') PROPS.towel.obj.userData.setDraped(where === 'bowl' || where === 'cred.towel');
-      if (p === 'veil' && !keepShape) PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
+      if (p === 'veil' && !keepShape) {
+        this.pinVeil = null;
+        if (where === 'altar.veilG') { this.veilFolded = false; PROPS.veil.obj.userData.lay(this.veilEdge()); }      // laid out, the cross over the front: however it got there
+        else PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
+      }
       if (prev) this.syncHands(prev);
     },
+    /** Whoever had it in a hold lets go of it. */
+    letGo(role, p) { const f = role && FIG[role]; if (f && f.grip && f.grip.prop === p) f.grip = null; },
+    /** The veil taken up by its back edge, hanging from it. */
+    hanging() { return PROPS.veil.obj.userData.shape().hold > 0.5 && !!this.pinVeil; },
+    /** Where the front edge of the altar is, in the frame of the veil laid on the Gospel side. */
+    veilEdge() { return C.LAYOUT.mensa.z1 - C.PLACES['altar.veilG'][2]; },
+    /** Where the corporal is: 'burse' (inside it), 'altar' (spread or folded on the mensa), or 'hand:P'. */
+    corp: 'burse',
     syncHands(role) {
       const f = FIG[role];
       if (!f) return;
@@ -859,7 +933,25 @@
         if (l.startsWith('hand:') && !FIG[l.slice(5)].root.visible) { o.visible = false; continue; }
         if (PROPS[l] && !PROPS[l].obj.visible) { o.visible = false; continue; }
         if (p === 'biretta' && l === 'hand:P' && this.worn) { o.visible = false; continue; }
-        if (p === 'veil' && this.pinVeil) { o.position.copy(this.pinVeil.at); o.rotation.set(0, this.pinVeil.heading, 0); continue; }      // held still while it is folded
+        if (p === 'veil' && this.pinVeil) {      // held still while it is folded or laid out; taken up by its back edge, it hangs from the hands that hold it
+          if (this.pinVeil.by) { const f = FIG[this.pinVeil.by], c = Veil.carry(f); this.pinVeil.at.copy(c.at); this.pinVeil.heading = c.heading; }      // carried flat before him
+          o.position.copy(this.pinVeil.at); o.rotation.set(0, this.pinVeil.heading, 0);
+          const who = this.holder('veil'), U = o.userData;
+          if (who && U.shape().hold > 0.5 && !this.pinVeil.still) {
+            const f = FIG[who], m = f.handWorld('R').add(f.handWorld('L')).multiplyScalar(0.5);
+            o.updateMatrixWorld(true); o.worldToLocal(m);
+            U.set({ px: m.x, py: m.y - 0.012, pz: m.z });      // the back edge is where the hands are
+          }
+          continue;
+        }
+        if (p === 'burse') {
+          const up = this.burseUp != null ? this.burseUp : this.pinBurse || l.startsWith('hand:') ? 1 : 0;
+          o.userData.setPose(up, this.burseOpen);
+          if (this.pinBurse) {
+            if (this.pinBurse.by) { const c = Burse.carry(FIG[this.pinBurse.by], this.pinBurse.flip); this.pinBurse.at.copy(c.at); this.pinBurse.heading = c.heading; }      // in his hands, before him
+            o.position.copy(this.pinBurse.at); o.rotation.set(0, this.pinBurse.heading, 0); continue;
+          }
+        }
         if (l.startsWith('hand:')) {
           const role = l.slice(5), f = FIG[role], slot = this.slot[p] || 'R';
           let pos;
@@ -872,8 +964,9 @@
             const dx = ahead ? underChin(ahead).x - pos.x : Math.sin(f.heading), dz = ahead ? underChin(ahead).z - pos.z : Math.cos(f.heading), l = Math.hypot(dx, dz) || 1;
             pos.x += dx / l * k; pos.z += dz / l * k; }
           if (p === 'chalice' && slot === 'both') pos.y -= 0.12;
+          if (p === 'veil' && role !== 'P' && this.veilFolded) { const k = PROPS.veil.obj.userData.S / 3; pos.x += Math.sin(f.heading) * k; pos.z += Math.cos(f.heading) * k; }      // the folded strip lies off its centre: bring it into his hands
           o.position.copy(pos);
-          o.rotation.set(this.tilt[p] || 0, f.heading + (p === 'missal' ? Math.PI : 0), 0, 'YXZ');
+          o.rotation.set(this.tilt[p] || 0, p === 'burse' && role !== 'P' ? Math.atan2(FIG.P.x - f.x, FIG.P.z - f.z) : f.heading + (p === 'missal' || (p === 'veil' && role !== 'P') ? Math.PI : 0), 0, 'YXZ');      // a server carries the veil cross end towards him, so it goes down the right way round      // the burse held out with its cross towards him
         } else if (C.PLACES[l]) {
           const [x, y, z, ry] = C.PLACES[l];
           o.position.set(x, y, z); o.rotation.set(0, ry, 0);
@@ -883,6 +976,11 @@
           o.position.copy(v); o.rotation.copy(base.rotation);
         }
       }
+      // the corporal: inside the burse, spread on the altar (or folded there), or in the priest's hand on its way into the burse
+      const co = PROPS.corporal.obj;
+      co.visible = this.corp !== 'burse';
+      if (this.corp === 'altar') { const [x, y, z, ry] = C.PLACES['altar.corp']; co.position.set(x, y, z); co.rotation.set(0, ry, 0); }
+      else if (this.corp === 'hand:P') { const h = FIG.P.handWorld('R'); co.position.set(h.x, h.y - 0.034, h.z); co.rotation.set(0, FIG.P.heading, 0); }      // folded small, between his fingers
     },
   };
 
@@ -1120,8 +1218,10 @@
           this.pAt[i] = this.time;
           // he begins his line as he bows or signs himself: the words are up as soon as he moves, never after
           if (/^say /.test(list[i + 1] || '') && LEADS_INTO.test(list[i]) && this.player !== 'P') this.priestLine(list[i + 1].slice(4));
+          // "(the sermon)" and the like tell what he is doing: once he walks away from it, it is done, and the top of the screen is empty until he next speaks
+          if (/^(go|via) /.test(list[i]) && this.cap && this.cap[2] === 'P' && this.cap[1].la.startsWith('(')) { this.cap = null; if (!this.quiet) $('#caption').hidden = true; }
         }
-        await this.exec(role, list[i], beat);
+        await this.exec(role, onward(list, i), beat);
       }
     }
 
@@ -1261,9 +1361,18 @@
         case 'kiss': return this.step(args[0] === 'hand' ? Gest.reach(f, () => FIG.P.handWorld('R'), 'R', 0.6, 0.2) : Gest.kiss(f));
         case 'take': {
           const p = args[0];
+          if (p === 'veil' && role !== 'P' && Props.loc.veil === 'altar.veilG') return this.step(Gest.liftVeil(f, role));      // up by its back corners, to hold out to him
           // what you yourself are holding you cannot take: this means taking it back, once it has been given to someone and offered
           await this.step(this.until(() => { const hd = Props.holder(p); return !hd || (hd !== role && Props.out[hd] && Props.out[hd].has(p)); }));
           { const hd = Props.holder(p); if (hd && hd !== role) await this.approach(role, hd, 0.8); }
+          if (p === 'veil' && Props.hanging()) {      // held out to him by its corners: he takes the top edge from the server's hands
+            const U = PROPS.veil.obj.userData, corner = sx => () => U.pointWorld(sx * U.S / 2 * 0.85, -U.S / 2);
+            await this.step(f.gesture([{ t: 0 }, { t: 1, R: corner(1), L: corner(-1), spine: 0.15, hands: { R: 'pinchAt', L: 'pinchAt' } }], dur(0.8)));
+            Props.keepVeil = true; Props.attach(p, role); Props.keepVeil = false;
+            return;
+          }
+          if (p === 'veil' && role !== 'P' && Props.holder('veil') === 'P' && Props.pinVeil) return this.step(Gest.takeVeil(f, role));
+          if (p === 'burse' && role !== 'P' && Props.loc.burse === 'altar.burseG') return this.step(Gest.takeBurse(f, role));      // up off the altar into both hands      // at the Offertory: flat, from his hands
           await this.step(Gest.reach(f, () => Props.worldPos(p), Props.held(role).length ? 'L' : 'R'));
           Props.attach(p, role);
           if (p === 'biretta' && role === 'P') { Props.worn = false; }
@@ -1271,6 +1380,9 @@
         }
         case 'put': {
           const [p, where] = args;
+          if (p === 'veil' && where === 'altar.veilG' && Props.holder('veil') === role) return this.step(Gest.layVeil(f));
+          if (p === 'burse' && Props.pinBurse && Props.holder('burse') === role) return this.step(Gest.burseDown(f, where));
+          if (p === 'veil' && Props.pinVeil && Props.holder('veil') === role) return this.step(Gest.setVeil(f, where));      // folded, laid down face up
           const at = C.PLACES[where] ? V(C.PLACES[where][0], C.PLACES[where][1], C.PLACES[where][2]) : Props.worldPos(where);
           await this.step(Gest.reach(f, () => at, Props.slot[p] === 'L' ? 'L' : 'R'));
           Props.place(p, where);
@@ -1278,6 +1390,7 @@
         }
         case 'give': {
           const [p, to] = args;
+          if (p === 'burse' && to === 'P' && role !== 'P' && Props.pinBurse && Props.pinBurse.by === role) return this.step(Gest.presentBurse(f, role));      // face to face, upright, its cross to him
           await this.approach(role, to, 0.8);
           await this.step(Gest.reach(f, () => FIG[to].handWorld('R'), Props.slot[p] === 'L' ? 'L' : 'R'));
           Props.attach(p, to);
@@ -1286,6 +1399,8 @@
         }
         case 'offer': case 'hold': {
           const p = args[0];
+          if (verb === 'hold' && role !== 'P' && p === 'burse' && Props.corp !== 'burse' && Props.holder('burse') === role) return this.step(Gest.holdBurse(f, role));
+          if (verb === 'hold' && p === 'veil' && f.grip && f.grip.prop === 'veil') { (Props.out[role] = Props.out[role] || new Set()).add(p); return; }      // held out already, as he lifted it
           if (p === 'biretta' && role === 'P' && Props.worn) { Props.worn = false; FIG.P.setBiretta(false); await this.step(Gest.doffBiretta(f)); }
           { const who = this.taker(beat, p, role); if (who) await this.approach(role, who, 0.85); }
           (Props.out[role] = Props.out[role] || new Set()).add(p);
@@ -1329,7 +1444,7 @@
           return;
         }
         case 'tug': Fix.bellSwing = 1.2; if (!this.quiet) chime('sacristy'); return this.step(Gest.reach(f, () => fixturePos('sbell'), 'R', 0.8));
-        case 'fold': await this.step(Gest.fold(f)); Props.veilFolded = true; PROPS.veil.obj.userData.setState('folded'); return;
+        case 'fold': await this.step(Gest.fold(f)); Props.veilFolded = true; return;
         case 'say': return this.say(role, args[0], beat);
         case 'wait': return this.step(this.sleep(+args[0]));
         case 'signal': this.signal(role, args[0], beat); return;
@@ -1446,6 +1561,8 @@
         steps: d.steps, time: d.time, flags: new Set(d.flags), hostFor: new Set(d.hostFor), hostUp: d.hostUp, cap: d.cap, capPart: d.capPart, note: d.noteNow,
         figs: Object.fromEntries(Object.entries(FIG).map(([r, f]) => [r, f.save()])),
         loc: Object.assign({}, Props.loc), slot: Object.assign({}, Props.slot), tilt: Object.assign({}, Props.tilt), worn: Props.worn, veilFolded: Props.veilFolded, veil: PROPS.veil.obj.userData.shape(),
+        pinVeil: Props.pinVeil && Object.assign({}, Props.pinVeil, { at: Props.pinVeil.at.clone() }), pinBurse: Props.pinBurse && Object.assign({}, Props.pinBurse, { at: Props.pinBurse.at.clone() }),
+        burseOpen: Props.burseOpen, corp: Props.corp, corpFold: PROPS.corporal.obj.userData.state(),
         out: Object.fromEntries(Object.entries(Props.out).map(([r, s]) => [r, new Set(s)])),
         placed: Object.values(PROPS).map(p => [p.obj.position.clone(), p.obj.quaternion.clone()]),      // a worn biretta is left where it last was
         shown: this.pieces.map(o => o.visible), glow: this.glows.map(o => o.intensity),
@@ -1460,7 +1577,9 @@
       d.timers = []; d.ended = false; d.index = i;
       d.steps = s.steps; d.time = s.time; d.flags = new Set(s.flags); d.hostFor = new Set(s.hostFor); d.hostUp = s.hostUp; d.cap = s.cap; d.capPart = s.capPart; d.noteNow = s.note;
       for (const [r, f] of Object.entries(FIG)) f.load(s.figs[r]);
-      Object.assign(Props, { loc: Object.assign({}, s.loc), slot: Object.assign({}, s.slot), tilt: Object.assign({}, s.tilt), worn: s.worn, veilFolded: s.veilFolded, pinVeil: null, keepVeil: false });
+      Object.assign(Props, { loc: Object.assign({}, s.loc), slot: Object.assign({}, s.slot), tilt: Object.assign({}, s.tilt), worn: s.worn, veilFolded: s.veilFolded, keepVeil: false,
+        pinVeil: s.pinVeil && Object.assign({}, s.pinVeil, { at: s.pinVeil.at.clone() }), pinBurse: s.pinBurse && Object.assign({}, s.pinBurse, { at: s.pinBurse.at.clone() }), burseOpen: s.burseOpen || 0, corp: s.corp || 'burse' });
+      PROPS.corporal.obj.userData.set(s.corpFold || { fz: 0, fx: 0 }); PROPS.burse.obj.userData.setFull(Props.corp === 'burse');
       PROPS.veil.obj.userData.set(s.veil);
       Props.out = Object.fromEntries(Object.entries(s.out).map(([r, o]) => [r, new Set(o)]));
       Object.values(PROPS).forEach((p, k) => { p.obj.position.copy(s.placed[k][0]); p.obj.quaternion.copy(s.placed[k][1]); });
@@ -1664,25 +1783,165 @@
       const side = Props.slot.bells === 'L' ? 'L' : 'R', x = side === 'R' ? -0.16 : 0.16;
       return f.gesture([{ t: 0, [side]: [x, 0.2, 0.3] }, { t: 0.3, [side]: [x - 0.05, 0.26, 0.32] }, { t: 0.6, [side]: [x + 0.03, 0.2, 0.3] }, { t: 1, [side]: [x, 0.2, 0.3] }], dur(0.45));
     },
-    fold: f => {
-      const veil = PROPS.veil.obj, U = veil.userData, ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
-      Props.pinVeil = { at: veil.position.clone(), heading: f.heading };
-      const edge = side => () => U.edgeWorld(side), at = (x, z) => () => U.pointWorld(x, z);
-      return f.gesture([
-        { t: 0, hands: { R: 'edge', L: 'edge' } },
-        { t: 0.12, R: edge('R'), L: edge('L'), hands: { R: 'edge', L: 'pinchAt' } },      // both edges in hand
-        { t: 0.15, R: edge('R'), L: edge('L') },
-        { t: 0.5, R: edge('R'), L: edge('L'), hands: { R: 'edge', L: 'pinchAt' } },      // the left third lifted, turned over and laid on the middle
-        { t: 0.56, R: edge('R'), L: at(-0.06, 0), hands: { R: 'pinchAt', L: 'altar' } },    // the left hand holds the fold down; the right takes its edge
-        { t: 0.58, R: edge('R'), L: at(-0.06, 0) },
-        { t: 0.9, R: edge('R'), L: at(-0.06, 0), hands: { R: 'pinchAt', L: 'altar' } },     // the right third over both
-        { t: 1, hands: { R: 'edge', L: 'edge' } },
-      ], dur(3.4), { onTick: x => {
-        U.set({ drape: 0, lift: 0, f1: Math.PI * ease((x - 0.15) / 0.35), f2: Math.PI * ease((x - 0.58) / 0.32) });
-        if (x >= 1) Props.pinVeil = null;
-      } });
+    // ── the veil at the Offertory: lifted off, handed across flat and face up, folded in thirds with the face kept outward, laid down cross end to the front ──
+    /** Taken from the priest's hands: by the two sides near the end towards you, the priest holding the middles; then brought before you. */
+    takeVeil: async (f, role) => {
+      const U = PROPS.veil.obj.userData, S = U.S, pin = Props.pinVeil, ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      const r = Veil.rightSide(f, pin.heading), side = sx => () => U.pointWorld(sx * S / 2 * 0.96, S * 0.26);
+      await f.gesture([{ t: 0 }, { t: 1, R: side(r), L: side(-r), spine: 0.15, hands: { R: 'pinchAt', L: 'pinchAt' } }], dur(0.9));
+      Props.keepVeil = true; Props.attach('veil', role); Props.keepVeil = false;      // he lets go of it
+      f.grip = { prop: 'veil', R: side(r), L: side(-r), hands: { R: 'pinchAt', L: 'pinchAt' }, spine: 0.1 };
+      const from = pin.at.clone(), h0 = pin.heading;
+      await f.gesture([], dur(0.8), { onTick: t => { const c = Veil.carry(f), e = ease(t); pin.at.lerpVectors(from, c.at, e); pin.heading = h0 + wrap(c.heading - h0) * e; } });
+      pin.by = role;
+    },
+    /** In thirds into a strip lying across, the face kept outward: the far third turned down and under the middle, then the middle, with it, down and
+     *  under the third nearest him. That third, the cross on it upright, stays where it was, face up; the lining is never seen. */
+    fold: async f => {
+      const U = PROPS.veil.obj.userData, S = U.S, a = S / 6, ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      const role = Props.holder('veil');
+      if (!Props.pinVeil) { const c = Veil.carry(f); Props.pinVeil = { at: c.at, heading: c.heading, by: role }; }
+      const r = Veil.rightSide(f, Props.pinVeil.heading), at = (x, z) => () => U.pointWorld(x, z), P = { R: 'pinchAt', L: 'pinchAt' };
+      const ends = s => at(s * r * S / 2 * 0.92, S / 3);      // the folded strip, by its two ends
+      const keys = [
+        { t: 0, R: at(r * S / 2 * 0.96, 0.13), L: at(-r * S / 2 * 0.96, 0.13), spine: 0.1, hands: P },
+        { t: 0.1, R: at(r * 0.2, -S / 2), L: at(-r * 0.2, -S / 2), spine: 0.2, hands: P },      // over to the far edge
+        { t: 0.42, R: at(r * 0.2, -S / 2), L: at(-r * 0.2, -S / 2), spine: 0.16, hands: P },      // the far third down, and under the middle
+        { t: 0.5, R: at(r * 0.2, -a), L: at(-r * 0.2, -a), spine: 0.16, hands: P },      // the new far edge
+        { t: 0.86, R: at(r * 0.2, -a), L: at(-r * 0.2, -a), spine: 0.1, hands: P },      // and that down, and under the near third
+        { t: 1, R: ends(1), L: ends(-1), spine: 0.1, hands: P },
+      ];
+      await f.gesture(keys, dur(3.6), { onTick: x => U.set({ drape: 0, lift: 0, hold: 0, rest: 0, f1: Math.PI * ease((x - 0.12) / 0.3), f2: Math.PI * ease((x - 0.52) / 0.34) }) });
+      U.set({ f1: Math.PI, f2: Math.PI });
+      Props.veilFolded = true;
+      f.grip = { prop: 'veil', R: ends(1), L: ends(-1), hands: P, spine: 0.1 };
+    },
+    /** Laid down folded, across the altar, face up, the cross upright to the front, back from the edge; set down, not dropped. */
+    setVeil: async (f, where) => {
+      const U = PROPS.veil.obj.userData, S = U.S, pin = Props.pinVeil, [x, y, z, ry] = C.PLACES[where], ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      pin.by = null;
+      const from = pin.at.clone(), to = V(x, y, z), h0 = pin.heading, r = Veil.rightSide(f, pin.heading), at = (lx, lz) => () => U.pointWorld(lx, lz), P = { R: 'pinchAt', L: 'pinchAt' };
+      const ends = s => at(s * r * S / 2 * 0.92, S / 3);
+      f.grip = null;
+      await f.gesture([
+        { t: 0, R: ends(1), L: ends(-1), spine: 0.1, hands: P },
+        { t: 1, R: ends(1), L: ends(-1), spine: 0.4, hands: P },
+      ], dur(1.4), { onTick: t => { const e = ease(t), lift = Math.sin(Math.PI * Math.min(1, t * 1.2)) * 0.04 * (1 - t); pin.at.lerpVectors(from, to, e); pin.at.y += lift; pin.heading = h0 + wrap(ry - h0) * e; } });
+      Props.place('veil', where, true); Props.pinVeil = null;
+      await f.gesture([{ t: 0 }, { t: 1 }], dur(0.5));      // and the hands come away
     },
     doffBiretta: f => f.gesture([{ t: 0 }, { t: 0.45, R: [-0.06, 0.82, 0.08] }, { t: 1, R: [-0.12, 0.3, 0.32] }], dur(0.7)),
+
+    // ── the veil and burse after the Ablutions: what each is for should be plain to see ──
+    /** The folded veil set down on the Gospel side, opened out of its thirds, and its cross panel let down over the front edge, facing out. */
+    layVeil: async f => {
+      const veil = PROPS.veil.obj, U = veil.userData, [x, y, z, ry] = C.PLACES['altar.veilG'], ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      const at = (lx, lz) => () => U.pointWorld(lx, lz), S = U.S, a = S / 6, P2 = { R: 'pinchAt', L: 'pinchAt' };
+      // set down folded across the front of the mensa, the cross third on top and the strip's front edge at the altar's edge: by its two ends
+      const edge = Props.veilEdge(), back = S / 2 - edge, from = veil.position.clone(), h0 = veil.rotation.y, down = V(x, y, z - back);
+      const pin = Props.pinVeil = { at: from.clone(), heading: h0, still: true };
+      const r = Veil.rightSide(f, ry), ends = s => at(s * r * S / 2 * 0.92, S / 3), front = s => at(s * r * 0.2, S / 2 - 0.02);
+      U.setState('folded');
+      await f.gesture([{ t: 0 }, { t: 1, R: ends(1), L: ends(-1), spine: 0.3, hands: P2 }], dur(0.9),
+        { onTick: t => { const e = ease(t); pin.at.lerpVectors(from, down, e); pin.at.y += Math.sin(Math.PI * t) * 0.05; pin.heading = h0 + wrap(ry - h0) * e; } });
+      Props.place('veil', 'altar.veilG', true);
+      // then opened by its bottom edge: he takes the front edge near its ends and draws it down over the edge of the altar. The cross third goes over
+      // and hangs, face out; the rest comes out from under it face up, to lie back on the mensa. The lining is never seen
+      pin.at.set(x, y, z);
+      U.set({ f1: 0, f2: 0, drape: 0, lift: 0, hold: 0, rest: 0, edge, roll: 0 });
+      await f.gesture([
+        { t: 0, R: ends(1), L: ends(-1), spine: 0.3, hands: P2 },
+        { t: 0.18, R: front(1), L: front(-1), spine: 0.34, hands: P2 },
+        { t: 0.26, R: front(1), L: front(-1), spine: 0.34 },
+        { t: 1, R: front(1), L: front(-1), spine: 0.42 },
+      ], dur(2.2), { onTick: t => U.set({ roll: ease((t - 0.26) / 0.74) }) });
+      Props.place('veil', 'altar.veilG');      // the same cloth, now simply hung over the edge
+      await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4));
+    },
+    /** Taken up from the altar by its two back corners, and held out over the front of it, a little low, the cross side towards the priest. */
+    liftVeil: async (f, role) => {
+      const veil = PROPS.veil.obj, U = veil.userData, S = U.S, [x, y, z, ry] = C.PLACES['altar.veilG'];
+      Props.pinVeil = { at: V(x, y, z), heading: ry, still: true };
+      const corner = s => () => U.pointWorld(s * S / 2, -S / 2);
+      await f.gesture([{ t: 0 }, { t: 1, R: corner(1), L: corner(-1), spine: 0.42, hands: { R: 'pinchAt', L: 'pinchAt' } }], dur(0.9));
+      Props.keepVeil = true; Props.attach('veil', role); Props.keepVeil = false;
+      Props.pinVeil.still = false;      // from now on it hangs from his hands
+      const c = Veil.present(), hi = (s) => V(c.x + s * 0.24, y + 0.34, z - 0.12), out = s => V(c.x + s * 0.24, c.y, c.z);
+      await f.gesture([
+        { t: 0, R: corner(1), L: corner(-1), spine: 0.42, hands: { R: 'pinchAt', L: 'pinchAt' } },
+        { t: 0.5, R: () => hi(1), L: () => hi(-1), spine: 0.25 },
+        { t: 1, R: () => out(1), L: () => out(-1), spine: 0.15 },
+      ], dur(1.6), { onT: [[0.97, () => { f.grip = { prop: 'veil', R: () => out(1), L: () => out(-1), hands: { R: 'pinchAt', L: 'pinchAt' }, spine: 0.15 }; }]] });
+    },
+    /** The burse stood on its edge and held open over the veil, at the priest's left, its mouth up for the corporal. */
+    /** Taken up off the mensa in both hands, stood on its edge as it comes up, and held before him. */
+    takeBurse: async (f, role) => {
+      const o = PROPS.burse.obj, ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t), Pp = { R: 'pinchAt', L: 'pinchAt' };
+      const pin = Props.pinBurse = { at: o.position.clone(), heading: o.rotation.y };
+      Props.burseUp = 0;
+      await f.gesture([{ t: 0 }, { t: 1, R: Burse.hold(f, 1), L: Burse.hold(f, -1), spine: 0.5, hands: Pp }], dur(0.9));
+      Props.attach('burse', role);
+      f.grip = { prop: 'burse', R: Burse.hold(f, 1), L: Burse.hold(f, -1), hands: Pp, spine: 0.15 };
+      const from = pin.at.clone(), h0 = pin.heading;
+      await f.gesture([], dur(1.1), { onTick: t => { const e = ease(t), c = Burse.carry(f); pin.at.lerpVectors(from, c.at, e); pin.at.y += Math.sin(Math.PI * t) * 0.05; pin.heading = h0 + wrap(c.heading - h0) * e; Props.burseUp = ease((t - 0.1) / 0.7); } });
+      Props.burseUp = null; pin.by = role;
+    },
+    /** Held out over the veil, at the priest's left, standing on its edge, open, its mouth up and its face to him: he slips the folded corporal in. */
+    holdBurse: async (f, role) => {
+      const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      if (!Props.pinBurse) await Gest.takeBurse(f, role);
+      const pin = Props.pinBurse, to = Veil.burseAt(), h1 = Math.atan2(FIG.P.x - to.x, FIG.P.z - to.z);
+      pin.by = null;
+      const from = pin.at.clone(), h0 = pin.heading;
+      f.grip = Object.assign({}, f.grip, { spine: 0.3 });
+      await f.gesture([], dur(1.0), { onTick: t => { const e = ease(t); pin.at.lerpVectors(from, to, e); pin.heading = h0 + wrap(h1 - h0) * e; Props.burseOpen = ease((t - 0.4) / 0.6); } });
+      (Props.out[role] = Props.out[role] || new Set()).add('burse');
+    },
+    /** With the corporal in it, closed and laid flat at the back of the mensa, just behind the veil: his hands with it all the way. */
+    burseDown: async (f, where) => {
+      const pin = Props.pinBurse, [x, y, z, ry] = C.PLACES[where], from = pin.at.clone(), to = V(x, y, z), h0 = pin.heading, ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      pin.by = null; Props.burseOpen = 0;
+      f.grip = Object.assign({}, f.grip, { spine: 0.5 });
+      await f.gesture([], dur(1.2), { onTick: t => { const e = ease(t); pin.at.lerpVectors(from, to, e); pin.at.y += Math.sin(Math.PI * t) * 0.04; pin.heading = h0 + wrap(ry - h0) * e; Props.burseUp = 1 - ease((t - 0.45) / 0.55); } });
+      Props.burseUp = null; f.grip = null;
+      Props.place('burse', where);
+      await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4));
+    },
+    /** The server turns to the priest, and the priest to him; the burse held up between them, upright, its cross to the priest. He takes it by its sides. */
+    presentBurse: async (f, role) => {
+      const P = FIG.P, pin = Props.pinBurse, Pp = { R: 'pinchAt', L: 'pinchAt' };
+      await Promise.all([f.turnTo(Math.atan2(P.x - f.x, P.z - f.z)), P.turnTo(Math.atan2(f.x - P.x, f.z - P.z))]);
+      (Props.out[role] = Props.out[role] || new Set()).add('burse');
+      await P.gesture([{ t: 0 }, { t: 1, R: Burse.hold(P, 1), L: Burse.hold(P, -1), spine: 0.1, hands: Pp }], dur(0.8));
+      pin.by = null;
+      const from = pin.at.clone();
+      Props.attach('burse', 'P');      // the server lets go
+      P.grip = { prop: 'burse', R: Burse.hold(P, 1), L: Burse.hold(P, -1), hands: Pp, spine: 0.05 };
+      const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t);
+      await P.gesture([], dur(0.5), { onTick: t => { const c = Burse.carry(P, true); pin.at.lerpVectors(from, c.at, ease(t)); } });
+      pin.by = 'P'; pin.flip = true;      // before him now, still facing him
+      await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4));
+    },
+  };
+  /** The burse in someone's hands: before him at chest height, its face (and cross) the way he faces, or towards him (flip). */
+  const Burse = {
+    carry: (f, flip) => ({ at: V(f.x + Math.sin(f.heading) * 0.34, f.y + 1.06, f.z + Math.cos(f.heading) * 0.34), heading: f.heading + (flip ? Math.PI : 0) }),
+    /** Where his hand on that side (1 right, −1 left) holds it: by its edge, half way up as it stands, at the side as it lies. */
+    hold: (f, s) => () => {
+      const pin = Props.pinBurse, o = PROPS.burse.obj, W = o.userData.W, u = Props.burseUp == null ? 1 : Props.burseUp, h = pin ? pin.heading : o.rotation.y, at = pin ? pin.at : o.position;
+      const side = s * Veil.rightSide(f, h) * (W / 2 + 0.006);
+      return V(at.x + Math.cos(h) * side, at.y + 0.012 + u * (W * 0.45 - 0.012), at.z - Math.sin(h) * side);
+    },
+  };
+  /** Where the veil and burse are held for the priest, on the Gospel side, between him and the server. */
+  const Veil = {
+    // at the Offertory: held out flat by the priest, at his right, for the server to take; and carried flat before the server, the cross end towards him, face up
+    handOver: () => V(0.4, C.LAYOUT.mensa.top + 0.21, -0.5),
+    carry: f => ({ at: V(f.x + Math.sin(f.heading) * 0.42, f.y + 1.2, f.z + Math.cos(f.heading) * 0.42), heading: f.heading + Math.PI }),
+    /** Which side of the cloth (+1 its +x edge, −1 its −x) is at his right hand, as it lies now. */
+    rightSide: (f, heading) => (-Math.cos(f.heading) * Math.cos(heading) - Math.sin(f.heading) * Math.sin(heading)) >= 0 ? 1 : -1,
+    present: () => V(-0.45, C.LAYOUT.mensa.top + 0.26, C.LAYOUT.mensa.z1 + 0.05),       // just out over the front edge, held low: the top half above the mensa, the cross panel below
+    burseAt: () => V(-0.44, C.LAYOUT.mensa.top + 0.04, C.LAYOUT.mensa.z1 - 0.14),     // over the veil where it lies on the mensa, standing on its edge
   };
 
   // the priest's own actions
@@ -1690,6 +1949,7 @@
   const PriestG = {
     placeChalice: async (d, f) => {
       await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.08, 0.15, 0.45], L: [0.08, 0.15, 0.45], spine: 0.2 }, { t: 1 }], dur(1.0));
+      Props.corp = 'altar'; PROPS.corporal.obj.userData.set({ fz: 0, fx: 0 }); PROPS.burse.obj.userData.setFull(false);      // the corporal out of the burse, spread
       Props.place('chalice', 'altar.C'); Props.place('burse', 'altar.burseG');
       await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.25, 0.14, 0.45], L: [0.25, 0.14, 0.45], spine: 0.15 }, { t: 1 }], dur(0.9));
     },
@@ -1717,12 +1977,24 @@
     donBiretta: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.6, R: [-0.06, 0.82, 0.08] }, { t: 1 }], dur(0.7)); Props.worn = true; FIG.P.setBiretta(true); Props.loc.biretta = 'hand:P'; Props.slot.biretta = null; Props.syncHands('P'); },
     doffBiretta: async (d, f) => { Props.worn = false; FIG.P.setBiretta(false); Props.attach('biretta', 'P'); await Gest.doffBiretta(f); },
     unveil: async (d, f) => {
-      const U = PROPS.veil.obj.userData, ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
-      const side = s => () => U.pointWorld(s === 'L' ? -0.2 : 0.2, 0);
-      await f.gesture([{ t: 0 }, { t: 0.55, R: side('R'), L: side('L'), spine: 0.2, hands: { R: 'pinchAt', L: 'pinchAt' } }, { t: 1, R: side('R'), L: side('L'), spine: 0.2 }], dur(1.2));
+      const o = PROPS.veil.obj, U = o.userData, S = U.S, ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+      const side = s => () => U.pointWorld(s * 0.2, 0), edge = s => () => U.pointWorld(s * S / 2 * 0.94, 0), P = { R: 'pinchAt', L: 'pinchAt' };
+      await f.gesture([{ t: 0 }, { t: 0.55, R: side(1), L: side(-1), spine: 0.2, hands: P }, { t: 1, R: side(1), L: side(-1), spine: 0.2 }], dur(1.2));
+      const pin = Props.pinVeil = { at: o.position.clone(), heading: o.rotation.y };
       Props.keepVeil = true; Props.attach('veil', 'P'); Props.keepVeil = false;
-      await f.gesture([{ t: 0, hands: { R: 'edge', L: 'edge' } }, { t: 1, hands: { R: 'edge', L: 'edge' } }], dur(1.1), { onTick: x => U.set({ drape: 1 - ease(x), lift: 1 - ease(x), f1: 0, f2: 0 }) });
-      U.setState('held');
+      // straight up off the cup, then opened out flat as it comes to his right hand side, face up
+      const from = pin.at.clone(), up = from.clone().add(V(0, 0.3, 0)), to = Veil.handOver();
+      await f.gesture([
+        { t: 0, R: side(1), L: side(-1), spine: 0.2, hands: P },
+        { t: 0.35, R: side(1), L: side(-1), spine: 0.15 },
+        { t: 0.75, R: edge(1), L: edge(-1), spine: 0.1 },
+        { t: 1, R: edge(1), L: edge(-1), spine: 0.08 },
+      ], dur(1.9), { onTick: x => {
+        const a = ease(x / 0.35), b = ease((x - 0.3) / 0.7);
+        U.set({ drape: 1 - ease((x - 0.3) / 0.45), lift: 0, f1: 0, f2: 0, hold: 0 });
+        pin.at.lerpVectors(from, up, a).lerp(to, b);
+      } });
+      f.grip = { prop: 'veil', R: edge(1), L: edge(-1), hands: P, spine: 0.08 };
     },
     pour: async (d, f) => {
       const p = Props.held('P').find(q => q === 'wine' || q === 'water');
@@ -1767,8 +2039,59 @@
     holdChalice: async (d, f) => { Props.attach('chalice', 'P'); f.base = 'holdChalice'; await f.wait(dur(0.5)); },
     holdFingers: async (d, f) => { if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); f.base = 'fingers'; await f.wait(dur(0.4)); },
     wipeChalice: async (d, f) => { f.base = null; if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.05, 0.2, 0.42], L: [0.05, 0.2, 0.42] }, { t: 1 }], dur(1.0)); },
-    foldCorporal: (d, f) => f.gesture([{ t: 0 }, { t: 0.3, R: [-0.15, 0.15, 0.45], L: [0.15, 0.15, 0.45], spine: 0.2 }, { t: 0.7, R: [-0.3, 0.2, 0.4], L: [-0.2, 0.2, 0.42], spine: 0.15 }, { t: 1 }], dur(1.2)),
+    /** The chalice set aside; the corporal folded in three, front and back, then right and left; and slipped into the burse the server holds open. */
+    foldCorporal: async (d, f) => {
+      const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t), CU = PROPS.corporal.obj.userData, [cx, cy, cz] = C.PLACES['altar.corp'];
+      const on = (x, y, z) => () => V(cx + x, cy + y, cz + z), chalice = () => PROPS.chalice.obj.position.clone().add(V(0, 0.02, 0));      // by its foot
+      await f.gesture([{ t: 0 }, { t: 1, R: chalice, L: chalice, spine: 0.45, hands: { R: 'grip', L: 'grip' } }], dur(0.6));
+      Props.attach('chalice', 'P');
+      const [ax, ay, az] = C.PLACES['altar.CE'];
+      await f.gesture([{ t: 0, R: chalice, L: chalice, spine: 0.45 }, { t: 1, R: () => V(ax, ay + 0.02, az), L: () => V(ax, ay + 0.02, az), spine: 0.45 }], dur(0.7));
+      Props.place('chalice', 'altar.CE');
+      if (Props.corp !== 'altar') return;      // nothing spread to fold
+      const T = 0.25, M = 0.04;
+      await f.gesture([
+        { t: 0, R: on(0.12, 0.01, T), L: on(-0.12, 0.01, T), spine: 0.3, hands: { R: 'pinchAt', L: 'pinchAt' } },
+        { t: 0.22, R: on(0.12, 0.05, 0), L: on(-0.12, 0.05, 0), spine: 0.3 },
+        { t: 0.28, R: on(0.12, 0.01, -T), L: on(-0.12, 0.01, -T), spine: 0.55 },
+        { t: 0.5, R: on(0.12, 0.05, 0), L: on(-0.12, 0.05, 0), spine: 0.32 },
+        { t: 0.56, R: on(T * 0.9, 0.02, 0), L: on(-M, 0.02, 0), spine: 0.3, hands: { R: 'pinchAt', L: 'altar' } },
+        { t: 0.76, R: on(0, 0.06, 0), L: on(-M, 0.02, 0), spine: 0.3 },
+        { t: 0.8, R: on(M, 0.03, 0), L: on(-T * 0.9, 0.02, 0), spine: 0.3, hands: { R: 'altar', L: 'pinchAt' } },
+        { t: 1, R: on(M, 0.03, 0), L: on(0, 0.07, 0), spine: 0.3 },
+      ], dur(3.6), { onTick: t => CU.set({ fz: 0.5 * ease(t / 0.22) + 0.5 * ease((t - 0.28) / 0.22), fx: 0.5 * ease((t - 0.56) / 0.2) + 0.5 * ease((t - 0.8) / 0.2) }) });
+      // picked up, and into the burse
+      await f.gesture([{ t: 0 }, { t: 1, R: on(0, 0.04, 0), spine: 0.3, hands: { R: 'pinchAt' } }], dur(0.5));
+      Props.corp = 'hand:P';
+      const mouth = () => PROPS.burse.obj.userData.mouthWorld();
+      await f.gesture([{ t: 0, R: on(0, 0.04, 0), spine: 0.3, hands: { R: 'pinchAt' } }, { t: 0.65, R: () => mouth().add(V(0, 0.09, 0)), spine: 0.15 }, { t: 1, R: () => mouth().add(V(0, 0.035, 0)), spine: 0.15 }], dur(1.2));
+      Props.corp = 'burse'; PROPS.burse.obj.userData.setFull(true);
+      await f.gesture([{ t: 0, R: () => mouth().add(V(0, 0.035, 0)) }, { t: 1 }], dur(0.5), { onTick: t => { if (Props.pinBurse) Props.burseOpen = 1 - ease(t); } });
+    },
+    /** And the chalice back in the middle, where the veil is to go over it. */
+    chaliceBack: async (d, f) => {
+      if (Props.loc.chalice !== 'altar.CE') return;
+      const [x, y, z] = C.PLACES['altar.C'], chalice = () => PROPS.chalice.obj.position.clone().add(V(0, 0.02, 0));      // by its foot
+      await f.gesture([{ t: 0 }, { t: 1, R: chalice, L: chalice, spine: 0.45, hands: { R: 'grip', L: 'grip' } }], dur(0.6));
+      Props.attach('chalice', 'P');
+      await f.gesture([{ t: 0, R: chalice, L: chalice, spine: 0.45 }, { t: 1, R: () => V(x, y + 0.02, z), L: () => V(x, y + 0.02, z), spine: 0.45 }], dur(0.7));
+      Props.place('chalice', 'altar.C');
+      await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4));
+    },
     veilChalice: async (d, f) => {
+      if (Props.hanging() && Props.holder('veil') === 'P') {
+        // taken from the server by its top edge, the cross side towards him: lifted over the chalice, its back edge laid down behind it,
+        // and the rest let fall over the front, so that the cross is to the people and the lining never shows
+        const U = PROPS.veil.obj.userData, ch = PROPS.chalice.obj.position.clone(), ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
+        Props.pinVeil = { at: ch.clone(), heading: 0 }; U.set({ edge: C.LAYOUT.mensa.z1 - ch.z, drape: 1, f1: 0, f2: 0, lift: 0 });
+        const over = (sx, y, z) => () => ch.clone().add(V(sx, y, z));
+        await f.gesture([{ t: 0 }, { t: 0.4, R: over(0.2, 0.46, 0.08), L: over(-0.2, 0.46, 0.08), spine: 0.3, hands: { R: 'pinchAt', L: 'pinchAt' } },
+          { t: 0.75, R: over(0.17, 0.3, -0.14), L: over(-0.17, 0.3, -0.14), spine: 0.42 }, { t: 1, R: over(0.12, 0.24, 0.05), L: over(-0.12, 0.24, 0.05), spine: 0.25, hands: { R: 'altar', L: 'altar' } }], dur(2.0),
+          { onTick: x => U.set({ hold: 1 - ease((x - 0.5) / 0.45) }) });
+        Props.pinVeil = null; Props.veilFolded = false; Props.place('veil', 'chalice', true); U.setState('draped');
+        await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4));
+        return;
+      }
       // the folded veil opened out and laid over the chalice, falling evenly all round
       const U = PROPS.veil.obj.userData, from = U.shape(), ease = x => x < 0 ? 0 : x > 1 ? 1 : x * x * (3 - 2 * x);
       Props.veilFolded = false; Props.place('veil', 'chalice', true);
@@ -1776,7 +2099,20 @@
         { onTick: x => U.set({ f2: from.f2 * (1 - ease(x / 0.35)), f1: from.f1 * (1 - ease((x - 0.2) / 0.35)), drape: ease((x - 0.5) / 0.45), lift: 0 }) });
       U.setState('draped');
     },
-    burseOnChalice: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.04, 0.22, 0.45] }, { t: 1 }], dur(0.6)); Props.place('burse', 'chalice'); f.base = null; },
+    burseOnChalice: async (d, f) => {
+      const pin = Props.pinBurse;
+      if (pin && pin.by === 'P') {      // handed to him: back round to the altar with it, and laid flat on the veiled chalice
+        await f.turnTo(Math.PI);
+        const ease = t => t < 0 ? 0 : t > 1 ? 1 : t * t * (3 - 2 * t), ch = PROPS.chalice.obj, to = ch.position.clone().add(V(0, 0.262, 0)), h1 = ch.rotation.y;
+        pin.by = null; pin.flip = false;
+        const from = pin.at.clone(), h0 = pin.heading;
+        await f.gesture([], dur(1.0), { onTick: t => { const e = ease(t); pin.at.lerpVectors(from, to, e); pin.at.y += Math.sin(Math.PI * t) * 0.05; pin.heading = h0 + wrap(h1 - h0) * e; Props.burseUp = 1 - ease((t - 0.35) / 0.65); } });
+        Props.burseUp = null; f.grip = null;
+        Props.place('burse', 'chalice');
+        await f.gesture([{ t: 0 }, { t: 1 }], dur(0.4)); f.base = null; return;
+      }
+      await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.04, 0.22, 0.45] }, { t: 1 }], dur(0.6)); Props.place('burse', 'chalice'); f.base = null;
+    },
     takeChalice: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.06, 0.15, 0.45], L: [0.06, 0.15, 0.45] }, { t: 1 }], dur(0.8)); Props.attach('chalice', 'P'); },
     blessPeople: (d, f) => f.gesture([{ t: 0 }, { t: 0.2, R: [-0.08, 0.72, 0.32] }, { t: 0.45, R: [-0.08, 0.25, 0.4] }, { t: 0.65, R: [0.1, 0.48, 0.4] }, { t: 0.85, R: [-0.3, 0.48, 0.4] }, { t: 1 }], dur(1.3)),
   };
@@ -1823,7 +2159,7 @@
         if (lead && lead() == null) { this.held = true; try { await d.step(d.until(() => lead() != null)); } finally { this.held = false; } }
         this.nextTogether = togetherKey(list, i);
         await this.expect(d, c, beat);
-        if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, c.replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
+        if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, onward(list, i).replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
         if (verb === 'go') { this.lastFace = spot(args[0])[2]; this.legOpen = false; }
       }
       this.cur = null; this.list = null; if (this.then && !this.then.far) this.then = null; UI.remind(null);
@@ -1954,12 +2290,19 @@
     },
     /** Where you walk next, if walking is the next thing for you (past what you are about now): setting off a moment early is no straying. */
     nextLeg() {
+      const r = this.nextRoute();
+      return r.length ? r[0] : null;
+    },
+    /** And the whole of that walk, point by point to the place it ends: following the priest from your chair to the foot of the altar is all one way. */
+    nextRoute() {
+      const out = [];
       for (const x of this.yetToDo()) {
         const p = C.parse(x.cmd);
-        if (p.verb === 'go' || (p.verb === 'via' && /^w_/.test(p.args[0]))) return spot(p.args[0]);
-        if (KEY_VERBS.has(p.verb) && !/^(say|turn|faceto)$/.test(p.verb) && !this.early.some(e => e.beat === x.beat && e.j === x.j)) return null;
+        if (p.verb === 'via' && /^w_/.test(p.args[0])) { out.push(spot(p.args[0])); continue; }
+        if (p.verb === 'go') { out.push(spot(p.args[0])); return out; }
+        if (KEY_VERBS.has(p.verb) && !/^(say|turn|faceto)$/.test(p.verb) && !this.early.some(e => e.beat === x.beat && e.j === x.j)) return out;
       }
-      return null;
+      return out;
     },
     /** A missed posture you have still not taken. */
     owes(d, l) {
@@ -2081,8 +2424,13 @@
       const detour = going ? (Math.hypot(f.x - start[0], f.z - start[1]) + Math.hypot(f.x - goal[0], f.z - goal[1]) - Math.hypot(goal[0] - start[0], goal[1] - start[1])) / 2 : Infinity;
       let off = going ? Math.min(seg(f.x, f.z, this.legFrom, target), Math.hypot(f.x - target[0], f.z - target[1]), detour) : Math.hypot(f.x - this.anchor[0], f.z - this.anchor[1]);
       if (!going && this.toPlace) off = Math.min(off, seg(f.x, f.z, this.toPlace, this.anchor));      // where the cue left you, your place, or between
-      const leg = !going && off > 0.5 ? this.nextLeg() : null;      // setting off a moment early for where you go next
-      if (leg) off = Math.min(off, seg(f.x, f.z, this.anchor, leg), Math.hypot(f.x - leg[0], f.z - leg[1]));
+      const route = !going && off > 0.5 ? this.nextRoute() : [];      // setting off a moment early for where you go next, all the way there
+      for (let k = 0, from = this.anchor; k < route.length; from = route[k++]) off = Math.min(off, seg(f.x, f.z, from, route[k]));
+      // to or from the table, close round the steps is the way; the long way, round behind the chairs and in by the wall, is no slip either
+      if (going && this.list && byTable(this.list, this.i)) {
+        const wide = ['w_tabA2', 'w_tabB2', 'w_tabC2'].map(spot);
+        for (const way of [[start, ...wide, goal], [start, ...wide.reverse(), goal]]) for (let k = 1; k < way.length; k++) off = Math.min(off, seg(f.x, f.z, way[k - 1], way[k]));
+      }
       const limit = going ? 2.6 : 1.3;
       const closing = off < (this.lastOff == null ? off : this.lastOff) - 1e-4;     // coming back is always allowed
       this.lastOff = off;
@@ -2092,9 +2440,24 @@
         c.crossed = true;
         d.mistake('You crossed the altar steps', 'The altar steps are for the altar: go round on the floor.', this.beat);
       }
+      // a way that goes by the side of the altar (down after the Ablutions, up for the veil, down with the candle) is not to be cut short down the front:
+      // in front of the footpace, on the lower steps, is only ever the front. A slip, but no more: the Mass is not left
+      // Once you are out at the side, past the end of the second step, you went by the side, and the rest of the way is yours
+      const walk = going && this.list && this.list === (this.beat && this.beat.tracks[d.player]) ? bySide(this.list, this.i) : -1;
+      if (walk >= 0) {
+        const key = d.index + ':' + walk, [, second, top] = C.LAYOUT.steps;
+        if (this.sideKey !== key) { this.sideKey = key; this.sideReached = false; this.sideSlip = false; }
+        if (Math.abs(f.x) > second[0]) this.sideReached = true;
+        // up or down the front crosses the second step; along the first, where the servers kneel, is only on the way round the column
+        if (!this.sideReached && !this.sideSlip && C.heightAt(f.x, f.z) > C.LAYOUT.step + 0.01 && Math.abs(f.x) < top[0] && f.z > top[1] + 0.05) {
+          this.sideSlip = true;
+          const down = C.heightAt(this.legFrom[0], this.legFrom[1]) > C.heightAt(target[0], target[1]);
+          d.mistake(down ? 'You came down the front of the altar steps' : 'You went up the front of the altar steps', 'Go by the side of the altar, round the outside of the column.', this.beat);
+        }
+      }
       const [low, second] = C.LAYOUT.steps;
       const inAltar = (x, z) => Math.abs(x) < low[0] + 0.05 && z < second[1] + 0.1 && z > C.LAYOUT.wallBack;      // the first step is where you kneel: above it is the altar's
-      const entitled = going ? inAltar(target[0], target[1]) || inAltar(this.legFrom[0], this.legFrom[1]) : inAltar(this.anchor[0], this.anchor[1]) || (leg && inAltar(leg[0], leg[1]));
+      const entitled = going ? inAltar(target[0], target[1]) || inAltar(this.legFrom[0], this.legFrom[1]) : inAltar(this.anchor[0], this.anchor[1]) || route.some(p => inAltar(p[0], p[1]));
       if (inAltar(f.x, f.z) && !entitled && off > 1.2) {     // on your way across the end of the steps is no offence; off it is
         this.altarT = (this.altarT || 0) + dt;
         if (this.altarT > 0.6 && !closing) {
@@ -2785,7 +3148,7 @@
         const c = CART.nearest(f.x, f.z, 2.6);
         if (!c || f.posture !== 'stand') return;
         CART.driving = c; f.pose = {}; f.walk = null; f.turn = null; f.manualWalk = false; f.walkingManual = 0;
-        f.heading = c.h; f.rideY = CART.seatLift; f.sit();
+        f.heading = c.h; f.rideY = CART.seatLift; f.sit('sit');
         Cam.offset = 0;
         audio();
       }
@@ -2799,7 +3162,7 @@
       if (at) { f.x = at[0]; f.z = at[1]; }
       if (!quiet) f.stand(); else if (f.posture !== 'stand') f.stand();
       Cam.offset = 0;
-      if (this.hum) this.hum.gain.gain.value = 0;
+      if (this.hum) { const g = this.hum.gain.gain, t = this.hum.a.currentTime; g.cancelScheduledValues(t); g.setValueAtTime(0, t); g.__lv = 0; g.__t = t; }
     },
     /** Something on wheels has reached you. Moving, it knocks you flat and clear of it; barely moving, it just shoves you aside. */
     struck(hit) {
@@ -2932,13 +3295,13 @@
       const a = audio(); if (!a) return;
       if (!this.hum) {
         const o = a.createOscillator(), gain = a.createGain(), filter = a.createBiquadFilter();
-        o.type = 'sawtooth'; filter.type = 'lowpass'; filter.frequency.value = 420; gain.gain.value = 0;
+        o.type = 'sawtooth'; filter.type = 'lowpass'; filter.frequency.value = 420; gain.gain.value = 0; gain.gain.setValueAtTime(0, a.currentTime); gain.gain.__lv = 0; gain.gain.__t = a.currentTime;
         o.connect(filter); filter.connect(gain); gain.connect(a.mix.master); o.start();
         this.hum = { o, gain, a };
       }
       const s = Math.abs(speed) / CART.TOP;
-      this.hum.o.frequency.setTargetAtTime(58 + s * 150, a.currentTime, 0.08);
-      this.hum.gain.gain.setTargetAtTime(CART.driving ? 0.012 + s * 0.022 : 0, a.currentTime, 0.1);
+      glide(a, this.hum.o.frequency, 58 + s * 150, 0.08);
+      glide(a, this.hum.gain.gain, CART.driving ? 0.012 + s * 0.022 : 0, 0.1);
     },
     bump(hard) {
       if (!opts.sound) return;
@@ -3474,7 +3837,7 @@
     for (const [r, f] of Object.entries(FIG)) {
       f.gestures = []; f.walk = null; f.turn = null; f.legAnim = null; f.lift = null; f.out = false; f.base = null;
       f.keepBehind = null; f.stepping = false; f.walkLook = null; f.tilt = 0; f.jolt = 0; f.blockedBy = null; f.blockedT = 0; f.isPlayer = false; f.bumps = 0; f.bumpAt = null; f.blockSlipAt = null;
-      f.bowLevel = 0; f.nodT = 0; f.posture = 'stand'; f.legPose = [0, 0, 0, 0, window.FigureDims.hip, 0];
+      f.bowLevel = 0; f.nodT = 0; f.grip = null; f.posture = 'stand'; f.legPose = [0, 0, 0, 0, window.FigureDims.hip, 0];
       const s = C.SPOTS[start[r]]; f.place(s[0], s[1], s[2]); f.y = 0;
       Props.syncHands(r);
     }
@@ -3500,7 +3863,7 @@
     youRing.visible = kind === 'play' && !o.choir;
     Grab.reset();
     Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false; Player.late = null; Player.early = [];
-    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.toPlace = null; Player.sigOnDone = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0;
+    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.toPlace = null; Player.sigOnDone = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0; Player.sideKey = null;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
     $('#timebar').hidden = kind !== 'watch';
@@ -3522,7 +3885,7 @@
     if (director !== ahead) return;      // something else was started meanwhile
     ahead.stop();
     director = d; Player.d = d;
-    Object.assign(Player, { anchor: null, toPlace: null, sigOnDone: null, lastOff: null, straying: false, altarT: 0, lastGo: null, lastFace: null, cur: null });      // your place is where you are taken up
+    Object.assign(Player, { anchor: null, toPlace: null, sigOnDone: null, lastOff: null, straying: false, altarT: 0, sideKey: null, lastGo: null, lastFace: null, cur: null });      // your place is where you are taken up
     if (!line.saves[k]) { UI.toast('The Mass did not reach ' + d.beats[k].part + ': starting from the beginning.'); return d.run(); }
     line.d = d; line.restore(k);
   }
