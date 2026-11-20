@@ -64,6 +64,7 @@
     // the way between (w_ marks a point on the way that the player is walked through; it has no heading)
     'w_sac': [-10.8, 5.5], 'w_hall': [-10.8, 3.95], 'w_thr': [-9.4, 3.95],
     'w_cE': [1.0, 2.31], 'w_cG': [-1.0, 2.31],      // the lower lane when the servers change sides: they pass, not meet
+    'w_passG': [-0.3, 2.6],      // a step back into it from the Gospel side of the middle, behind the other server setting off along the steps
     'w_stG': [-1.0, 1.05], 'w_stE': [1.0, 1.05],     // up at the corners: nobody crosses the top step behind the priest
     'w_tabA': [3.05, 1.45], 'w_tabB': [3.05, 0.75], 'w_tabC': [3.05, 0.2],      // A1's way to the table: down the walkway between the column and the frame, past the front of the chairs
     'w_tabA2': [4.4, 2.95], 'w_tabB2': [4.4, 0.75], 'w_tabC2': [4.6, -1.45],      // A2's: round in front of the chairs, in through the frame, and down by the wall: the two never want the same way
@@ -134,7 +135,7 @@
     'cred.bells': [3.33, 0.92, -2.2, 0], 'cred.tray': [3.33, 0.92, -2.0, 0], 'cred.paten': [3.54, 0.92, -2.07, 0],
     'cred.towel': [3.1, 0.92, -1.96, 0],
     'altar.E': [0.8, 1.45, -0.95, 0], 'altar.G': [-0.8, 1.45, -0.95, -0.52],
-    'altar.C': [0, 1.45, -0.95, 0], 'altar.veil': [0.72, 1.45, -1.0, 0],      // folded at the Offertory: on the Epistle side, back from the edge, the cross end to the front
+    'altar.C': [0, 1.45, -0.95, 0], 'altar.veil': [0.945, 1.45, -1.0, 0],      // folded at the Offertory: across the Epistle end, back from the front, the cross on top and its end draped over the side
     // the veil laid out on the Gospel side, its cross panel hanging over the front edge (z −0.6); the burse at the back of the mensa just behind it
     // (the veil's place is its centre: placed here just its front third, the cross panel, hangs over the edge, clear of the capitals below)
     'altar.veilG': [-0.55, 1.45, -0.683, 0], 'altar.burseG': [-0.55, 1.45, -1.05, 0],
@@ -691,16 +692,17 @@
       B({ A2: 'pour water', note: 'Then water on top of it.' });
       B({ A1: 'turn ccw epistle; go cred1; put wine tray', A2: 'turn cw epistle; go cred2; put water tray', P: 'g drink; go P.mid; g wipeChalice' });
       B({ A1: 'go plateTop; take paten; go cred1; put paten cred.paten', note: 'A1 retrieves the paten.', cite: 'SV p. 23' });
-      // A1 leads from the table to the far, Gospel, side of the middle: from there each goes round his own side, and comes back to the
-      // same place. Then they cross going up the front, each straight up on the diagonal, A2 once A1 is past
-      B({ A1: `${fromTable}; go midL; sync bookGen; gen; via w_colG; via w_sideG; go topG; take missal`,
-          A2: `wait 1; ${fromTable}; go midR; sync bookGen; gen; via w_colE; via w_sideE; go topE; take veil`,
-          note: 'Round the steps one behind the other, A1 first, to the Gospel side of the middle; genuflect together. Then both at once the long way round, each by his own side: A1 round the Gospel column and up the side for the Missal (drag it with the left hand), A2 round the Epistle column and up the side for the veil.',
-          noteA2: 'Round the steps behind A1 and stop on the Epistle side of the middle; genuflect together. Then round the Epistle column and up the side of the steps for the chalice veil, while A1 goes round the other side for the Missal.',
+      // A2 leads from the table to the far, Gospel, side of the middle, as after the Lavabo. Then they cross at once, each to go round
+      // the other side: A1 straight off along the foot of the steps, A2 back into the lane behind him. With the book and the veil they
+      // come straight down the front, each to his own side of the middle, and cross again going up the front, each straight up on the diagonal, A2 once A1 is past
+      B({ A1: `wait 1; ${fromTable}; go midR; sync bookGen; gen; via w_colG; via w_sideG; go topG; take missal`,
+          A2: `${fromTable}; go midL; sync bookGen; gen; via w_passG; via w_cE; via w_colE; via w_sideE; go topE; take veil`,
+          note: 'Round the steps one behind the other, A2 first since he goes to the far side; genuflect together. Then at once turn to your left and go the long way round the Gospel side, along the foot of the steps, round the column and up the side for the Missal (drag it with the left hand); A2 passes behind you on his way round the Epistle side for the veil.',
+          noteA2: 'Round the steps ahead of A1, to the Gospel side of the middle; genuflect together. Then at once step back and pass behind him, as he sets off for the Gospel side, and go round the Epistle column and up the side of the steps for the chalice veil.',
           cite: 'SV p. 24; round the sides as served at St. Vitus' });
-      B({ A1: 'via w_sideG; via w_colG; go midL; sync bookGen2; gen; go topE; put missal altar.E', A2: 'via w_sideE; via w_colE; go midR; sync bookGen2; gen; wait 1; go veilG; put veil altar.veilG',
-          note: 'Both back down the same way, round the columns, to genuflect together in the middle. Then up the front, crossing: A1 straight up on the diagonal to the Epistle side with the Missal, and A2, as soon as there is room behind him, straight up on the diagonal to the Gospel side with the veil.',
-          noteA2: 'Back down the Epistle side and round the column to genuflect with A1. Once he is past you going up, straight up on the diagonal to the Gospel side, and lay the veil out there: set it down folded across the front of the mensa, the cross on top, then take its front edge near the ends and draw it down over the edge of the altar: the cross panel goes over and hangs, facing out, and the rest comes out from under it to lie back on the mensa. Its back is never seen. It waits there for the priest.', cite: 'SV p. 24; laid out and held as served at St. Vitus' });
+      B({ A1: 'go midL; sync bookGen2; gen; go topE; put missal altar.E', A2: 'go midR; sync bookGen2; gen; wait 1; go veilG; put veil altar.veilG',
+          note: 'Both straight down the front of the steps — no need to go round again — to genuflect together in the middle. Then up the front, crossing: A1 straight up on the diagonal to the Epistle side with the Missal, and A2, as soon as there is room behind him, straight up on the diagonal to the Gospel side with the veil.',
+          noteA2: 'Straight down the front of the steps with the veil, to the Epistle side of the middle, to genuflect with A1. Once he is past you going up, straight up on the diagonal to the Gospel side, and lay the veil out there: set it down folded across the front of the mensa, the cross on top, then take its front edge near the ends and draw it down over the edge of the altar: the cross panel goes over and hangs, facing out, and the rest comes out from under it to lie back on the mensa. Its back is never seen. It waits there for the priest.', cite: 'SV p. 24; laid out and held as served at St. Vitus' });
       B({ A2: 'take burse; hold burse', note: 'Take up the burse from the back of the altar in both hands and hold it open, standing on its edge, over the veil at the priest’s left, its face to him: he slips the folded corporal into it.', cite: 'SV p. 24; laid out and held as served at St. Vitus' });
       B({ P: 'g foldCorporal; signal corpIn; g chaliceBack', A2: 'waitsig corpIn; put burse altar.burseG; take veil; hold veil', note: 'When the corporal is in, lay the burse at the back of the mensa, just behind the veil. Then take the veil up by its two back corners and hold it out over the front of the altar, a little low, its cross side towards him: he takes it by the top edge, and its back is never seen.', cite: 'SV p. 24; laid out and held as served at St. Vitus' });
       B({ P: 'take veil; signal veilTaken; g veilChalice; signal veiled', A2: 'waitsig veilTaken; take burse; waitsig veiled; give burse P', note: 'Take up the burse again, and once he has veiled the chalice turn to face him — he turns to you — and hold it up between you, upright on its edge with the cross towards him. He takes it by its sides and lays it on the veiled chalice.', cite: 'SV p. 24; laid out and held as served at St. Vitus' });

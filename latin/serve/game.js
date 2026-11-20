@@ -898,12 +898,15 @@
         this.pinVeil = null;
         if (where === 'altar.veilG') { this.veilFolded = false; PROPS.veil.obj.userData.lay(this.veilEdge()); }      // laid out, the cross over the front: however it got there
         else PROPS.veil.obj.userData.setState(where === 'chalice' ? 'draped' : this.veilFolded ? 'folded' : 'flat');
+        if (where === 'altar.veil') PROPS.veil.obj.userData.set({ side: this.veilSide(), sideK: 1 });      // its end over the side of the altar
       }
       if (prev) this.syncHands(prev);
     },
     /** Whoever had it in a hold lets go of it. */
     letGo(role, p) { const f = role && FIG[role]; if (f && f.grip && f.grip.prop === p) f.grip = null; },
     /** The veil taken up by its back edge, hanging from it. */
+    /** Folded on the Epistle side at the Offertory, where the side edge of the altar (over its cloth) falls in the veil's own frame. */
+    veilSide() { return C.LAYOUT.mensa.x + 0.045 - C.PLACES['altar.veil'][0]; },
     hanging() { return PROPS.veil.obj.userData.shape().hold > 0.5 && !!this.pinVeil; },
     /** Where the front edge of the altar is, in the frame of the veil laid on the Gospel side. */
     veilEdge() { return C.LAYOUT.mensa.z1 - C.PLACES['altar.veilG'][2]; },
@@ -1006,7 +1009,7 @@
   const SPOT_TEXT = {
     sacA1: 'your place in the sacristy', sacA2: 'your place in the sacristy',
     sacP: 'the priest’s place in the sacristy', thrA2: 'the door into the church, by the holy-water font', thrA1: 'the door into the church, behind A2',
-    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_tabA: 'between the column and the sedilia, on your way round to the table', w_tabA2: 'out in front of the chairs, on your way round to the table', w_tabB: 'behind the chairs, on your way round', w_tabB2: 'past the last chair, by the wall', w_tabC: 'through the frame, towards the table', w_tabC2: 'past the frame, towards the table', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
+    w_sac: 'the sacristy door', w_hall: 'the sacristy hall', w_thr: 'the sacristy hall, by the door', w_door: 'the door into the church, past the rail', w_cE: 'across, in the lower lane', w_cG: 'across, in the lower lane', w_passG: 'a step back, to pass behind the other server', w_tabA: 'between the column and the sedilia, on your way round to the table', w_tabA2: 'out in front of the chairs, on your way round to the table', w_tabB: 'behind the chairs, on your way round', w_tabB2: 'past the last chair, by the wall', w_tabC: 'through the frame, towards the table', w_tabC2: 'past the frame, towards the table', w_stG: 'the Gospel corner of the steps', w_stE: 'the Epistle corner of the steps', w_sed: 'the near side of the column, on your way to the chair', w_sedOut: 'the far side of the column, on your way back',
     w_rail: 'the end of the altar rail', w_gos: 'the gates, on the Gospel side', w_gosIn: 'through the gates', w_epi: 'the gates, on the Epistle side', w_epiIn: 'through the gates',
     cfR: 'the priest’s right at the foot of the altar (close formation)', cfL: 'the priest’s left at the foot of the altar (close formation)',
     cfL2: 'a step out to the side on the Gospel side, giving the priest room',
@@ -1828,6 +1831,8 @@
         { t: 1, R: ends(1), L: ends(-1), spine: 0.4, hands: P },
       ], dur(1.4), { onTick: t => { const e = ease(t), lift = Math.sin(Math.PI * Math.min(1, t * 1.2)) * 0.04 * (1 - t); pin.at.lerpVectors(from, to, e); pin.at.y += lift; pin.heading = h0 + wrap(ry - h0) * e; } });
       Props.place('veil', where, true); Props.pinVeil = null;
+      // and let go of, its end settling down over the side of the altar
+      if (where === 'altar.veil') { const side = Props.veilSide(); return f.gesture([{ t: 0 }, { t: 1 }], dur(0.6), { onTick: t => U.set({ side, sideK: ease(t / 0.8) }) }); }
       await f.gesture([{ t: 0 }, { t: 1 }], dur(0.5));      // and the hands come away
     },
     doffBiretta: f => f.gesture([{ t: 0 }, { t: 0.45, R: [-0.06, 0.82, 0.08] }, { t: 1, R: [-0.12, 0.3, 0.32] }], dur(0.7)),
@@ -2139,8 +2144,8 @@
           continue;
         }
         this.nextPoint = null;
-        if (d.player === 'P' && (PRIEST_HANDS.has(verb) || verb === 'face' || verb === 'wait')) { if (verb === 'face') this.lastFace = headingFor('P', args[0]); await this.auto(d, c, beat); continue; }
-        if (verb === 'via' || verb === 'face' || verb === 'wait') { if (verb === 'face') this.lastFace = headingFor(d.player, args[0]); continue; }
+        if (d.player === 'P' && (PRIEST_HANDS.has(verb) || verb === 'face' || verb === 'wait')) { if (verb === 'face') this.faceTo(args[0]); await this.auto(d, c, beat); continue; }
+        if (verb === 'via' || verb === 'face' || verb === 'wait') { if (verb === 'face') this.faceTo(args[0]); continue; }
         // a sign given by doing something (A1's genuflection with the Missal) is given when you do it, not when you arrive to do it
         if (verb === 'signal' && list[i + 1] && BODY_VERBS.has(C.parse(list[i + 1]).verb)) { this.sigOnDone = args[0]; continue; }
         if (!KEY_VERBS.has(verb)) { await d.exec(d.player, c, beat); continue; }
@@ -2160,7 +2165,7 @@
         this.nextTogether = togetherKey(list, i);
         await this.expect(d, c, beat);
         if (d.player === 'P' && /^(go|turn|faceto)$/.test(verb)) await this.auto(d, onward(list, i).replace(/ slow$/, ''), beat);      // the last steps into place, so that his hands find the altar
-        if (verb === 'go') { this.lastFace = spot(args[0])[2]; this.legOpen = false; }
+        if (verb === 'go') { this.lastFace = spot(args[0])[2]; this.facePerson = false; this.legOpen = false; }
       }
       this.cur = null; this.list = null; if (this.then && !this.then.far) this.then = null; UI.remind(null);
       this.owed = []; this.stage = Infinity; this.legOpen = false;      // your part in this beat is over: nobody waits on it any more
@@ -2365,7 +2370,7 @@
     doneEnough() {
       const c = this.cur, f = FIG[this.d.player];
       this.done();
-      if (c.verb === 'turn' || c.verb === 'faceto') this.lastFace = f.heading;      // facing the way you turned to is facing the right way
+      if (c.verb === 'turn' || c.verb === 'faceto') { this.faceTo(c.verb === 'turn' ? c.args[1] : c.args[0]); this.lastFace = f.heading; }      // facing the way you turned to is facing the right way
     },
     /** How long, in real seconds, the Mass gives you for this before it has gone on without you. */
     allow(d, verb, args) {
@@ -2384,13 +2389,26 @@
       return 7 * Figure.slow;
     },
 
-    /** Which way you should be facing, in words. */
+    /** Out of church (the sacristy, the hall, the door), facing someone, or the place someone stands, is for that moment only: once the Mass has
+     *  moved on you may turn as you need. In church it holds, as everything else does, until the next cue says otherwise. */
+    faceTo(target) {
+      this.lastFace = headingFor(this.d.player, target);
+      this.facePerson = /^(P|A1|A2|C\d)$/.test(target) || /^P\./.test(target) || /A[12]$/.test(target);
+      this.faceWho = this.facePerson ? (target === 'P' || /^P\./.test(target) ? 'the priest' : /^C/.test(target) ? 'the communicant' : 'the other server') : null;
+      this.faceIdx = this.d.index;
+    },
+    /** Which way you should be facing, in words: the altar, the people and the sides only in church; elsewhere, what is actually there. */
     faceWord() {
+      if (this.facePerson && this.faceWho) return this.faceWho;
+      { const f = FIG[this.d.player], here = Plan.regionAt(f.x, f.z);
+        if (here === 'The sacristy') return 'the cross on the sacristy wall';
+        if (!/sanctuary|nave/i.test(here)) return this.lastGo && /thr/.test(this.lastGo) ? 'the door into the church' : 'the way your place faces'; }
       const a = this.lastFace, is = t => Math.abs(wrap(a - t)) < 0.8, P = FIG.P, f = FIG[this.d.player];
       return is(Math.PI) ? 'the altar' : is(0) ? 'the people' : is(Math.PI / 2) ? 'the Epistle side' : is(-Math.PI / 2) ? 'the Gospel side' : Math.abs(wrap(a - Math.atan2(P.x - f.x, P.z - f.z))) < 0.8 ? 'the priest' : 'the way your place faces';
     },
     /** Standing the wrong way in your place: a word from the coach, then a slip. Nobody turns you. */
     checkFacing(d, f, c, dt) {
+      if (this.facePerson && d.index !== this.faceIdx && !/sanctuary|nave/i.test(Plan.regionAt(f.x, f.z))) { this.lastFace = null; this.facePerson = false; }      // out of church, turning to someone was for that moment, and it has passed
       if (this.lastFace == null || (c && (c.verb === 'go' || c.verb === 'turn' || c.verb === 'faceto' || USE_FIT.has(c.verb)))) { this.faceT = 0; this.faceSlipped = false; this.faceToasted = false; return; }
       if (this.autoing || f.walk || f.turn || f.manualWalk || f.posture === 'sit') return;      // busy with something, on the way round, or seated
       { const nx = this.next(); if (nx && nx.verb === 'faceto') { this.faceT = 0; return; } }      // already turning to where you are about to be facing
@@ -2552,8 +2570,8 @@
       const c = this.cur;
       if (!c) return;
       if (this.sigOnDone) { this.d.signal(this.d.player, this.sigOnDone, c.beat); this.sigOnDone = null; }
-      if (c.verb === 'turn') this.lastFace = headingFor(this.d.player, c.args[1]);
-      if (c.verb === 'faceto') this.lastFace = headingFor(this.d.player, c.args[0]);
+      if (c.verb === 'turn') this.faceTo(c.args[1]);
+      if (c.verb === 'faceto') this.faceTo(c.args[0]);
       if (c.verb === 'go') {
         if (/^w_/.test(c.args[0]) && c.next) this.owed.push({ at: spot(c.args[0]), next: c.next, goal: this.legOpen ? this.legGoal : null });
         else { this.stage += this.owed.length + 1; this.owed = []; }
@@ -3863,7 +3881,7 @@
     youRing.visible = kind === 'play' && !o.choir;
     Grab.reset();
     Player.d = director; Player.cur = null; Player.lastGo = null; Player.lastFace = null; Player.autoing = false; Player.warnedPace = false; Player.late = null; Player.early = [];
-    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.toPlace = null; Player.sigOnDone = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0; Player.sideKey = null;
+    Player.unbowed = null; Player.unknelt = false; Player.unheld = false; Player.then = null; Player.faceT = 0; Player.faceSlipped = false; Player.faceToasted = false; Player.side = 0; Player.genSinceSide = false; Player.anchor = null; Player.toPlace = null; Player.sigOnDone = null; Player.lastOff = null; Player.straying = false; Player.altarT = 0; Player.sideKey = null; Player.facePerson = false;
     document.body.dataset.mode = kind;
     document.body.dataset.coach = o.mode === 'coach' ? '1' : '0';
     $('#timebar').hidden = kind !== 'watch';

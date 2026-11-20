@@ -396,7 +396,7 @@
       lining.receiveShadow = true; g.add(lining);
       // hold: how far it is taken up by its back edge (0: as the other three say). Held up there, at (px, py, pz) in its own frame, it hangs from that edge:
       // straight down to the mensa (its top is y 0 here, its front edge at z = edge), along it, and over the front; or, held out beyond the edge, straight down
-      const st = { drape: 1, f1: 0, f2: 0, lift: 0, hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1 }, smooth = t => t * t * (3 - 2 * t);
+      const st = { drape: 1, f1: 0, f2: 0, lift: 0, hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1, side: 99, sideK: 0 }, smooth = t => t * t * (3 - 2 * t);
       const hung = (x, z, out) => {
         const rel = z + S / 2, over = st.table && st.pz < st.edge;
         const d1 = over ? Math.max(0, st.py) : Infinity, d2 = over ? st.edge - st.pz : 0;
@@ -434,6 +434,9 @@
           fz = third + dz * c - my * s; fy = floor + lift - 0.007 * k2 + dz * s + my * c;
           if (st.rest) fy = Math.max(fy, lowest);
         }
+        // laid near the end of the altar, what lies beyond its side edge (local x = side) bends down over it, sideK of the way to hanging straight;
+        // the layers keep their order, the top one outermost
+        if (st.sideK > 0 && fx > st.side) { const dd = fx - st.side, th = st.sideK * Math.PI / 2, c = Math.cos(th), sn = Math.sin(th); fx = st.side + dd * c + fy * sn; fy = fy * c - dd * sn; }
         // over the chalice: flat on the pall, then falling all round, a little out from the cup
         const r = Math.max(Math.abs(x), Math.abs(z)), pall = 0.066;
         let dx = x, dz = z, dy = 0.258;
@@ -451,11 +454,11 @@
         a.needsUpdate = true; geo.computeVertexNormals(); geo.computeBoundingSphere();
       };
       const STATES = { draped: { drape: 1, f1: 0, f2: 0, lift: 0 }, held: { drape: 0, f1: 0, f2: 0, lift: 0 }, flat: { drape: 0, f1: 0, f2: 0, lift: 0 }, folded: { drape: 0, f1: Math.PI, f2: Math.PI, lift: 0 } };
-      const UNHELD = { hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1 };
+      const UNHELD = { hold: 0, px: 0, py: 0, pz: -S / 2, edge: 99, table: 1, rest: 0, roll: -1, side: 99, sideK: 0 };
       g.userData.setState = s => { Object.assign(st, UNHELD, STATES[s] || STATES.flat); apply(); };
       g.userData.S = S;
       /** Laid on the altar, opened out, the cross panel hanging over its front edge: `edge` is that edge in the veil's own frame. */
-      g.userData.lay = edge => { Object.assign(st, STATES.flat, { hold: 1, px: 0, py: 0, pz: -S / 2, edge, table: 1, rest: 0, roll: -1 }); apply(); };
+      g.userData.lay = edge => { Object.assign(st, STATES.flat, { hold: 1, px: 0, py: 0, pz: -S / 2, edge, table: 1, rest: 0, roll: -1, side: 99, sideK: 0 }); apply(); };
       /** Part way between shapes, as a hand moves it. */
       g.userData.set = o => { Object.assign(st, o); apply(); };
       g.userData.shape = () => Object.assign({}, st);
