@@ -1016,13 +1016,13 @@
     xE: 'your place on the Epistle side (extended formation)', xG: 'your place on the Gospel side (extended formation)',
     mid: 'the middle, at the foot of the altar', midR: 'the middle at the foot of the altar, right of centre', midL: 'the middle at the foot of the altar, left of centre',
     ftE: 'the foot of the steps on the Epistle side', topE: 'the top step at the Epistle corner', topG: 'the top step at the Gospel corner',
-    st2G: 'the second step on the Gospel side, facing the priest', veilTop: 'the top step, on the priest’s Epistle side', veilG: 'the top step at the priest’s left',
+    st2G: 'the second step on the Gospel side, facing the priest', bookG: 'the top step at the Gospel side, turned to the Missal', veilTop: 'the top step, on the priest’s Epistle side', veilG: 'the top step at the priest’s left',
     gradE: 'the Epistle end of the altar, by the gradine', plateTop: 'the top step, right of centre',
     elR: 'the edge of the top step at the priest’s right', elL: 'the edge of the top step at the priest’s left',
     comR: 'the edge of the top step for Communion', comL: 'the edge of the top step for Communion', comS: 'the edge of the top step, at the centre',
     abl1: 'the top step, half way across', cruWait1: 'the side of the steps, by the table', cruWait2: 'the side of the steps, by the table, beside A1',
     cruWaitS: 'the side of the steps, by the table', cruA1: 'the second step at the Epistle end', cruA2: 'the second step at the Epistle end',
-    'P.cruet': 'where the priest will stand, at the end of the top step', cruS: 'the second step at the Epistle end', ablA1: 'the second step at the Epistle end', ablS: 'the second step at the Epistle end', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
+    'P.cruet': 'where the priest will stand, at the end of the top step', 'P.abl': 'the Epistle corner of the altar', ablA2: 'the second step at the Epistle end', cruS: 'the second step at the Epistle end', ablA1: 'the second step at the Epistle end', ablS: 'the second step at the Epistle end', cred: 'the credence table', cred1: 'the credence table', cred2: 'the credence table',
     sed: 'the sedilia (the priest’s chair)', stoolE: 'your chair, beside the sedilia', stoolG: 'your chair, in the corner by the lectern', 'K.E': 'your place on the choir bench', 'K.G': 'your place on the choir bench', comKE: 'the top step, beside the servers', comKG: 'the top step, beside the servers',
     gateE: 'the Epistle-side gate', gateG: 'the Gospel-side gate', midRail: 'the middle, by the gates',
     clothE: 'the rail cloth on the Epistle side', clothG: 'the rail cloth on the Gospel side',
@@ -1224,6 +1224,12 @@
           // "(the sermon)" and the like tell what he is doing: once he walks away from it, it is done, and the top of the screen is empty until he next speaks
           if (/^(go|via) /.test(list[i]) && this.cap && this.cap[2] === 'P' && this.cap[1].la.startsWith('(')) { this.cap = null; if (!this.quiet) $('#caption').hidden = true; }
         }
+        // his whole walk, through the points on the way: how far along it he is, to keep step with yours
+        if (server && /^(go|via) /.test(list[i]) && !/^(go|via|pace) /.test(list[i - 1] || '')) {
+          let j = i; while (/^(go|via|pace) /.test(list[j + 1] || '')) j++;
+          const last = list.slice(i, j + 1).filter(c => /^(go|via) /.test(c)).pop(), f = FIG[role];
+          f.legEnd = spot(C.parse(last).args[0]); f.legTotal = Math.hypot(f.legEnd[0] - f.x, f.legEnd[1] - f.z) || 1;
+        }
         await this.exec(role, onward(list, i), beat);
       }
     }
@@ -1284,14 +1290,16 @@
     /** Walking alongside you, he does not stride ahead: once he is further along his way than you are along yours, he eases off. */
     pacerFor(role, s) {
       if (!/^A[12]$/.test(this.player || '') || !/^A[12]$/.test(role) || role === this.player) return null;
-      const me = FIG[role], you = FIG[this.player], total = Math.hypot(s[0] - me.x, s[1] - me.z) || 1;
+      // both measured over the whole walk, points on the way and all: his part of a walk to the next point against your part of a walk
+      // across the church would always look ahead, and keep him at his slowest
+      const me = FIG[role], you = FIG[this.player], end = me.legEnd || s, total = me.legEnd ? me.legTotal : Math.hypot(s[0] - me.x, s[1] - me.z) || 1;
       let yours = null;
       return () => {
         const c = Player.cur;
         if (!c || c.verb !== 'go' || UI.paused) return 1;      // you are not walking: he goes at his own pace
-        const goal = Player.legOpen && Player.legGoal ? Player.legGoal : spot(c.args[0]);
-        if (!yours || yours.goal !== goal) yours = { goal, d: Math.hypot(goal[0] - you.x, goal[1] - you.z) || 1 };
-        const ahead = (1 - Math.hypot(s[0] - me.x, s[1] - me.z) / total) - (1 - Math.hypot(goal[0] - you.x, goal[1] - you.z) / yours.d) - 0.12;
+        const goal = Player.legOpen && Player.legGoal ? Player.legGoal : spot(c.args[0]), from = Player.legOpen && Player.legStart;
+        if (!yours || yours.goal !== goal) yours = { goal, d: (from ? Math.hypot(goal[0] - from[0], goal[1] - from[1]) : Math.hypot(goal[0] - you.x, goal[1] - you.z)) || 1 };
+        const ahead = (1 - Math.hypot(end[0] - me.x, end[1] - me.z) / total) - (1 - Math.hypot(goal[0] - you.x, goal[1] - you.z) / yours.d) - 0.12;
         return ahead > 0 ? Math.max(0.65, 1 - ahead * 1.5) : 1;      // easing off, never crawling
       };
     }
@@ -1327,7 +1335,7 @@
           const back = args[1] === 'back';
           // a server stepping backwards down the steps looks over his outer shoulder, at where he is going
           const look = back && role !== 'P' ? { x: s[0] + (f.x >= 0 ? 1.5 : -1.5), z: s[1] } : null;
-          await this.step(f.walkTo(s[0], s[1], { back, look, speed: args[1] === 'slow' ? walk() * 0.22 : back && role !== 'P' ? walk() * BACK : walk(), route: back ? null : Nav.route(f.x, f.z, s[0], s[1]), pacer: this.pacerFor(role, s) }));
+          await this.step(f.walkTo(s[0], s[1], { back, look, speed: args[1] === 'slow' ? walk() * 0.22 : back && role !== 'P' ? walk() * BACK : walk(), route: back ? null : Nav.route(f.x, f.z, s[0], s[1]), pacer: this.pacerFor(role, s), through: verb === 'via' && !back }));      // on the way, he keeps walking: a point passed, not a stop
           if (verb === 'go' && !back && s[2] != null) await this.step(f.turnTo(s[2]));
           return;
         }
@@ -1484,8 +1492,15 @@
       const answer = role !== this.player && lastSay && !yours && !window.__serve.autoplay ? this.nextSay() : null;
       if (answer) {
         const hold = Math.max(2.5, Math.min(10, 1.6 + t.la.length * 0.03));
-        this.ready = { ref: answer, result: Player.ready(this, answer, /^confiteor-m\.0/.test(answer) ? 'You begin the Confiteor' : 'Your response') };
-        await this.step(this.sleep(hold * this.o.speed));      // seconds as you feel them, whatever the speed of the Mass
+        // but only once your hands are free: while you still have something to handle in this moment (the gates at the Last Gospel), the box
+        // would only take your keys from it. Walking is no matter, for the arrows still walk you as you type; nor a bow or a cross, which the
+        // button in the middle does. If you are not free by the time he has finished, the answer is asked for in its own moment
+        const mine = beat.tracks[this.player] || [], handsOn = c => USE_FIT.has(C.parse(c).verb);
+        const free = () => !(Player.beat === beat && Player.list !== mine ? [] : Player.beat === beat ? mine.slice(Player.i) : mine).some(handsOn);
+        let waited = 0;
+        for (; !free() && waited < hold; waited += 0.1) await this.step(this.sleep(0.1 * this.o.speed));
+        if (free()) this.ready = { ref: answer, result: Player.ready(this, answer, /^confiteor-m\.0/.test(answer) ? 'You begin the Confiteor' : 'Your response') };
+        if (hold > waited) await this.step(this.sleep((hold - waited) * this.o.speed));      // seconds as you feel them, whatever the speed of the Mass
         if (isServer) this.answered[ref] = true;
         return;
       }
@@ -2024,7 +2039,7 @@
     drink: async (d, f) => {
       Props.attach('chalice', 'P');
       await f.gesture([{ t: 0 }, { t: 0.4, R: [-0.03, 0.6, 0.2], L: [0.03, 0.56, 0.2], neck: -0.2 }, { t: 0.7, R: [-0.03, 0.6, 0.2], L: [0.03, 0.56, 0.2], neck: -0.2 }, { t: 1 }], dur(1.4));
-      Props.place('chalice', 'altar.C');
+      if (Math.abs(f.x) < 0.45) Props.place('chalice', 'altar.C');      // at the corner he keeps it, and sets it down in the middle
     },
     openTabernacle: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.05, 0.42, 0.55], spine: 0.15 }, { t: 1 }], dur(0.8)); Fix.tab = 1; },
     closeTabernacle: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.05, 0.42, 0.55], spine: 0.15 }, { t: 1 }], dur(0.8)); Fix.tab = 0; },
@@ -2042,7 +2057,7 @@
     },
     putPaten: async (d, f) => { await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.15, 0.12, 0.45], spine: 0.15 }, { t: 1 }], dur(0.7)); if (Props.holder('paten') === 'P') Props.place('paten', 'altar.paten'); if (Props.holder('ciborium') === 'P') Props.place('ciborium', 'tab'); },
     holdChalice: async (d, f) => { Props.attach('chalice', 'P'); f.base = 'holdChalice'; await f.wait(dur(0.5)); },
-    holdFingers: async (d, f) => { if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); f.base = 'fingers'; await f.wait(dur(0.4)); },
+    holdFingers: async (d, f) => { f.base = 'fingers'; await f.wait(dur(0.4)); },      // the chalice kept in his hands, his fingers over it
     wipeChalice: async (d, f) => { f.base = null; if (Props.holder('chalice') === 'P') Props.place('chalice', 'altar.C'); await f.gesture([{ t: 0 }, { t: 0.5, R: [-0.05, 0.2, 0.42], L: [0.05, 0.2, 0.42] }, { t: 1 }], dur(1.0)); },
     /** The chalice set aside; the corporal folded in three, front and back, then right and left; and slipped into the burse the server holds open. */
     foldCorporal: async (d, f) => {
@@ -3697,7 +3712,7 @@
             okSoFar.textContent = said.map(w => w.raw).join(' ').slice(0, Math.round(f.n / Math.max(1, f.total) * t.la.length));
             if (ghost) showGhost(f);
             if (f.n > a.progress) { if (!a.hearing) a.left += (f.n - a.progress) * perLetter; a.progress = f.n; if (a.onType) a.onType(f.n); }      // only getting further along the line keeps you going
-            if (f.done) { if (a.hearing) a.chosen = 0; else a.pick(); }
+            if (f.done) { if (a.hearing) { a.chosen = 0; input.blur(); } else a.pick(); }      // ready before he has finished: your keys are the game's again
           };
           input.addEventListener('input', () => judge(input.value));
           input.addEventListener('keydown', e => {

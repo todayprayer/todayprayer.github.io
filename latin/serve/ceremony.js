@@ -91,6 +91,7 @@
     // on the altar steps
     'topE': [1.0, -0.12, A], 'topG': [-1.0, -0.12, A],
     'st2G': [-1.15, 1.22, toward(-1.15, 1.22, -0.95, -0.22)],
+    'bookG': [-1.45, 0.2, toward(-1.45, 0.2, -0.8, -0.95)],      // A1 at the Gospel: up on the top step, off the priest's right shoulder and clear of the column, turned to the Missal on the diagonal
     'veilTop': [0.78, -0.1, A], 'veilG': [-0.65, -0.3, A],      // close in to the altar, at the priest's left: the veil and burse are worked at arm's length over the mensa
     'gradE': [1.62, -1.12, toward(1.62, -1.12, 1.1, -1.6)],
     'plateTop': [0.6, -0.08, A],
@@ -103,7 +104,8 @@
     'cruOut': [3.6, -0.1],      // A2 coming from the table: outside A1, so he need not pass him
     'cruA1': [2.08, -0.38, toward(2.08, -0.38, 1.5, -0.1)], 'cruA2': [2.08, 0.18, toward(2.08, 0.18, 1.5, -0.1)],      // the middle of the second step (1.9 to 2.25), not its edge
     'cruS': [2.08, -0.1, G],
-    'ablA1': [2.08, -0.38, E], 'ablS': [2.08, -0.1, E],      // the same places, reached from the top step with the back to the priest: then a turn back the way he came
+    'ablA1': [1.97, -0.38, E], 'ablS': [1.97, -0.1, E],      // at the Ablutions: the inner edge of the second step, reached from the top step with the back to the priest; then a turn back the way he came
+    'ablA2': [1.97, 0.18, toward(1.97, 0.18, 1.0, -0.1)],      // and A2 beside him: both within reach of the priest's fingers, held out over the chalice at the corner of the altar
 
     // side furniture
     'cred': [3.3, -1.4, A], 'cred1': [3.08, -1.4, A], 'cred2': [3.55, -1.4, A],
@@ -117,7 +119,7 @@
     // the priest at the altar
     'P.mid': [0, -0.22, A], 'P.epi': [0.95, -0.22, A], 'P.gos': [-0.95, -0.22, A],
     'P.gosBook': [-0.95, -0.22, -2.62], 'P.cruet': [1.5, -0.1, E],      // the Epistle end of the top step, facing the changing-room door
-    'P.ablM': [0.2, -0.22, E], 'P.comm': [0, -0.15, N],
+    'P.ablM': [0.2, -0.22, E], 'P.abl': [1.0, -0.1, E], 'P.comm': [0, -0.15, N],
     'P.lect': [LAYOUT.lectern[0], LAYOUT.lectern[1] - 0.42, N], 'P.lectVia': [-1.6, 2.44, G],
   };
   commX.forEach((x, i) => {
@@ -399,19 +401,20 @@
         note: two ? 'After the Alleluia, A1 goes round the outside of the column to the side of the steps, to move the book; A2 stays.' : 'Stand, genuflect crossing the middle, and go round the column to the side of the steps.',
         cite: two ? 'SV p. 13; at St. Vitus up from the side, not the front' : 'SV p. 33' });
     B({ P: 'go P.mid; g eyesUp; bow deep; say T.munda; up',
-        A1: 'go topE; take missal; turn ccw people; go mid; signal bookGen; gen; go topG; put missal altar.G; turn ccw wall; go mid; gen',
+        A1: 'go topE; take missal; turn ccw people; go mid; signal bookGen; gen; go topG; put missal altar.G; go bookG',
         A2: 'waitsig bookGen; stand',
-        note: 'Up from the side for the Missal; carry it down, genuflect in the middle, set it at about 30° on the Gospel side, then turn to the wall and come down again, genuflecting in the middle.',
+        note: 'Up from the side for the Missal; carry it down, genuflect in the middle, set it at about 30° on the Gospel side, then step back and stay up there, turned to the Missal on the diagonal.',
         noteA2: 'Stand as A1 genuflects in the middle with the Missal.',
         cite: two ? 'SV p. 13: when A1 genuflects, A2 stands' : 'SV p. 33' });
 
     // ── Gospel ───────────────────────────────────────────────────────────────
     part = 'Gospel';
-    B({ P: 'go P.gosBook; say lessons.1', A1: 'go xE; face book', A2: 'face book', note: 'Back to your own place, standing, facing the Missal.', noteA2: 'Stand facing the Missal.', cite: two ? 'SV p. 13' : 'SV p. 33: you end up on the EPISTLE side' });
+    B({ P: 'go P.gosBook; say lessons.1', A1: 'face book', A2: 'face book', note: 'Stay up at the Gospel side, standing, turned to the Missal.', noteA2: 'Stand facing the Missal.', cite: two ? 'SV p. 13' : 'SV p. 33: you end up on the EPISTLE side' });
     B({ S: 'say lessons.2' });
     B({ P: 'g signBook; small; say lessons.3', S: 'small', note: 'Thumb to forehead, lips and breast — standing straight, head not bent to the thumb.', cite: 'SV p. 13' });
     B({ S: 'say lessons.4' });
-    B({ P: 'say T.gospel1; nod', S: 'nod', note: 'Bow at the Holy Name.', cite: 'SV p. 13' });
+    B({ P: 'say T.gospel1; nod', S: 'nod', A1: 'go mid; gen; go xE; face book', note: 'Bow at the Holy Name; then, and only then, come down from the Gospel side, genuflect in the middle and go back to your place, facing the Missal.',
+        noteA2: 'Bow at the Holy Name.', cite: 'SV p. 13; A1 stays up until after the small crosses, as served at St. Vitus' });
     B({ P: 'say T.gospel2; g kissBook', note: 'Cue for “Laus tibi, Christe”: he goes to kiss the Missal.', cite: 'SV p. 13' });
     B({ S: 'say lessons.5' });
     B({ P: 'say T.evangelica', S: sermon ? null : 'face altar; kneel', note: sermon ? '' : 'After “Laus tibi, Christe”, kneel at once in your place.', cite: sermon ? '' : 'SV p. 14' });
@@ -685,9 +688,9 @@
           A2: `waitsig tabClosed; stand; go midL; sync ablGen; gen; wait 0.8; ${toTable}; go cred2; take water`,
           note: 'Once the tabernacle door is closed: genuflect together and go round the steps to the credence, one behind the other; both take the cruets.', cite: 'SV p. 23' });
       B({ A1: 'go abl1; sync abl; pour wine', A2: 'go cruWait2', P: 'go P.ablM; g holdChalice; sync abl', note: 'A1 goes up to the top step and pours wine until he stops holding the chalice tilted. A2 stays below, by the table.', cite: 'SV p. 23' });
-      B({ A1: 'turn cw altar; go ablA1; turn ccw P.cruet; signal a1Down', A2: 'waitsig a1Down; go cruA2', P: 'g drink',
+      B({ A1: 'turn cw altar; go ablA1; turn ccw P.abl; signal a1Down', A2: 'waitsig a1Down; go ablA2', P: 'g drink',
           note: 'A1 turns inwards (clockwise), steps down to the second step and turns back to face the priest; A2 comes up beside him.', cite: 'SV p. 23' });
-      B({ P: 'go P.cruet; g holdFingers', note: 'Only when you are both in place does he come to the end of the step.' });
+      B({ P: 'face altar; g takeChalice; go P.abl; g holdFingers', note: 'Only when you are both in place does he come with the chalice to the Epistle corner of the altar — never out beyond it — and hold his fingers over it.', cite: 'SV p. 23; at the corner as served at St. Vitus' });
       B({ A1: 'pour wine', note: 'Wine over his fingers — a healthy pour, never touching his hands.', cite: 'SV p. 23' });
       B({ A2: 'pour water', note: 'Then water on top of it.' });
       B({ A1: 'turn ccw epistle; go cred1; put wine tray', A2: 'turn cw epistle; go cred2; put water tray', P: 'g drink; go P.mid; g wipeChalice' });
@@ -715,8 +718,8 @@
           one: `waitsig tabClosed; stand; ${candle}; go cred; put sc cred.sc; snuff sc; take wine; take water`,
           note: 'Once the door is closed: take the Sanctus candle off the gradine, then take both cruets.', cite: 'SV pp. 38–39' });
       B({ one: 'go abl1; sync abl; pour wine', P: 'go P.ablM; g holdChalice; sync abl', note: 'Up to the top step; pour until he stops holding the chalice tilted out.', cite: 'SV p. 39' });
-      B({ one: 'turn cw altar; go ablS; turn ccw P.cruet', P: 'g drink', note: 'Turn inwards (clockwise), step down to the second step, and turn back to face him.', cite: 'SV p. 39' });
-      B({ P: 'go P.cruet; g holdFingers', note: 'Only when you are in place does he come to the end of the step.' });
+      B({ one: 'turn cw altar; go ablS; turn ccw P.abl', P: 'g drink', note: 'Turn inwards (clockwise), step down to the second step, and turn back to face him.', cite: 'SV p. 39' });
+      B({ P: 'face altar; g takeChalice; go P.abl; g holdFingers', note: 'Only when you are in place does he come with the chalice to the Epistle corner of the altar — never out beyond it — and hold his fingers over it.', cite: 'SV p. 39; at the corner as served at St. Vitus' });
       B({ one: 'pour wine', note: 'Wine over his fingers from your right hand…' });
       B({ one: 'pour water', note: '…then water from your left. Never touch his hands.' });
       B({ one: 'go cred; put wine tray; put water tray; go plateTop; take paten; go cred; put paten cred.paten', P: 'g drink; go P.mid; g wipeChalice',

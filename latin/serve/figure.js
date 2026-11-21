@@ -548,16 +548,17 @@
     }
     /** One frame of walking. Slows to a stop, makes way, waits, finds another way, and settles for near enough when it must. */
     stepWalk(w, dt) {
-      const finish = () => { this.walk = null; this.stepping = false; this.walkLook = null; this.blockedBy = null; this.blockedT = 0; w.resolve(); };
+      const finish = () => { this.carryV = w.through ? Math.max(0, w.v || 0) : 0; this.walk = null; this.stepping = false; this.walkLook = null; this.blockedBy = null; this.blockedT = 0; w.resolve(); };
       while (w.route && w.route.length && Math.hypot(w.route[0][0] - this.x, w.route[0][1] - this.z) < 0.22) w.route.shift();
       const next = w.route && w.route.length ? w.route[0] : [w.x, w.z];
       const toGoal = Math.hypot(w.x - this.x, w.z - this.z);
       const dx = next[0] - this.x, dz = next[1] - this.z, d = Math.hypot(dx, dz);
       if (toGoal < 0.01) { this.x = w.x; this.z = w.z; return finish(); }
+      if (w.through && toGoal < 0.22 && !(w.route && w.route.length)) return finish();      // a point on the way: walked past, not stopped at
       const ux = dx / (d || 1), uz = dz / (d || 1);
 
       // the pace: a step or two to get going, easing off on arrival and when someone is just ahead
-      let want = w.speed * Math.max(0.4, Math.min(1, toGoal / 0.5)) * (w.pacer ? w.pacer() : 1);      // walking with someone, at their pace
+      let want = w.speed * (w.through ? 1 : Math.max(0.4, Math.min(1, toGoal / 0.5))) * (w.pacer ? w.pacer() : 1);      // walking with someone, at their pace
       for (const o of Figure.bodies) {
         if (o === this || !o.root.visible || w.ghost === o) continue;
         const ox = o.x - this.x, oz = o.z - this.z, od = Math.hypot(ox, oz);
@@ -622,7 +623,7 @@
 
     /** Walk in a straight line; resolves on arrival. opts.back walks backwards without turning. */
     walkTo(x, z, opts = {}) {
-      return new Promise(resolve => { this.walk = { x, z, back: !!opts.back, look: opts.look || null, speed: opts.speed || 1.1, route: opts.route ? opts.route.slice() : null, pacer: opts.pacer || null, resolve }; });
+      return new Promise(resolve => { this.walk = { x, z, back: !!opts.back, look: opts.look || null, speed: opts.speed || 1.1, route: opts.route ? opts.route.slice() : null, pacer: opts.pacer || null, through: !!opts.through, v: this.carryV || 0, resolve }; this.carryV = 0; });
     }
     /** Turn to a heading. dir: 'cw' (to the right, heading decreasing) | 'ccw' | undefined (shortest). */
     turnTo(h, dir) {
@@ -720,7 +721,7 @@
     update(dt, heightAt) {
       // walking: a person's, with somewhere to get to, a way of getting there, and an eye on who else is about
       if (this.walk) this.stepWalk(this.walk, dt);
-      else { this.stepping = false; this.walkLook = null; }
+      else { this.stepping = false; this.walkLook = null; this.carryV = 0; }      // the way on from a point passed is taken at once, or it is a fresh start
       if (this.turn) {
         const t = this.turn, d = t.to - this.heading, step = t.rate * dt;
         if (Math.abs(d) <= step) { this.heading = wrap(t.to); this.turn = null; t.resolve(t.signed); }
