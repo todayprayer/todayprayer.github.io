@@ -435,11 +435,13 @@
       excluded_topics: ["historical", "catechism", "council", "encyclical"],
       days_own: true
     });
-    var hexcerpt = take({ included_topics: ["historical"] });
-
     var fixed = data.fixed;
     var hymnIndex = data.hymns.byDate[iso];
     var hasHoliday = hymnIndex !== undefined;
+    // A holiday with a reading of its own has it in the third reading's
+    // place, and draws no third reading: generate_page.build_page.
+    var holidayReading = hasHoliday ? data.hymns.pool[hymnIndex].reading : undefined;
+    var hexcerpt = holidayReading ? null : take({ included_topics: ["historical"] });
     var verseBody = data.verses.pool[data.verses.byDate[iso]];
     if (verseBody === undefined) {
       throw new Error("office_data.json does not cover " + iso
@@ -506,9 +508,12 @@
       { id: "reading-general", title: "From “" + excerpt.title + "”",
         body: renderExcerpt(excerpt, true),
         label: "Second reading — spiritual writing" },
-      { id: "reading-historical", title: "From “" + hexcerpt.title + "”",
-        body: renderExcerpt(hexcerpt, !sunday),
-        label: "Third reading — history and lives", auto: !sunday, rule: "weekdays" },
+      holidayReading
+        ? { id: "reading-historical", title: holidayReading.title, body: holidayReading.body,
+            label: "Third reading — history and lives", required: true }
+        : { id: "reading-historical", title: "From “" + hexcerpt.title + "”",
+            body: renderExcerpt(hexcerpt, !sunday),
+            label: "Third reading — history and lives", auto: !sunday, rule: "weekdays" },
       { id: "suffrage", title: "Suffrage", body: fixed.suffrage },
       { id: "marian-canticle", title: piece.title, body: piece.body,
         label: marian.labels.canticle, auto: herDay, rule: "feasts of Our Lady" },

@@ -3,7 +3,9 @@
 These are civil observances, not liturgical ones, so they are kept out of
 calendar_1962: they neither rank against a feast nor displace one. A holiday
 adds two things to the page — the Pledge of Allegiance, which it keeps even on
-a Sunday, and a hymn.
+a Sunday, and a hymn. Thanksgiving adds a third: President Washington's
+proclamation of the first national Thanksgiving, read whole in place of the
+third reading and not to be switched off.
 
 The dates are the federal ones, four of them movable by the Monday Holiday Act:
 
@@ -22,6 +24,7 @@ import datetime
 from typing import NamedTuple
 
 import prayers
+from book_excerpts import Excerpt
 
 MONDAY, THURSDAY = 0, 3
 
@@ -30,6 +33,10 @@ class Holiday(NamedTuple):
     name: str
     hymn_title: str
     hymn: list
+    # A reading of the day's own, which takes the third reading's place and
+    # its section, under its own title. Most holidays have none.
+    reading_title: str = ""
+    reading: Excerpt | None = None
 
 
 def _nth_weekday(year: int, month: int, weekday: int, n: int) -> datetime.date:
@@ -74,6 +81,13 @@ HOLIDAYS = {
         "Thanksgiving Day",
         "The Stars and Stripes Forever",
         prayers.STARS_AND_STRIPES_FOREVER,
+        "President Washington’s Thanksgiving Proclamation",
+        Excerpt(
+            prayers.WASHINGTON_THANKSGIVING_PROCLAMATION,
+            "Thanksgiving Proclamation, 3 October 1789",
+            "George Washington",
+            "washington-thanksgiving-proclamation-1789",
+        ),
     ),
 }
 

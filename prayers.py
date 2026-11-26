@@ -396,6 +396,59 @@ ETERNAL_FATHER_STRONG_TO_SAVE = [
     Response("Amen."),
 ]
 
+# --- President Washington's Thanksgiving Proclamation -----------------------
+#
+# Read whole on Thanksgiving Day in place of the third reading; see
+# holidays_us. The first national proclamation of the day, which named
+# Thursday the 26th of November 1789.
+#
+# Transcribed from the signed manuscript in the National Archives (NARA
+# 299956), by way of Wikisource's proofread transcription of the scan, and
+# checked against the scan itself. The long s is printed as s, the dashes as
+# dashes, and the superscript of "26th" set on the line. One slip in the
+# Wikisource text is mended: it reads "whether in in public", where the
+# manuscript has "in" once. Washington's own capitals, and his lower-case
+# "a Proclamation" and "and also", are kept; the signature is set as the
+# manuscript abbreviates it.
+WASHINGTON_THANKSGIVING_PROCLAMATION = (
+    "By the President of the United States of America.\n"
+    "a Proclamation.\n\n"
+    "Whereas it is the duty of all Nations to acknowledge the providence of Almighty God, to "
+    "obey his will, to be grateful for his benefits, and humbly to implore his protection and "
+    "favor—and whereas both Houses of Congress have by their joint committee requested me "
+    "“to recommend to the People of the United States a day of public thanksgiving and prayer "
+    "to be offered by acknowledging with grateful hearts the many signal favors of Almighty "
+    "God, especially by affording them an opportunity peaceably to establish a form of "
+    "government for their safety and happiness.”\n\n"
+    "Now therefore I do recommend and assign Thursday the 26th day of November next to be "
+    "devoted by the People of these States to the service of that great and glorious Being, "
+    "who is the beneficent Author of all the good that was, that is, or that will be—that we "
+    "may then all unite in rendering unto him our sincere and humble thanks—for his kind care "
+    "and protection of the People of this country previous to their becoming a Nation—for "
+    "the signal and manifold mercies, and the favorable interpositions of his providence, "
+    "which we experienced in the course and conclusion of the late war—for the great degree "
+    "of tranquility, union, and plenty, which we have since enjoyed—for the peaceable and "
+    "rational manner in which we have been enabled to establish constitutions of government "
+    "for our safety and happiness, and particularly the national One now lately "
+    "instituted—for the civil and religious liberty with which we are blessed, and the means "
+    "we have of acquiring and diffusing useful knowledge; and in general for all the great "
+    "and various favors which he hath been pleased to confer upon us.\n\n"
+    "and also that we may then unite in most humbly offering our prayers and supplications to "
+    "the great Lord and Ruler of Nations and beseech him to pardon our national and other "
+    "Transgressions—to enable us all, whether in public or private stations, to perform our "
+    "several and relative duties properly and punctually—to render our national government "
+    "a blessing to all the People, by constantly being a government of wise, just, and "
+    "constitutional laws, discreetly and faithfully executed and obeyed—to protect and guide "
+    "all Sovereigns and Nations (especially such as have shown kindness unto us) and to bless "
+    "them with good government, peace, and concord—to promote the knowledge and practice of "
+    "true religion and virtue, and the encrease of science among them and us—and generally "
+    "to grant unto all mankind such a degree of temporal prosperity as he alone knows to be "
+    "best.\n\n"
+    "Given under my hand at the City of New York the third day of October in the year of our "
+    "Lord 1789.\n\n"
+    "Go: Washington"
+)
+
 TRIDENTINE_CREED = {
     "english": [
         "I, N., with a firm faith believe and profess each and everything which is contained in the Creed which the Holy Roman Church maketh use of. To wit:",

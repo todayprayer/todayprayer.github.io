@@ -1188,11 +1188,14 @@ def build_page(
         excluded_topics=['historical', 'catechism', 'council', 'encyclical'],
         days_own=True,
     )
-    hexcerpt = take(included_topics=['historical'])
+    holiday = holidays_us.holiday_for(day)
+    # A holiday with a reading of its own -- Thanksgiving, with Washington's
+    # proclamation -- has it in the third reading's place, and draws no third
+    # reading at all, so the one it would have drawn is left for another day.
+    hexcerpt = None if holiday and holiday.reading else take(included_topics=['historical'])
 
     lang_button = ' <button type="button" id="lang-btn" name="lang-btn" class="pill" data-next="latin">Latin</button>'
     sunday = day.weekday() == 6
-    holiday = holidays_us.holiday_for(day)
 
     # The whole office, in its customary order, whatever day it is. What used
     # to be decided here by splicing — Creed for Acts on a Sunday, the third
@@ -1243,6 +1246,9 @@ def build_page(
           label="First reading — catechism, council, encyclical", required=True),
         S("reading-general", f"From “{excerpt.title}”", render_excerpt(excerpt),
           label="Second reading — spiritual writing"),
+        S("reading-historical", holiday.reading_title, render_excerpt(holiday.reading),
+          label="Third reading — history and lives", required=True)
+        if hexcerpt is None else
         S("reading-historical", f"From “{hexcerpt.title}”",
           render_excerpt(hexcerpt, spent=not sunday),
           label="Third reading — history and lives", auto=not sunday, rule="weekdays"),

@@ -53,6 +53,7 @@ from generate_page import (
     SETTINGS_UI,
     marian_canticle,
     render_lang_prayer,
+    render_excerpt,
     render_marian,
     render_optional,
     render_prayer,
@@ -217,6 +218,13 @@ def holiday_bodies(days: list[datetime.date]) -> tuple[list[dict], dict[str, int
             "title": holiday.hymn_title,
             "body": render_prayer(holiday.hymn),
         }
+        # The holiday's own reading, rendered whole, where it has one: it
+        # takes the third reading's place, and the browser draws none.
+        if holiday.reading:
+            rendered["reading"] = {
+                "title": holiday.reading_title,
+                "body": render_excerpt(holiday.reading),
+            }
         key = json.dumps(rendered, ensure_ascii=False, sort_keys=True)
         if key not in seen:
             seen[key] = len(pool)
